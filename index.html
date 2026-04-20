@@ -752,28 +752,53 @@ async function loadDashboard(){
 }
 
 // ── PROPERTIES ────────────────────────────────────────
+let allProperties=[];
+
 async function loadProperties(){
-  const {data,error} = await sb.from('properties').select('*').order('created_at',{ascending:false});
-  const container = document.getElementById('properties-list');
+  const {data,error}=await sb.from('properties').select('*').order('created_at',{ascending:false});
+  const container=document.getElementById('properties-list');
   if(error||!data||data.length===0){
     container.innerHTML='<div class="loading">No properties yet. Add your first property to get started.</div>';
     return;
   }
-  let html=`<table><thead><tr><th>Address</th><th>Phase</th><th>Company Side</th><th>Customer Side</th><th>MapCall ID</th></tr></thead><tbody>`;
+  allProperties=data;
+  renderPropertiesTable(data);
+}
+
+function renderPropertiesTable(data){
+  const container=document.getElementById('properties-list');
+  if(!data||data.length===0){
+    container.innerHTML='<div class="loading">No properties match your search.</div>';
+    return;
+  }
+  let html=`<table><thead><tr><th>Address</th><th>Phase</th><th>Co.</th><th>Cu.</th><th>MapCall</th></tr></thead><tbody>`;
   data.forEach(p=>{
     const phaseClass='ph-'+(p.current_phase||'pending').replace(/_/g,'');
-    const cmClass = p.company_material==='lead'?'mat-lead':p.company_material==='copper'?'mat-copper':p.company_material==='galvanized'?'mat-galvanized':'mat-unknown';
-    const ckmClass = p.customer_material==='lead'?'mat-lead':p.customer_material==='copper'?'mat-copper':p.customer_material==='galvanized'?'mat-galvanized':'mat-unknown';
+    const cmClass=p.company_material==='lead'?'mat-lead':p.company_material==='copper'?'mat-copper':p.company_material==='galvanized'?'mat-galvanized':'mat-unknown';
+    const ckmClass=p.customer_material==='lead'?'mat-lead':p.customer_material==='copper'?'mat-copper':p.customer_material==='galvanized'?'mat-galvanized':'mat-unknown';
     html+=`<tr>
-      <td><div style="font-weight:600;color:var(--white)">${p.address}</div><div style="font-size:11px;color:var(--muted)">${p.address}, ${p.city||''}, NJ ${p.zip||''} · Lot ${p.lot_block||'—'}</div></td>
+      <td><div style="font-weight:600;color:var(--white)">${p.address}</div><div style="font-size:11px;color:var(--muted)">${p.city||''}, NJ</div></td>
       <td><span class="phase-badge ${phaseClass}">${(p.current_phase||'pending').replace(/_/g,' ')}</span></td>
-      <td class="${cmClass}">${p.company_material||'unknown'}</td>
-      <td class="${ckmClass}">${p.customer_material||'unknown'}</td>
-      <td style="font-size:12px;color:var(--muted)">${p.mapcall_id||'—'}</td>
+      <td class="${cmClass}">${p.company_material||'—'}</td>
+      <td class="${ckmClass}">${p.customer_material||'—'}</td>
+      <td style="font-size:11px;color:var(--muted)">${p.mapcall_id||'—'}</td>
     </tr>`;
   });
   html+=`</tbody></table>`;
   container.innerHTML=html;
+}
+
+function filterProperties(query){
+  if(!query.trim()){renderPropertiesTable(allProperties);return;}
+  const q=query.toLowerCase();
+  const filtered=allProperties.filter(p=>
+    (p.address||'').toLowerCase().includes(q)||
+    (p.city||'').toLowerCase().includes(q)||
+    (p.lot_block||'').toLowerCase().includes(q)||
+    (p.mapcall_id||'').toLowerCase().includes(q)||
+    (p.zip||'').toLowerCase().includes(q)
+  );
+  renderPropertiesTable(filtered);
 }
 
 async function loadPropertySelect(){
