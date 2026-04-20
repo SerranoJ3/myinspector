@@ -1251,31 +1251,8 @@ function mobileNav(panel,btnId){
   document.querySelectorAll('.mob-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById(btnId).classList.add('active');
 }
-</script><div style="padding:0 16px 16px">
-  <div style="position:relative">
-    <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;pointer-events:none">🔍</span>
-    <input style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px 10px 36px;font-size:13px;color:var(--white);font-family:'Source Sans 3',sans-serif;outline:none;" type="text" id="prop-search" placeholder="Search address, city, lot, MapCall ID..." oninput="filterProperties(this.value)">
-  </div>
-</div>
-<div class="mobile-nav" id="mobile-nav">
-  <div class="mob-btn active" id="mob-dashboard" onclick="mobileNav('dashboard','mob-dashboard')">
-    <div class="mob-icon">📊</div>Dashboard
-  </div>
-  <div class="mob-btn" id="mob-properties" onclick="mobileNav('properties','mob-properties')">
-    <div class="mob-icon">🏠</div>Properties
-  </div>
-  <div class="mob-btn" id="mob-submit" onclick="mobileNav('submit','mob-submit')">
-    <div class="mob-icon">📋</div>Submit
-  </div>
-  <div class="mob-btn" id="mob-submissions" onclick="mobileNav('submissions','mob-submissions')">
-    <div class="mob-icon">📁</div>History
-  </div>
-</div>
-<script>
-function mobileNav(panel,btnId){
-  showPanel(panel);
-  document.querySelectorAll('.mob-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById(btnId).classList.add('active');
-}
+
+
+
 </script></body>
 </html>
