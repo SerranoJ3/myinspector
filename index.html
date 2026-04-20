@@ -262,6 +262,32 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
   .sidebar{display:none}
   .stat-grid{grid-template-columns:repeat(2,1fr)}
   .modal-row{grid-template-columns:1fr}
+  .content{padding:12px}
+  .topnav{padding:0 12px}
+  .nav-user{display:none}
+  .page-title{font-size:20px}
+  .stat-val{font-size:24px}
+  table{font-size:11px}
+  th,td{padding:8px 10px}
+  .table-header{padding:10px 12px;flex-wrap:wrap;gap:6px}
+  .btn-sm{font-size:11px;padding:5px 10px}
+  .phase-badge{font-size:9px;padding:2px 7px}
+  .mobile-nav{display:flex !important}
+  .main{flex-direction:column}
+}
+.mobile-nav{
+  display:none;position:fixed;bottom:0;left:0;right:0;
+  height:60px;background:var(--surface);
+  border-top:1px solid var(--border);z-index:100;
+  justify-content:space-around;align-items:center;padding-bottom:4px;
+}
+.mob-btn{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  font-size:9px;color:var(--muted);cursor:pointer;padding:6px 12px;
+  letter-spacing:.04em;text-transform:uppercase;
+}
+.mob-btn.active{color:var(--orange)}
+.mob-icon{font-size:20px;line-height:1}
 }
 </style>
 </head>
@@ -1127,5 +1153,25 @@ sb.auth.getSession().then(({data:{session}})=>{
   if(session?.user) initApp(session.user);
 });
 </script>
-</body>
+<div class="mobile-nav" id="mobile-nav">
+  <div class="mob-btn active" id="mob-dashboard" onclick="mobileNav('dashboard','mob-dashboard')">
+    <div class="mob-icon">📊</div>Dashboard
+  </div>
+  <div class="mob-btn" id="mob-properties" onclick="mobileNav('properties','mob-properties')">
+    <div class="mob-icon">🏠</div>Properties
+  </div>
+  <div class="mob-btn" id="mob-submit" onclick="mobileNav('submit','mob-submit')">
+    <div class="mob-icon">📋</div>Submit
+  </div>
+  <div class="mob-btn" id="mob-submissions" onclick="mobileNav('submissions','mob-submissions')">
+    <div class="mob-icon">📁</div>History
+  </div>
+</div>
+<script>
+function mobileNav(panel,btnId){
+  showPanel(panel);
+  document.querySelectorAll('.mob-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(btnId).classList.add('active');
+}
+</script></body>
 </html>
