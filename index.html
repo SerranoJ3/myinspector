@@ -298,6 +298,100 @@ html,body{overflow-x:hidden}
 }
 .search-input:focus{border-color:var(--blue-light)}
 .search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;pointer-events:none}
+
+/* LUIS AI CHAT */
+.luis-bubble{
+  position:fixed;bottom:80px;right:20px;z-index:500;
+  width:52px;height:52px;border-radius:50%;
+  background:var(--orange);border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;
+  color:#0A0E14;transition:all .2s;
+  box-shadow:0 4px 20px rgba(244,168,32,0.4);
+}
+.luis-bubble:hover{transform:scale(1.08)}
+.luis-badge{
+  position:absolute;top:-4px;right:-4px;
+  width:16px;height:16px;border-radius:50%;
+  background:var(--green);border:2px solid var(--bg);
+}
+.luis-panel{
+  position:fixed;bottom:140px;right:20px;z-index:500;
+  width:340px;max-height:500px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:16px;display:none;flex-direction:column;
+  overflow:hidden;
+  box-shadow:0 8px 40px rgba(0,0,0,0.5);
+}
+.luis-panel.open{display:flex}
+.luis-header{
+  padding:14px 16px;background:var(--surface2);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+}
+.luis-avatar{
+  width:32px;height:32px;border-radius:50%;
+  background:var(--orange);display:flex;align-items:center;justify-content:center;
+  font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:#0A0E14;
+  flex-shrink:0;
+}
+.luis-header-text{flex:1}
+.luis-name{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;color:var(--white)}
+.luis-status{font-size:10px;color:var(--green)}
+.luis-close{background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:2px}
+.luis-messages{
+  flex:1;overflow-y:auto;padding:12px;
+  display:flex;flex-direction:column;gap:8px;
+  max-height:340px;
+}
+.luis-messages::-webkit-scrollbar{width:4px}
+.luis-messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.msg{max-width:85%;padding:8px 12px;border-radius:12px;font-size:12px;line-height:1.5}
+.msg-luis{
+  background:var(--surface2);color:var(--white);
+  border-radius:12px 12px 12px 2px;align-self:flex-start;
+}
+.msg-user{
+  background:var(--blue);color:var(--white);
+  border-radius:12px 12px 2px 12px;align-self:flex-end;
+}
+.msg-typing{
+  background:var(--surface2);color:var(--muted);
+  border-radius:12px 12px 12px 2px;align-self:flex-start;
+  font-style:italic;
+}
+.luis-input-row{
+  padding:10px 12px;border-top:1px solid var(--border);
+  display:flex;gap:8px;align-items:center;
+}
+.luis-input{
+  flex:1;background:var(--surface2);border:1px solid var(--border);
+  border-radius:20px;padding:8px 14px;font-size:12px;color:var(--white);
+  font-family:'Source Sans 3',sans-serif;outline:none;
+}
+.luis-input:focus{border-color:var(--orange)}
+.luis-send{
+  width:32px;height:32px;border-radius:50%;
+  background:var(--orange);border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;color:#0A0E14;flex-shrink:0;transition:all .2s;
+}
+.luis-send:hover{background:var(--orange-light)}
+.luis-suggestions{
+  padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap;
+  border-bottom:1px solid var(--border);
+}
+.luis-sug{
+  font-size:10px;padding:4px 10px;border-radius:99px;
+  background:rgba(244,168,32,0.1);border:1px solid rgba(244,168,32,0.25);
+  color:var(--orange);cursor:pointer;transition:all .15s;
+}
+.luis-sug:hover{background:rgba(244,168,32,0.2)}
+@media(max-width:768px){
+  .luis-panel{width:calc(100vw - 40px);right:20px}
+  .luis-bubble{bottom:70px}
+}
+
 </style>
 </head>
 <body>
@@ -752,53 +846,28 @@ async function loadDashboard(){
 }
 
 // ── PROPERTIES ────────────────────────────────────────
-let allProperties=[];
-
 async function loadProperties(){
-  const {data,error}=await sb.from('properties').select('*').order('created_at',{ascending:false});
-  const container=document.getElementById('properties-list');
+  const {data,error} = await sb.from('properties').select('*').order('created_at',{ascending:false});
+  const container = document.getElementById('properties-list');
   if(error||!data||data.length===0){
     container.innerHTML='<div class="loading">No properties yet. Add your first property to get started.</div>';
     return;
   }
-  allProperties=data;
-  renderPropertiesTable(data);
-}
-
-function renderPropertiesTable(data){
-  const container=document.getElementById('properties-list');
-  if(!data||data.length===0){
-    container.innerHTML='<div class="loading">No properties match your search.</div>';
-    return;
-  }
-  let html=`<table><thead><tr><th>Address</th><th>Phase</th><th>Co.</th><th>Cu.</th><th>MapCall</th></tr></thead><tbody>`;
+  let html=`<table><thead><tr><th>Address</th><th>Phase</th><th>Company Side</th><th>Customer Side</th><th>MapCall ID</th></tr></thead><tbody>`;
   data.forEach(p=>{
     const phaseClass='ph-'+(p.current_phase||'pending').replace(/_/g,'');
-    const cmClass=p.company_material==='lead'?'mat-lead':p.company_material==='copper'?'mat-copper':p.company_material==='galvanized'?'mat-galvanized':'mat-unknown';
-    const ckmClass=p.customer_material==='lead'?'mat-lead':p.customer_material==='copper'?'mat-copper':p.customer_material==='galvanized'?'mat-galvanized':'mat-unknown';
+    const cmClass = p.company_material==='lead'?'mat-lead':p.company_material==='copper'?'mat-copper':p.company_material==='galvanized'?'mat-galvanized':'mat-unknown';
+    const ckmClass = p.customer_material==='lead'?'mat-lead':p.customer_material==='copper'?'mat-copper':p.customer_material==='galvanized'?'mat-galvanized':'mat-unknown';
     html+=`<tr>
-      <td><div style="font-weight:600;color:var(--white)">${p.address}</div><div style="font-size:11px;color:var(--muted)">${p.city||''}, NJ</div></td>
+      <td><div style="font-weight:600;color:var(--white)">${p.address}</div><div style="font-size:11px;color:var(--muted)">${p.address}, ${p.city||''}, NJ ${p.zip||''} · Lot ${p.lot_block||'—'}</div></td>
       <td><span class="phase-badge ${phaseClass}">${(p.current_phase||'pending').replace(/_/g,' ')}</span></td>
-      <td class="${cmClass}">${p.company_material||'—'}</td>
-      <td class="${ckmClass}">${p.customer_material||'—'}</td>
-      <td style="font-size:11px;color:var(--muted)">${p.mapcall_id||'—'}</td>
+      <td class="${cmClass}">${p.company_material||'unknown'}</td>
+      <td class="${ckmClass}">${p.customer_material||'unknown'}</td>
+      <td style="font-size:12px;color:var(--muted)">${p.mapcall_id||'—'}</td>
     </tr>`;
   });
   html+=`</tbody></table>`;
   container.innerHTML=html;
-}
-
-function filterProperties(query){
-  if(!query.trim()){renderPropertiesTable(allProperties);return;}
-  const q=query.toLowerCase();
-  const filtered=allProperties.filter(p=>
-    (p.address||'').toLowerCase().includes(q)||
-    (p.city||'').toLowerCase().includes(q)||
-    (p.lot_block||'').toLowerCase().includes(q)||
-    (p.mapcall_id||'').toLowerCase().includes(q)||
-    (p.zip||'').toLowerCase().includes(q)
-  );
-  renderPropertiesTable(filtered);
 }
 
 async function loadPropertySelect(){
@@ -1190,5 +1259,134 @@ function mobileNav(panel,btnId){
   document.getElementById(btnId).classList.add('active');
 }
 </script>
+
+<!-- LUIS AI ASSISTANT -->
+<button class="luis-bubble" onclick="toggleLuis()" title="Ask Luis">
+  L
+  <div class="luis-badge"></div>
+</button>
+
+<div class="luis-panel" id="luis-panel">
+  <div class="luis-header">
+    <div class="luis-avatar">L</div>
+    <div class="luis-header-text">
+      <div class="luis-name">Luis</div>
+      <div class="luis-status">&#9679; Online — AI Field Assistant</div>
+    </div>
+    <button class="luis-close" onclick="toggleLuis()">&#x2715;</button>
+  </div>
+  <div class="luis-suggestions" id="luis-suggestions">
+    <div class="luis-sug" onclick="askLuis('What is the work code for a full lead service line replacement?')">LSL work codes</div>
+    <div class="luis-sug" onclick="askLuis('What phases require a whiteboard in the photo?')">Whiteboard rules</div>
+    <div class="luis-sug" onclick="askLuis('What does ADA ramp compliance require for slope?')">ADA slope rules</div>
+    <div class="luis-sug" onclick="askLuis('What is the six phase LCRI workflow?')">LCRI phases</div>
+  </div>
+  <div class="luis-messages" id="luis-messages">
+    <div class="msg msg-luis">Hey! I'm Luis, your AI field assistant. Ask me anything about LCRI compliance, work codes, phase requirements, ADA specs, or any other field question.</div>
+  </div>
+  <div class="luis-input-row">
+    <input class="luis-input" id="luis-input" type="text" placeholder="Ask Luis anything..." onkeydown="if(event.key==='Enter') sendToLuis()">
+    <button class="luis-send" onclick="sendToLuis()">&#10148;</button>
+  </div>
+</div>
+
+<script>
+let luisOpen = false;
+
+function toggleLuis(){
+  luisOpen = !luisOpen;
+  document.getElementById('luis-panel').classList.toggle('open', luisOpen);
+  if(luisOpen) document.getElementById('luis-input').focus();
+}
+
+function askLuis(question){
+  document.getElementById('luis-input').value = question;
+  sendToLuis();
+}
+
+async function sendToLuis(){
+  const input = document.getElementById('luis-input');
+  const question = input.value.trim();
+  if(!question) return;
+  input.value = '';
+
+  const messages = document.getElementById('luis-messages');
+
+  // Add user message
+  const userMsg = document.createElement('div');
+  userMsg.className = 'msg msg-user';
+  userMsg.textContent = question;
+  messages.appendChild(userMsg);
+
+  // Add typing indicator
+  const typing = document.createElement('div');
+  typing.className = 'msg msg-typing';
+  typing.id = 'luis-typing';
+  typing.textContent = 'Luis is thinking...';
+  messages.appendChild(typing);
+  messages.scrollTop = messages.scrollHeight;
+
+  // Hide suggestions after first message
+  document.getElementById('luis-suggestions').style.display = 'none';
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: `You are Luis, an AI field assistant embedded in MyInspector — a field inspection platform for engineering firms doing LCRI (Lead and Copper Rule Improvements) water utility work and municipal infrastructure inspections.
+
+You help field inspectors and project managers with:
+- LCRI compliance questions and work codes
+- Six-phase workflow: Test Pit, Assessment, Work Order, Service Work, GIS Documentation, Restoration
+- Whiteboard photo requirements (only required at curbstop, watermain, and restoration — when there is an open excavation)
+- Pipe material identification (lead, copper, galvanized)
+- MapCall data entry requirements
+- ADA compliance (ramp slopes max 1:12 ratio = 8.33%, truncated domes, curb cuts min 36" wide)
+- Roadway and pavement inspection codes
+- General construction oversight questions
+- DEP, EPA, and NJAW regulatory requirements
+
+Keep answers concise and practical — inspectors are in the field and need quick, accurate answers. Use bullet points for lists. Be direct and use field-appropriate language.`,
+        messages: [{role: 'user', content: question}]
+      })
+    });
+
+    const data = await resp.json();
+    const answer = data.content?.map(c => c.text || '').join('') || 'Sorry, I could not get an answer right now. Try again.';
+
+    // Remove typing indicator
+    document.getElementById('luis-typing')?.remove();
+
+    // Add Luis response
+    const luisMsg = document.createElement('div');
+    luisMsg.className = 'msg msg-luis';
+    luisMsg.textContent = answer;
+    messages.appendChild(luisMsg);
+    messages.scrollTop = messages.scrollHeight;
+
+    // Save to Supabase if user logged in
+    if(currentUser){
+      await sb.from('luis_conversations').insert({
+        user_id: currentUser.id,
+        question,
+        answer,
+        module_key: 'water'
+      });
+    }
+
+  } catch(e) {
+    document.getElementById('luis-typing')?.remove();
+    const errMsg = document.createElement('div');
+    errMsg.className = 'msg msg-luis';
+    errMsg.textContent = 'Connection issue — try again in a moment.';
+    messages.appendChild(errMsg);
+    messages.scrollTop = messages.scrollHeight;
+  }
+}
+</script>
+
 </body>
 </html>
