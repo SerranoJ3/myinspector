@@ -288,6 +288,35 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 }
 .mob-btn.active{color:var(--orange)}
 .mob-icon{font-size:20px;line-height:1}
+html,body{overflow-x:hidden}
+.content{overflow-x:hidden}
+table{table-layout:fixed;word-break:break-word}
+  .content{padding:12px}
+  .topnav{padding:0 12px}
+  .nav-user{display:none}
+  .page-title{font-size:20px}
+  .stat-val{font-size:24px}
+  table{font-size:11px}
+  th,td{padding:8px 10px}
+  .table-header{padding:10px 12px;flex-wrap:wrap;gap:6px}
+  .btn-sm{font-size:11px;padding:5px 10px}
+  .phase-badge{font-size:9px;padding:2px 7px}
+  .mobile-nav{display:flex !important}
+  .main{flex-direction:column}
+}
+.mobile-nav{
+  display:none;position:fixed;bottom:0;left:0;right:0;
+  height:60px;background:var(--surface);
+  border-top:1px solid var(--border);z-index:100;
+  justify-content:space-around;align-items:center;padding-bottom:4px;
+}
+.mob-btn{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  font-size:9px;color:var(--muted);cursor:pointer;padding:6px 12px;
+  letter-spacing:.04em;text-transform:uppercase;
+}
+.mob-btn.active{color:var(--orange)}
+.mob-icon{font-size:20px;line-height:1}
 }
 </style>
 </head>
@@ -429,7 +458,7 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
               <div class="page-title">Properties</div>
               <div class="page-sub">All LCRI properties in your project</div>
             </div>
-            <button class="btn-sm btn-orange" onclick="openAddProperty()">+ Add Property</button>
+            <button class="btn-sm btn-orange" onclick="openAddProperty()">+ Add Property</button><button class="btn-sm btn-ghost" onclick="loadSampleProperties()">Load 10 Sample Properties</button>
             <button class="btn-sm btn-ghost" onclick="loadSampleProperties()">Load 10 Sample Properties</button>
           </div>
         </div>
@@ -740,27 +769,15 @@ async function loadDashboard(){
 
 // ── PROPERTIES ────────────────────────────────────────
 async function loadProperties(){
-  const {data,error} = await sb.from('properties').select('*').order('created_at',{ascending:false});
-  const container = document.getElementById('properties-list');
+  const {data,error}=await sb.from('properties').select('*').order('created_at',{ascending:false});
+  const container=document.getElementById('properties-list');
   if(error||!data||data.length===0){
     container.innerHTML='<div class="loading">No properties yet. Add your first property to get started.</div>';
     return;
   }
-  let html=`<table><thead><tr><th>Address</th><th>Phase</th><th>Company Side</th><th>Customer Side</th><th>MapCall ID</th></tr></thead><tbody>`;
-  data.forEach(p=>{
-    const phaseClass='ph-'+(p.current_phase||'pending').replace(/_/g,'');
-    const cmClass = p.company_material==='lead'?'mat-lead':p.company_material==='copper'?'mat-copper':p.company_material==='galvanized'?'mat-galvanized':'mat-unknown';
-    const ckmClass = p.customer_material==='lead'?'mat-lead':p.customer_material==='copper'?'mat-copper':p.customer_material==='galvanized'?'mat-galvanized':'mat-unknown';
-    html+=`<tr>
-      <td><div style="font-weight:600;color:var(--white)">${p.address}</div><div style="font-size:11px;color:var(--muted)">${p.address}, ${p.city||''}, NJ ${p.zip||''} · Lot ${p.lot_block||'—'}</div></td>
-      <td><span class="phase-badge ${phaseClass}">${(p.current_phase||'pending').replace(/_/g,' ')}</span></td>
-      <td class="${cmClass}">${p.company_material||'unknown'}</td>
-      <td class="${ckmClass}">${p.customer_material||'unknown'}</td>
-      <td style="font-size:12px;color:var(--muted)">${p.mapcall_id||'—'}</td>
-    </tr>`;
-  });
-  html+=`</tbody></table>`;
-  container.innerHTML=html;
+  allProperties=data;
+  renderPropertiesTable(data);
+}
 }
 
 async function loadPropertySelect(){
@@ -1144,6 +1161,67 @@ async function loadSampleProperties(){
   await loadProperties();
   await loadPropertySelect();
   await loadDashboard();
+}async function loadSampleProperties(){
+  const props=[
+    {address:"123 Oak Street",city:"Edison",zip:"08817",lot_block:"14-22",company_material:"copper",customer_material:"lead",mapcall_id:"NJAW-4471",current_phase:"test_pit"},
+    {address:"456 Elm Avenue",city:"Edison",zip:"08817",lot_block:"8-11",company_material:"copper",customer_material:"lead",mapcall_id:"NJAW-4472",current_phase:"assessment"},
+    {address:"789 Pine Road",city:"Woodbridge",zip:"07095",lot_block:"21-5",company_material:"unknown",customer_material:"unknown",mapcall_id:"NJAW-4473",current_phase:"test_pit"},
+    {address:"34 Maple Drive",city:"Edison",zip:"08820",lot_block:"3-17",company_material:"galvanized",customer_material:"lead",mapcall_id:"NJAW-4474",current_phase:"test_pit"},
+    {address:"91 Grove Avenue",city:"Edison",zip:"08817",lot_block:"9-14",company_material:"copper",customer_material:"copper",mapcall_id:"NJAW-4475",current_phase:"service"},
+    {address:"220 Cedar Lane",city:"Metuchen",zip:"08840",lot_block:"6-33",company_material:"unknown",customer_material:"lead",mapcall_id:"NJAW-4476",current_phase:"test_pit"},
+    {address:"15 Birch Street",city:"Edison",zip:"08817",lot_block:"11-8",company_material:"copper",customer_material:"lead",mapcall_id:"NJAW-4477",current_phase:"gis_docs"},
+    {address:"67 Walnut Court",city:"Woodbridge",zip:"07095",lot_block:"18-41",company_material:"galvanized",customer_material:"galvanized",mapcall_id:"NJAW-4478",current_phase:"test_pit"},
+    {address:"310 Spruce Boulevard",city:"Edison",zip:"08820",lot_block:"22-6",company_material:"copper",customer_material:"unknown",mapcall_id:"NJAW-4479",current_phase:"assessment"},
+    {address:"88 Willow Way",city:"Edison",zip:"08817",lot_block:"5-29",company_material:"unknown",customer_material:"lead",mapcall_id:"NJAW-4480",current_phase:"test_pit"},
+  ];
+  showToast("Loading 10 properties...","success");
+  let success=0;
+  for(const p of props){
+    const {error}=await sb.from("properties").insert({...p,state:"NJ",firm_id:null});
+    if(!error) success++;
+  }
+  showToast(success+" properties loaded!","success");
+  await loadProperties();
+  await loadPropertySelect();
+  await loadDashboard();
+}
+
+let allProperties=[];
+
+function renderPropertiesTable(data){
+  const container=document.getElementById('properties-list');
+  if(!data||data.length===0){
+    container.innerHTML='<div class="loading">No properties match your search.</div>';
+    return;
+  }
+  let html=`<table><thead><tr><th>Address</th><th>Phase</th><th>Co. Side</th><th>Cu. Side</th><th>MapCall</th></tr></thead><tbody>`;
+  data.forEach(p=>{
+    const phaseClass='ph-'+(p.current_phase||'pending').replace(/_/g,'');
+    const cmClass=p.company_material==='lead'?'mat-lead':p.company_material==='copper'?'mat-copper':p.company_material==='galvanized'?'mat-galvanized':'mat-unknown';
+    const ckmClass=p.customer_material==='lead'?'mat-lead':p.customer_material==='copper'?'mat-copper':p.customer_material==='galvanized'?'mat-galvanized':'mat-unknown';
+    html+=`<tr>
+      <td><div style="font-weight:600;color:var(--white)">${p.address}</div><div style="font-size:11px;color:var(--muted)">${p.city||''}, NJ</div></td>
+      <td><span class="phase-badge ${phaseClass}">${(p.current_phase||'pending').replace(/_/g,' ')}</span></td>
+      <td class="${cmClass}">${p.company_material||'—'}</td>
+      <td class="${ckmClass}">${p.customer_material||'—'}</td>
+      <td style="font-size:11px;color:var(--muted)">${p.mapcall_id||'—'}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table>`;
+  container.innerHTML=html;
+}
+
+function filterProperties(query){
+  if(!query.trim()){renderPropertiesTable(allProperties);return;}
+  const q=query.toLowerCase();
+  const filtered=allProperties.filter(p=>
+    (p.address||'').toLowerCase().includes(q)||
+    (p.city||'').toLowerCase().includes(q)||
+    (p.lot_block||'').toLowerCase().includes(q)||
+    (p.mapcall_id||'').toLowerCase().includes(q)||
+    (p.zip||'').toLowerCase().includes(q)
+  );
+  renderPropertiesTable(filtered);
 }// ── AUTO AUTH ─────────────────────────────────────────
 sb.auth.onAuthStateChange((event,session)=>{
   if(session?.user && !currentUser) initApp(session.user);
@@ -1153,6 +1231,32 @@ sb.auth.getSession().then(({data:{session}})=>{
   if(session?.user) initApp(session.user);
 });
 </script>
+<div class="mobile-nav" id="mobile-nav">
+  <div class="mob-btn active" id="mob-dashboard" onclick="mobileNav('dashboard','mob-dashboard')">
+    <div class="mob-icon">📊</div>Dashboard
+  </div>
+  <div class="mob-btn" id="mob-properties" onclick="mobileNav('properties','mob-properties')">
+    <div class="mob-icon">🏠</div>Properties
+  </div>
+  <div class="mob-btn" id="mob-submit" onclick="mobileNav('submit','mob-submit')">
+    <div class="mob-icon">📋</div>Submit
+  </div>
+  <div class="mob-btn" id="mob-submissions" onclick="mobileNav('submissions','mob-submissions')">
+    <div class="mob-icon">📁</div>History
+  </div>
+</div>
+<script>
+function mobileNav(panel,btnId){
+  showPanel(panel);
+  document.querySelectorAll('.mob-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(btnId).classList.add('active');
+}
+</script><div style="padding:0 16px 16px">
+  <div style="position:relative">
+    <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;pointer-events:none">🔍</span>
+    <input style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px 10px 36px;font-size:13px;color:var(--white);font-family:'Source Sans 3',sans-serif;outline:none;" type="text" id="prop-search" placeholder="Search address, city, lot, MapCall ID..." oninput="filterProperties(this.value)">
+  </div>
+</div>
 <div class="mobile-nav" id="mobile-nav">
   <div class="mob-btn active" id="mob-dashboard" onclick="mobileNav('dashboard','mob-dashboard')">
     <div class="mob-icon">📊</div>Dashboard
