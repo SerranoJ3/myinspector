@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyInspector — Field Operations</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0A0E14;--surface:#0F1520;--surface2:#141C2A;--surface3:#1A2235;
+  --blue:#1B3A6B;--blue-mid:#2B5299;--blue-light:#4A7CC4;
+  --orange:#F4A820;--orange-light:#F9C05A;
+  --green:#3D9B5E;--red:#C84A4A;--white:#EDF2F8;--muted:#5E7A9A;
+  --border:rgba(74,124,196,0.15);--radius:10px;
+}
+html,body{height:100%;font-family:'Source Sans 3',sans-serif;background:var(--bg);color:var(--white)}
+body{display:flex;flex-direction:column}
+
+/* AUTH */
+#auth-screen{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  background:var(--bg);padding:24px;
+}
+.auth-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:16px;padding:40px 36px;width:100%;max-width:420px;
+}
+.auth-logo{display:flex;align-items:center;gap:12px;margin-bottom:32px}
+.auth-title{font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;color:var(--white)}
+.auth-title span{color:var(--blue-light)}
+.auth-sub{font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.5}
+.field-label{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.field-input{
+  width:100%;background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:12px 14px;font-size:14px;color:var(--white);
+  font-family:'Source Sans 3',sans-serif;outline:none;margin-bottom:16px;
+  transition:border-color .2s;
+}
+.field-input:focus{border-color:var(--blue-light)}
+.btn-primary{
+  width:100%;background:var(--orange);color:#0A0E14;border:none;
+  border-radius:var(--radius);padding:14px;
+  font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:all .2s;
+}
+.btn-primary:hover{background:var(--orange-light)}
+.auth-toggle{text-align:center;margin-top:16px;font-size:13px;color:var(--muted)}
+.auth-toggle a{color:var(--blue-light);cursor:pointer;text-decoration:none}
+.auth-error{background:rgba(200,74,74,0.12);border:1px solid rgba(200,74,74,0.3);
+  border-radius:var(--radius);padding:10px 14px;font-size:12px;color:#E88888;
+  margin-bottom:16px;display:none}
+
+/* APP LAYOUT */
+#app{flex:1;display:none;flex-direction:column;overflow:hidden}
+
+/* TOP NAV */
+.topnav{
+  height:56px;background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;flex-shrink:0;
+}
+.nav-brand{display:flex;align-items:center;gap:10px;font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700}
+.nav-brand span{color:var(--blue-light)}
+.nav-right{display:flex;align-items:center;gap:12px}
+.nav-user{font-size:12px;color:var(--muted)}
+.nav-logout{font-size:11px;padding:5px 12px;border:1px solid var(--border);border-radius:6px;
+  background:transparent;color:var(--muted);cursor:pointer;font-family:'Source Sans 3',sans-serif;transition:all .2s}
+.nav-logout:hover{border-color:var(--red);color:var(--red)}
+
+/* MAIN LAYOUT */
+.main{flex:1;display:flex;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{
+  width:220px;background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;
+}
+.sidebar-section{padding:20px 12px 8px;font-size:10px;font-weight:700;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.nav-link{
+  display:flex;align-items:center;gap:10px;padding:10px 14px;
+  font-size:13px;color:var(--muted);cursor:pointer;border-radius:var(--radius);
+  margin:2px 8px;transition:all .15s;border:1px solid transparent;
+}
+.nav-link:hover{background:var(--surface2);color:var(--white)}
+.nav-link.active{background:rgba(27,58,107,0.4);color:var(--blue-light);border-color:rgba(74,124,196,0.2)}
+.nav-icon{font-size:16px;width:20px;text-align:center}
+.sidebar-bottom{margin-top:auto;padding:16px 12px;border-top:1px solid var(--border)}
+.user-badge{
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
+  padding:10px 12px;display:flex;align-items:center;gap:10px;
+}
+.user-avatar{
+  width:32px;height:32px;border-radius:8px;background:var(--blue);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;flex-shrink:0;
+}
+.user-name{font-size:12px;font-weight:600;color:var(--white)}
+.user-role{font-size:10px;color:var(--muted);margin-top:1px}
+
+/* CONTENT */
+.content{flex:1;overflow-y:auto;padding:24px}
+.content::-webkit-scrollbar{width:6px}
+.content::-webkit-scrollbar-track{background:transparent}
+.content::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* PANELS */
+.panel{display:none}
+.panel.active{display:block}
+
+/* PAGE HEADER */
+.page-header{margin-bottom:24px}
+.page-title{font-family:'Rajdhani',sans-serif;font-size:26px;font-weight:700;
+  color:var(--white);margin-bottom:4px}
+.page-sub{font-size:13px;color:var(--muted)}
+
+/* STAT CARDS */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px 18px}
+.stat-val{font-family:'Rajdhani',sans-serif;font-size:32px;font-weight:700;
+  color:var(--white);line-height:1;margin-bottom:4px}
+.stat-label{font-size:11px;color:var(--muted);letter-spacing:.04em}
+.stat-card.orange .stat-val{color:var(--orange)}
+.stat-card.green .stat-val{color:var(--green)}
+.stat-card.red .stat-val{color:var(--red)}
+.stat-card.blue .stat-val{color:var(--blue-light)}
+
+/* TABLE */
+.table-wrap{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
+.table-header{padding:14px 18px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between}
+.table-title{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;
+  color:var(--white);letter-spacing:.04em;text-transform:uppercase}
+table{width:100%;border-collapse:collapse}
+th{padding:10px 16px;text-align:left;font-size:10px;font-weight:700;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+  border-bottom:1px solid var(--border)}
+td{padding:12px 16px;font-size:13px;color:rgba(237,242,248,0.8);
+  border-bottom:1px solid rgba(74,124,196,0.06)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
+.phase-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;
+  font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:.06em;text-transform:uppercase}
+.ph-testpit{background:rgba(139,127,208,0.15);color:#8B7FD0}
+.ph-assessment{background:rgba(74,124,196,0.15);color:var(--blue-light)}
+.ph-workorder{background:rgba(244,168,32,0.15);color:var(--orange)}
+.ph-service{background:rgba(244,168,32,0.2);color:var(--orange)}
+.ph-gis{background:rgba(2,128,144,0.15);color:#02C39A}
+.ph-restoration{background:rgba(61,155,94,0.15);color:var(--green)}
+.ph-complete{background:rgba(61,155,94,0.2);color:var(--green)}
+.ph-pending{background:rgba(94,122,154,0.15);color:var(--muted)}
+.mat-lead{color:var(--red);font-weight:600}
+.mat-copper{color:var(--green);font-weight:600}
+.mat-unknown{color:var(--muted)}
+.mat-galvanized{color:var(--orange)}
+
+/* BUTTONS */
+.btn-sm{padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;
+  cursor:pointer;transition:all .15s;font-family:'Source Sans 3',sans-serif;border:1px solid}
+.btn-orange{background:var(--orange);color:#0A0E14;border-color:var(--orange)}
+.btn-orange:hover{background:var(--orange-light)}
+.btn-ghost{background:transparent;color:var(--muted);border-color:var(--border)}
+.btn-ghost:hover{border-color:var(--blue-light);color:var(--blue-light)}
+.btn-green{background:rgba(61,155,94,0.15);color:var(--green);border-color:rgba(61,155,94,0.3)}
+.btn-green:hover{background:rgba(61,155,94,0.25)}
+
+/* MODAL */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;
+  display:none;align-items:center;justify-content:center;padding:20px;
+}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);
+  border-radius:16px;padding:28px;width:100%;max-width:560px;
+  max-height:90vh;overflow-y:auto;
+}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.modal-title{font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;color:var(--white)}
+.modal-close{background:transparent;border:none;color:var(--muted);font-size:20px;
+  cursor:pointer;padding:4px;line-height:1}
+.modal-close:hover{color:var(--white)}
+.modal-field{margin-bottom:14px}
+.modal-label{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:6px;display:block}
+.modal-input{width:100%;background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:10px 12px;font-size:13px;color:var(--white);
+  font-family:'Source Sans 3',sans-serif;outline:none;transition:border-color .2s}
+.modal-input:focus{border-color:var(--blue-light)}
+.modal-select{width:100%;background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:10px 12px;font-size:13px;color:var(--white);
+  font-family:'Source Sans 3',sans-serif;outline:none;-webkit-appearance:none}
+.modal-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-actions{display:flex;gap:10px;margin-top:20px;justify-content:flex-end}
+.wb-notice{background:rgba(244,168,32,0.08);border:1px solid rgba(244,168,32,0.25);
+  border-radius:var(--radius);padding:10px 14px;font-size:12px;color:var(--orange);
+  margin-bottom:14px;line-height:1.5}
+.wb-check-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;
+  background:rgba(244,168,32,0.06);border:1px solid rgba(244,168,32,0.2);
+  border-radius:var(--radius);padding:10px 14px;cursor:pointer}
+.wb-checkbox{width:18px;height:18px;border-radius:4px;border:2px solid var(--orange);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px}
+.wb-checkbox.checked{background:var(--green);border-color:var(--green);color:white}
+.wb-check-label{font-size:12px;color:var(--white);line-height:1.4}
+
+/* ALERT */
+.alert{border-radius:var(--radius);padding:12px 14px;margin-bottom:16px;
+  display:flex;align-items:flex-start;gap:10px;font-size:13px;line-height:1.5}
+.alert-orange{background:rgba(244,168,32,0.1);border:1px solid rgba(244,168,32,0.25)}
+.alert-red{background:rgba(200,74,74,0.1);border:1px solid rgba(200,74,74,0.25);color:#E88888}
+.alert-green{background:rgba(61,155,94,0.1);border:1px solid rgba(61,155,94,0.25);color:#6DCF9B}
+.alert-title{font-weight:700;display:block;margin-bottom:2px}
+.alert-orange .alert-title{color:var(--orange)}
+
+/* GPS PING */
+.gps-pill{display:inline-flex;align-items:center;gap:5px;background:rgba(61,155,94,0.12);
+  border:1px solid rgba(61,155,94,0.25);border-radius:99px;padding:3px 10px;
+  font-size:10px;color:var(--green);font-weight:600}
+.ping{width:5px;height:5px;border-radius:50%;background:var(--green);
+  animation:pingA 1.5s infinite}
+@keyframes pingA{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* FORM SECTIONS */
+.form-section{margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+.form-section:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.form-section-title{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;
+  color:var(--blue-light);letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px}
+
+/* TOAST */
+.toast{
+  position:fixed;bottom:24px;right:24px;z-index:2000;
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:12px 18px;font-size:13px;color:var(--white);
+  transform:translateY(80px);opacity:0;transition:all .3s;pointer-events:none;
+  box-shadow:0 8px 32px rgba(0,0,0,0.4);
+}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.success{border-color:rgba(61,155,94,0.4);color:var(--green)}
+.toast.error{border-color:rgba(200,74,74,0.4);color:#E88888}
+
+/* LOADING */
+.loading{text-align:center;padding:40px;color:var(--muted);font-size:13px}
+.spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border);
+  border-top-color:var(--blue-light);border-radius:50%;animation:spin .8s linear infinite;
+  margin-bottom:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* SERVICE TYPE GRID */
+.service-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.service-opt{background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:12px 10px;cursor:pointer;transition:all .2s;text-align:center}
+.service-opt:hover,.service-opt.selected{background:rgba(27,58,107,0.4);border-color:var(--blue-light)}
+.service-opt.selected .svc-name{color:var(--blue-light)}
+.svc-name{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:var(--white);display:block}
+.svc-sub{font-size:10px;color:var(--muted);display:block;margin-top:2px}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  .sidebar{display:none}
+  .stat-grid{grid-template-columns:repeat(2,1fr)}
+  .modal-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <svg width="32" height="38" viewBox="0 0 32 38" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="4" width="30" height="34" rx="3" fill="#1B3A6B" stroke="#4A7CC4" stroke-width=".8"/>
+        <rect x="9" y="0" width="14" height="8" rx="2.5" fill="#4A7CC4"/>
+        <rect x="11" y="1.5" width="10" height="5" rx="1.5" fill="#0A0E14"/>
+        <path d="M6 28 L11 33 L26 18" fill="none" stroke="#F4A820" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="auth-title"><span>My</span>Inspector</div>
+    </div>
+    <div class="auth-sub" id="auth-sub">Sign in to your field operations dashboard.</div>
+    <div class="auth-error" id="auth-error"></div>
+    <div id="login-form">
+      <div class="field-label">Email</div>
+      <input class="field-input" type="email" id="login-email" placeholder="you@firm.com">
+      <div class="field-label">Password</div>
+      <input class="field-input" type="password" id="login-password" placeholder="••••••••">
+      <button class="btn-primary" onclick="login()">Sign In</button>
+      <div class="auth-toggle">No account? <a onclick="showSignup()">Create one</a></div>
+    </div>
+    <div id="signup-form" style="display:none">
+      <div class="field-label">Full Name</div>
+      <input class="field-input" type="text" id="signup-name" placeholder="Marco Torres">
+      <div class="field-label">Email</div>
+      <input class="field-input" type="email" id="signup-email" placeholder="you@firm.com">
+      <div class="field-label">Password</div>
+      <input class="field-input" type="password" id="signup-password" placeholder="Min 6 characters">
+      <button class="btn-primary" onclick="signup()">Create Account</button>
+      <div class="auth-toggle">Have an account? <a onclick="showLogin()">Sign in</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <!-- TOP NAV -->
+  <div class="topnav">
+    <div class="nav-brand">
+      <svg width="24" height="28" viewBox="0 0 32 38" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="4" width="30" height="34" rx="3" fill="#1B3A6B" stroke="#4A7CC4" stroke-width=".8"/>
+        <path d="M6 28 L11 33 L26 18" fill="none" stroke="#F4A820" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span><span>My</span>Inspector</span>
+    </div>
+    <div class="nav-right">
+      <div class="gps-pill"><div class="ping"></div>GPS Active</div>
+      <div class="nav-user" id="nav-user-email"></div>
+      <button class="nav-logout" onclick="logout()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-section">Field Ops</div>
+      <div class="nav-link active" id="nav-dashboard" onclick="showPanel('dashboard')">
+        <span class="nav-icon">📊</span> Dashboard
+      </div>
+      <div class="nav-link" id="nav-properties" onclick="showPanel('properties')">
+        <span class="nav-icon">🏠</span> Properties
+      </div>
+      <div class="nav-link" id="nav-submit" onclick="showPanel('submit')">
+        <span class="nav-icon">📋</span> Submit Phase
+      </div>
+      <div class="sidebar-section">Office</div>
+      <div class="nav-link" id="nav-submissions" onclick="showPanel('submissions')">
+        <span class="nav-icon">📁</span> All Submissions
+      </div>
+      <div class="nav-link" id="nav-reports" onclick="showPanel('reports')">
+        <span class="nav-icon">📄</span> Daily Reports
+      </div>
+      <div class="sidebar-bottom">
+        <div class="user-badge">
+          <div class="user-avatar" id="sidebar-avatar">?</div>
+          <div>
+            <div class="user-name" id="sidebar-name">Loading...</div>
+            <div class="user-role">Montana Construction</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+
+      <!-- DASHBOARD PANEL -->
+      <div class="panel active" id="panel-dashboard">
+        <div class="page-header">
+          <div class="page-title">Dashboard</div>
+          <div class="page-sub" id="dash-date">Loading...</div>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card blue">
+            <div class="stat-val" id="stat-total">—</div>
+            <div class="stat-label">Total Properties</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-val" id="stat-complete">—</div>
+            <div class="stat-label">Complete</div>
+          </div>
+          <div class="stat-card orange">
+            <div class="stat-val" id="stat-inprog">—</div>
+            <div class="stat-label">In Progress</div>
+          </div>
+          <div class="stat-card red">
+            <div class="stat-val" id="stat-pending">—</div>
+            <div class="stat-label">Pending Start</div>
+          </div>
+        </div>
+        <div class="alert alert-orange" id="gap-alert" style="display:none">
+          <div>
+            <span class="alert-title">Schedule gaps detected</span>
+            Some properties scheduled for today have not been submitted. Check your schedule.
+          </div>
+        </div>
+        <div class="table-wrap">
+          <div class="table-header">
+            <div class="table-title">Recent Submissions</div>
+            <button class="btn-sm btn-ghost" onclick="showPanel('submissions')">View all</button>
+          </div>
+          <div id="recent-submissions">
+            <div class="loading"><div class="spinner"></div><br>Loading submissions...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROPERTIES PANEL -->
+      <div class="panel" id="panel-properties">
+        <div class="page-header">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div class="page-title">Properties</div>
+              <div class="page-sub">All LCRI properties in your project</div>
+            </div>
+            <button class="btn-sm btn-orange" onclick="openAddProperty()">+ Add Property</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <div class="table-header">
+            <div class="table-title">Property List</div>
+          </div>
+          <div id="properties-list">
+            <div class="loading"><div class="spinner"></div><br>Loading properties...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUBMIT PHASE PANEL -->
+      <div class="panel" id="panel-submit">
+        <div class="page-header">
+          <div class="page-title">Submit Phase</div>
+          <div class="page-sub">Log field work for a property</div>
+        </div>
+        <div class="table-wrap" style="padding:20px">
+          <div class="form-section">
+            <div class="form-section-title">Select Property</div>
+            <div class="modal-field">
+              <label class="modal-label">Property Address</label>
+              <select class="modal-select" id="submit-property-select">
+                <option value="">Loading properties...</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-section">
+            <div class="form-section-title">Service Type</div>
+            <div class="service-grid" id="service-type-grid">
+              <div class="service-opt" onclick="selectServiceType(this,'test_pit')">
+                <span class="svc-name">Test Pit</span>
+                <span class="svc-sub">Initial excavation</span>
+              </div>
+              <div class="service-opt" onclick="selectServiceType(this,'assessment')">
+                <span class="svc-name">Assessment</span>
+                <span class="svc-sub">Material check</span>
+              </div>
+              <div class="service-opt" onclick="selectServiceType(this,'service_install')">
+                <span class="svc-name">Service Work</span>
+                <span class="svc-sub">Install + photos</span>
+              </div>
+              <div class="service-opt" onclick="selectServiceType(this,'gis_documentation')">
+                <span class="svc-name">GIS / Docs</span>
+                <span class="svc-sub">GPS + blueprint</span>
+              </div>
+              <div class="service-opt" onclick="selectServiceType(this,'restoration')">
+                <span class="svc-name">Restoration</span>
+                <span class="svc-sub">Final closeout</span>
+              </div>
+              <div class="service-opt" onclick="selectServiceType(this,'out_of_sequence')">
+                <span class="svc-name">Out of Order</span>
+                <span class="svc-sub">Partial / revisit</span>
+              </div>
+            </div>
+          </div>
+          <div id="dynamic-form-fields"></div>
+          <div style="display:flex;gap:10px;margin-top:8px">
+            <button class="btn-sm btn-orange" onclick="submitPhase()" style="padding:10px 24px">Submit Phase</button>
+            <button class="btn-sm btn-ghost" onclick="resetSubmitForm()">Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ALL SUBMISSIONS PANEL -->
+      <div class="panel" id="panel-submissions">
+        <div class="page-header">
+          <div class="page-title">All Submissions</div>
+          <div class="page-sub">Complete phase submission history</div>
+        </div>
+        <div class="table-wrap">
+          <div class="table-header">
+            <div class="table-title">Submission Log</div>
+          </div>
+          <div id="all-submissions-list">
+            <div class="loading"><div class="spinner"></div><br>Loading...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- REPORTS PANEL -->
+      <div class="panel" id="panel-reports">
+        <div class="page-header">
+          <div class="page-title">Daily Reports</div>
+          <div class="page-sub">Auto-generated compliance reports</div>
+        </div>
+        <div class="alert alert-green">
+          <div>
+            <span class="alert-title">Reports auto-generate at 5:00 PM</span>
+            All phase submissions for the day are compiled automatically. Each report includes GPS coordinates, photo references, and MapCall-ready data.
+          </div>
+        </div>
+        <div class="table-wrap">
+          <div class="table-header">
+            <div class="table-title">Report History</div>
+            <button class="btn-sm btn-orange" onclick="generateReport()">Generate Now</button>
+          </div>
+          <div id="reports-list">
+            <div class="loading"><div class="spinner"></div><br>Loading reports...</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ADD PROPERTY MODAL -->
+<div class="modal-overlay" id="modal-property">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add Property</div>
+      <button class="modal-close" onclick="closeModal('modal-property')">✕</button>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Street Address</label>
+      <input class="modal-input" type="text" id="prop-address" placeholder="123 Oak Street">
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">City</label>
+        <input class="modal-input" type="text" id="prop-city" placeholder="Edison">
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Zip</label>
+        <input class="modal-input" type="text" id="prop-zip" placeholder="08817">
+      </div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Lot</label>
+        <input class="modal-input" type="text" id="prop-lot" placeholder="14">
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Block</label>
+        <input class="modal-input" type="text" id="prop-block" placeholder="22">
+      </div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Company Side Material</label>
+        <select class="modal-select" id="prop-company-mat">
+          <option value="unknown">Unknown</option>
+          <option value="copper">Copper</option>
+          <option value="lead">Lead</option>
+          <option value="galvanized">Galvanized</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Customer Side Material</label>
+        <select class="modal-select" id="prop-customer-mat">
+          <option value="unknown">Unknown</option>
+          <option value="copper">Copper</option>
+          <option value="lead">Lead</option>
+          <option value="galvanized">Galvanized</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">MapCall ID (optional)</label>
+      <input class="modal-input" type="text" id="prop-mapcall" placeholder="NJAW-XXXX">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-property')">Cancel</button>
+      <button class="btn-sm btn-orange" onclick="saveProperty()">Save Property</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://wryitfoletwskkdqqwcw.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_xYjhw_vwuQzky1KD2X2STQ_dmJrFgJz';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let currentServiceType = null;
+let wbCurbstop = false;
+let wbWatermain = false;
+let wbRestoration = false;
+
+// ── AUTH ──────────────────────────────────────────────
+async function login(){
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  if(!email||!pass){ showAuthError('Please enter email and password'); return; }
+  const {data,error} = await sb.auth.signInWithPassword({email,password:pass});
+  if(error){ showAuthError(error.message); return; }
+  initApp(data.user);
+}
+
+async function signup(){
+  const name  = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const pass  = document.getElementById('signup-password').value;
+  if(!name||!email||!pass){ showAuthError('Please fill all fields'); return; }
+  const {data,error} = await sb.auth.signUp({
+    email, password:pass,
+    options:{data:{full_name:name}}
+  });
+  if(error){ showAuthError(error.message); return; }
+  showToast('Account created! Check your email to confirm.','success');
+  showLogin();
+}
+
+async function logout(){
+  await sb.auth.signOut();
+  currentUser = null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('auth-screen').style.display='flex';
+}
+
+function showAuthError(msg){
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function showSignup(){
+  document.getElementById('login-form').style.display='none';
+  document.getElementById('signup-form').style.display='block';
+  document.getElementById('auth-sub').textContent='Create your MyInspector account.';
+  document.getElementById('auth-error').style.display='none';
+}
+
+function showLogin(){
+  document.getElementById('signup-form').style.display='none';
+  document.getElementById('login-form').style.display='block';
+  document.getElementById('auth-sub').textContent='Sign in to your field operations dashboard.';
+  document.getElementById('auth-error').style.display='none';
+}
+
+// ── APP INIT ──────────────────────────────────────────
+async function initApp(user){
+  currentUser = user;
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  const name = user.user_metadata?.full_name || user.email;
+  document.getElementById('nav-user-email').textContent = name;
+  const initials = name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('sidebar-avatar').textContent = initials;
+  document.getElementById('sidebar-name').textContent = name;
+  const now = new Date();
+  document.getElementById('dash-date').textContent =
+    now.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  await loadDashboard();
+  await loadProperties();
+  await loadPropertySelect();
+}
+
+// ── PANELS ────────────────────────────────────────────
+function showPanel(name){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  document.getElementById('nav-'+name).classList.add('active');
+  if(name==='submissions') loadAllSubmissions();
+  if(name==='reports') loadReports();
+}
+
+// ── DASHBOARD ─────────────────────────────────────────
+async function loadDashboard(){
+  const {data:props} = await sb.from('properties').select('*');
+  if(!props){ return; }
+  const total    = props.length;
+  const complete = props.filter(p=>p.current_phase==='complete').length;
+  const inprog   = props.filter(p=>p.current_phase&&p.current_phase!=='complete'&&p.current_phase!=='test_pit').length;
+  const pending  = props.filter(p=>!p.current_phase||p.current_phase==='test_pit').length;
+  document.getElementById('stat-total').textContent    = total;
+  document.getElementById('stat-complete').textContent = complete;
+  document.getElementById('stat-inprog').textContent   = inprog;
+  document.getElementById('stat-pending').textContent  = pending;
+
+  const {data:subs} = await sb.from('phase_submissions')
+    .select('*,properties(address,city)')
+    .order('submitted_at',{ascending:false})
+    .limit(8);
+
+  const container = document.getElementById('recent-submissions');
+  if(!subs||subs.length===0){
+    container.innerHTML='<div class="loading">No submissions yet. Submit your first phase to get started.</div>';
+    return;
+  }
+  let html=`<table><thead><tr><th>Address</th><th>Phase</th><th>Service Type</th><th>Submitted</th><th>WB</th></tr></thead><tbody>`;
+  subs.forEach(s=>{
+    const addr = s.properties?.address||'Unknown';
+    const city = s.properties?.city||'';
+    const phaseClass = 'ph-'+(s.phase||'pending').replace('_','');
+    const dt = new Date(s.submitted_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+    const wb = (s.photo_curbstop_whiteboard||s.photo_watermain_whiteboard||s.photo_restoration_whiteboard)?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--muted)">—</span>';
+    html+=`<tr>
+      <td><div style="font-weight:600;color:var(--white)">${addr}</div><div style="font-size:11px;color:var(--muted)">${city}</div></td>
+      <td><span class="phase-badge ${phaseClass}">${(s.phase||'pending').replace(/_/g,' ')}</span></td>
+      <td style="font-size:12px;color:var(--muted)">${(s.service_type||'—').replace(/_/g,' ')}</td>
+      <td style="font-size:12px;color:var(--muted)">${dt}</td>
+      <td>${wb}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table>`;
+  container.innerHTML=html;
+}
+
+// ── PROPERTIES ────────────────────────────────────────
+async function loadProperties(){
+  const {data,error} = await sb.from('properties').select('*').order('created_at',{ascending:false});
+  const container = document.getElementById('properties-list');
+  if(error||!data||data.length===0){
+    container.innerHTML='<div class="loading">No properties yet. Add your first property to get started.</div>';
+    return;
+  }
+  let html=`<table><thead><tr><th>Address</th><th>Phase</th><th>Company Side</th><th>Customer Side</th><th>MapCall ID</th></tr></thead><tbody>`;
+  data.forEach(p=>{
+    const phaseClass='ph-'+(p.current_phase||'pending').replace(/_/g,'');
+    const cmClass = p.company_material==='lead'?'mat-lead':p.company_material==='copper'?'mat-copper':p.company_material==='galvanized'?'mat-galvanized':'mat-unknown';
+    const ckmClass = p.customer_material==='lead'?'mat-lead':p.customer_material==='copper'?'mat-copper':p.customer_material==='galvanized'?'mat-galvanized':'mat-unknown';
+    html+=`<tr>
+      <td><div style="font-weight:600;color:var(--white)">${p.address}</div><div style="font-size:11px;color:var(--muted)">${p.address}, ${p.city||''}, NJ ${p.zip||''} · Lot ${p.lot_block||'—'}</div></td>
+      <td><span class="phase-badge ${phaseClass}">${(p.current_phase||'pending').replace(/_/g,' ')}</span></td>
+      <td class="${cmClass}">${p.company_material||'unknown'}</td>
+      <td class="${ckmClass}">${p.customer_material||'unknown'}</td>
+      <td style="font-size:12px;color:var(--muted)">${p.mapcall_id||'—'}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table>`;
+  container.innerHTML=html;
+}
+
+async function loadPropertySelect(){
+  const {data} = await sb.from('properties').select('id,address,city').order('address');
+  const sel = document.getElementById('submit-property-select');
+  if(!data||data.length===0){
+    sel.innerHTML='<option value="">No properties — add one first</option>';
+    return;
+  }
+  sel.innerHTML='<option value="">Select a property...</option>'+
+    data.map(p=>`<option value="${p.id}">${p.address}${p.city?', '+p.city:''}</option>`).join('');
+}
+
+function openAddProperty(){
+  document.getElementById('modal-property').classList.add('open');
+}
+
+async function saveProperty(){
+  const address = document.getElementById('prop-address').value.trim();
+  const city    = document.getElementById('prop-city').value.trim();
+  const zip     = document.getElementById('prop-zip').value.trim();
+  const lot     = document.getElementById('prop-lot').value.trim();
+  const block   = document.getElementById('prop-block').value.trim();
+  const cmat    = document.getElementById('prop-company-mat').value;
+  const cumat   = document.getElementById('prop-customer-mat').value;
+  const mapcall = document.getElementById('prop-mapcall').value.trim();
+  if(!address){ showToast('Address is required','error'); return; }
+  const {error} = await sb.from('properties').insert({
+    address, city, zip,
+    lot_block: lot&&block?`${lot}-${block}`:lot||block||null,
+    company_material:cmat, customer_material:cumat,
+    mapcall_id:mapcall||null,
+    current_phase:'test_pit',
+    state:'NJ',
+    firm_id: null
+  });
+  if(error){ showToast('Error: '+error.message,'error'); return; }
+  showToast('Property added successfully','success');
+  closeModal('modal-property');
+  await loadProperties();
+  await loadPropertySelect();
+  await loadDashboard();
+  document.getElementById('prop-address').value='';
+  document.getElementById('prop-city').value='';
+  document.getElementById('prop-zip').value='';
+  document.getElementById('prop-lot').value='';
+  document.getElementById('prop-block').value='';
+  document.getElementById('prop-mapcall').value='';
+}
+
+// ── SUBMIT PHASE ──────────────────────────────────────
+function selectServiceType(el, type){
+  document.querySelectorAll('.service-opt').forEach(o=>o.classList.remove('selected'));
+  el.classList.add('selected');
+  currentServiceType = type;
+  wbCurbstop=false; wbWatermain=false; wbRestoration=false;
+  renderDynamicFields(type);
+}
+
+function renderDynamicFields(type){
+  const container = document.getElementById('dynamic-form-fields');
+  let html='';
+
+  if(type==='test_pit'){
+    html+=`<div class="form-section">
+      <div class="form-section-title">Tapcard Information</div>
+      <div class="modal-row">
+        <div class="modal-field"><label class="modal-label">Company Side Material</label>
+          <select class="modal-select" id="f-company-mat">
+            <option value="unknown">Unknown</option><option value="copper">Copper</option>
+            <option value="lead">Lead</option><option value="galvanized">Galvanized</option>
+          </select></div>
+        <div class="modal-field"><label class="modal-label">Customer Side Material</label>
+          <select class="modal-select" id="f-customer-mat">
+            <option value="unknown">Unknown</option><option value="copper">Copper</option>
+            <option value="lead">Lead</option><option value="galvanized">Galvanized</option>
+          </select></div>
+      </div>
+      <div class="modal-field"><label class="modal-label">AI Tapcard Scan Reference</label>
+        <input class="modal-input" id="f-tapcard" placeholder="Photo filename or scan reference"></div>
+      <div class="modal-field"><label class="modal-label">Notes</label>
+        <input class="modal-input" id="f-notes" placeholder="Any additional notes..."></div>
+    </div>`;
+  }
+
+  if(type==='service_install'){
+    html+=`<div class="form-section">
+      <div class="form-section-title">Curbstop Area Photo</div>
+      <div class="wb-notice">Whiteboard required — DEP/EPA/NJAW mandate. Must show address, date, foreman, and inspector.</div>
+      <div class="modal-field"><label class="modal-label">Curbstop Photo Reference</label>
+        <input class="modal-input" id="f-curbstop-photo" placeholder="Photo filename or reference"></div>
+      <div class="wb-check-row" id="wb-curb-row" onclick="toggleWB('curb')">
+        <div class="wb-checkbox" id="wb-curb-box"></div>
+        <div class="wb-check-label">Whiteboard is visible in this photo<br><span style="font-size:10px;color:var(--muted)">DEP/EPA/NJAW chain-of-custody confirmation</span></div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Watermain Area Photo</div>
+      <div class="wb-notice">Whiteboard required — DEP/EPA/NJAW mandate.</div>
+      <div class="modal-field"><label class="modal-label">Watermain Photo Reference</label>
+        <input class="modal-input" id="f-watermain-photo" placeholder="Photo filename or reference"></div>
+      <div class="wb-check-row" id="wb-main-row" onclick="toggleWB('main')">
+        <div class="wb-checkbox" id="wb-main-box"></div>
+        <div class="wb-check-label">Whiteboard is visible in this photo<br><span style="font-size:10px;color:var(--muted)">DEP/EPA/NJAW chain-of-custody confirmation</span></div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Work Order Details</div>
+      <div class="modal-row">
+        <div class="modal-field"><label class="modal-label">Work Order Number</label>
+          <input class="modal-input" id="f-wo-number" placeholder="WO-2026-XXXX"></div>
+        <div class="modal-field"><label class="modal-label">Work Description Code</label>
+          <select class="modal-select" id="f-wo-code">
+            <option value="">Select code</option>
+            <option value="LSL-R">LSL-R — Lead service line replacement</option>
+            <option value="PLSL-R">PLSL-R — Partial LSL replacement</option>
+            <option value="GV-R">GV-R — Galvanized replacement</option>
+            <option value="INS">INS — Inspection only</option>
+          </select></div>
+      </div>
+      <div class="modal-row">
+        <div class="modal-field"><label class="modal-label">Pipe In (inches)</label>
+          <input class="modal-input" type="number" id="f-pipe-in" placeholder="0.75" step="0.25"></div>
+        <div class="modal-field"><label class="modal-label">Pipe Out (inches)</label>
+          <input class="modal-input" type="number" id="f-pipe-out" placeholder="0.75" step="0.25"></div>
+      </div>
+      <div class="modal-field"><label class="modal-label">Notes</label>
+        <input class="modal-input" id="f-notes" placeholder="Any additional notes..."></div>
+    </div>`;
+  }
+
+  if(type==='gis_documentation'){
+    html+=`<div class="form-section">
+      <div class="form-section-title">GIS Information</div>
+      <div class="alert alert-green" style="margin-bottom:12px">
+        <div><span class="alert-title">GPS Auto-Stamp Active</span>Coordinates will be captured automatically on submission.</div>
+      </div>
+      <div class="modal-field"><label class="modal-label">Bluebeam Reference</label>
+        <input class="modal-input" id="f-bluebeam" placeholder="BB-2026-XXXX"></div>
+      <div class="modal-field"><label class="modal-label">Blueprint / Drawing Reference</label>
+        <input class="modal-input" id="f-blueprint" placeholder="Drawing filename or reference"></div>
+      <div class="modal-field"><label class="modal-label">Notes</label>
+        <input class="modal-input" id="f-notes" placeholder="Any additional notes..."></div>
+    </div>`;
+  }
+
+  if(type==='restoration'){
+    html+=`<div class="form-section">
+      <div class="form-section-title">Restoration Photo</div>
+      <div class="wb-notice">Whiteboard required — DEP/EPA/NJAW mandate.</div>
+      <div class="modal-field"><label class="modal-label">Restoration Photo Reference</label>
+        <input class="modal-input" id="f-restoration-photo" placeholder="Photo filename or reference"></div>
+      <div class="wb-check-row" id="wb-rest-row" onclick="toggleWB('rest')">
+        <div class="wb-checkbox" id="wb-rest-box"></div>
+        <div class="wb-check-label">Whiteboard is visible in this photo<br><span style="font-size:10px;color:var(--muted)">DEP/EPA/NJAW chain-of-custody confirmation</span></div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Restoration Details</div>
+      <div class="modal-field"><label class="modal-label">Restoration Type</label>
+        <select class="modal-select" id="f-rest-type">
+          <option value="">Select type</option>
+          <option value="pavement_full">Pavement — Full depth</option>
+          <option value="pavement_mill">Pavement — Mill and overlay</option>
+          <option value="unpaved">Unpaved — Topsoil and seed</option>
+          <option value="concrete">Concrete — Full replacement</option>
+          <option value="sidewalk">Sidewalk — Full replacement</option>
+        </select></div>
+      <div class="modal-field"><label class="modal-label">Notes</label>
+        <input class="modal-input" id="f-notes" placeholder="Any additional notes..."></div>
+    </div>`;
+  }
+
+  if(type==='assessment'){
+    html+=`<div class="form-section">
+      <div class="form-section-title">Material Assessment</div>
+      <div class="modal-row">
+        <div class="modal-field"><label class="modal-label">Company Side Material</label>
+          <select class="modal-select" id="f-company-mat">
+            <option value="unknown">Unknown</option><option value="copper">Copper</option>
+            <option value="lead">Lead</option><option value="galvanized">Galvanized</option>
+          </select></div>
+        <div class="modal-field"><label class="modal-label">Customer Side Material</label>
+          <select class="modal-select" id="f-customer-mat">
+            <option value="unknown">Unknown</option><option value="copper">Copper</option>
+            <option value="lead">Lead</option><option value="galvanized">Galvanized</option>
+          </select></div>
+      </div>
+      <div class="modal-field"><label class="modal-label">Notes</label>
+        <input class="modal-input" id="f-notes" placeholder="Assessment notes..."></div>
+    </div>`;
+  }
+
+  if(type==='out_of_sequence'){
+    html+=`<div class="form-section">
+      <div class="form-section-title">Out of Sequence Details</div>
+      <div class="alert alert-orange">
+        <div><span class="alert-title">Supervisor will be notified</span>This submission will be flagged for review. Your work is not blocked.</div>
+      </div>
+      <div class="modal-field"><label class="modal-label">Reason (required)</label>
+        <textarea class="modal-input" id="f-sequence-note" rows="3" placeholder="Describe what you're doing and why it's out of order..." style="resize:none;line-height:1.5"></textarea></div>
+      <div class="modal-field"><label class="modal-label">Notes</label>
+        <input class="modal-input" id="f-notes" placeholder="Any additional notes..."></div>
+    </div>`;
+  }
+
+  container.innerHTML=html;
+}
+
+function toggleWB(type){
+  if(type==='curb'){
+    wbCurbstop=!wbCurbstop;
+    const box=document.getElementById('wb-curb-box');
+    if(box){box.textContent=wbCurbstop?'✓':'';box.className='wb-checkbox'+(wbCurbstop?' checked':'')}
+  }
+  if(type==='main'){
+    wbWatermain=!wbWatermain;
+    const box=document.getElementById('wb-main-box');
+    if(box){box.textContent=wbWatermain?'✓':'';box.className='wb-checkbox'+(wbWatermain?' checked':'')}
+  }
+  if(type==='rest'){
+    wbRestoration=!wbRestoration;
+    const box=document.getElementById('wb-rest-box');
+    if(box){box.textContent=wbRestoration?'✓':'';box.className='wb-checkbox'+(wbRestoration?' checked':'')}
+  }
+}
+
+async function submitPhase(){
+  const propId = document.getElementById('submit-property-select').value;
+  if(!propId){ showToast('Please select a property','error'); return; }
+  if(!currentServiceType){ showToast('Please select a service type','error'); return; }
+
+  // Whiteboard validation
+  const curbPhoto = document.getElementById('f-curbstop-photo')?.value;
+  const mainPhoto = document.getElementById('f-watermain-photo')?.value;
+  const restPhoto = document.getElementById('f-restoration-photo')?.value;
+  if(curbPhoto && !wbCurbstop){ showToast('Curbstop photo requires whiteboard confirmation — DEP/EPA/NJAW mandate','error'); return; }
+  if(mainPhoto && !wbWatermain){ showToast('Watermain photo requires whiteboard confirmation — DEP/EPA/NJAW mandate','error'); return; }
+  if(restPhoto && !wbRestoration){ showToast('Restoration photo requires whiteboard confirmation — DEP/EPA/NJAW mandate','error'); return; }
+
+  const notes = document.getElementById('f-notes')?.value||null;
+  const payload = {
+    property_id: propId,
+    submitted_by: currentUser.id,
+    service_type: currentServiceType,
+    phase: currentServiceType==='test_pit'?'test_pit':
+           currentServiceType==='assessment'?'assessment':
+           currentServiceType==='service_install'?'service':
+           currentServiceType==='gis_documentation'?'gis_docs':
+           currentServiceType==='restoration'?'restoration':'test_pit',
+    notes,
+    photo_curbstop_url: curbPhoto||null,
+    photo_curbstop_whiteboard: wbCurbstop,
+    photo_watermain_url: mainPhoto||null,
+    photo_watermain_whiteboard: wbWatermain,
+    photo_restoration_url: restPhoto||null,
+    photo_restoration_whiteboard: wbRestoration,
+    out_of_sequence: currentServiceType==='out_of_sequence',
+    sequence_note: document.getElementById('f-sequence-note')?.value||null,
+  };
+
+  const {error} = await sb.from('phase_submissions').insert(payload);
+  if(error){ showToast('Submission error: '+error.message,'error'); return; }
+
+  // Update property phase
+  await sb.from('properties').update({current_phase:payload.phase}).eq('id',propId);
+
+  showToast('Phase submitted successfully!','success');
+  resetSubmitForm();
+  await loadDashboard();
+}
+
+function resetSubmitForm(){
+  document.getElementById('submit-property-select').value='';
+  document.querySelectorAll('.service-opt').forEach(o=>o.classList.remove('selected'));
+  document.getElementById('dynamic-form-fields').innerHTML='';
+  currentServiceType=null; wbCurbstop=false; wbWatermain=false; wbRestoration=false;
+}
+
+// ── ALL SUBMISSIONS ───────────────────────────────────
+async function loadAllSubmissions(){
+  const {data,error} = await sb.from('phase_submissions')
+    .select('*,properties(address,city)')
+    .order('submitted_at',{ascending:false})
+    .limit(50);
+  const container = document.getElementById('all-submissions-list');
+  if(error||!data||data.length===0){
+    container.innerHTML='<div class="loading">No submissions yet.</div>'; return;
+  }
+  let html=`<table><thead><tr><th>Address</th><th>Phase</th><th>Service Type</th><th>WB Confirmed</th><th>Out of Seq</th><th>Submitted</th></tr></thead><tbody>`;
+  data.forEach(s=>{
+    const addr=s.properties?.address||'Unknown';
+    const phClass='ph-'+(s.phase||'pending').replace(/_/g,'');
+    const dt=new Date(s.submitted_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+    const wb=(s.photo_curbstop_whiteboard||s.photo_watermain_whiteboard||s.photo_restoration_whiteboard)?
+      '<span style="color:var(--green);font-weight:600">✓ Yes</span>':'<span style="color:var(--muted)">N/A</span>';
+    const oos=s.out_of_sequence?'<span style="color:var(--orange);font-size:11px">Flagged</span>':'<span style="color:var(--muted)">—</span>';
+    html+=`<tr>
+      <td><div style="font-weight:600;color:var(--white)">${addr}</div></td>
+      <td><span class="phase-badge ${phClass}">${(s.phase||'—').replace(/_/g,' ')}</span></td>
+      <td style="font-size:12px;color:var(--muted)">${(s.service_type||'—').replace(/_/g,' ')}</td>
+      <td>${wb}</td><td>${oos}</td>
+      <td style="font-size:12px;color:var(--muted)">${dt}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table>`;
+  container.innerHTML=html;
+}
+
+// ── REPORTS ───────────────────────────────────────────
+async function loadReports(){
+  const {data} = await sb.from('daily_reports')
+    .select('*').order('report_date',{ascending:false}).limit(20);
+  const container=document.getElementById('reports-list');
+  if(!data||data.length===0){
+    container.innerHTML='<div class="loading">No reports yet. Reports generate automatically at 5:00 PM or click Generate Now.</div>';
+    return;
+  }
+  let html=`<table><thead><tr><th>Date</th><th>Properties</th><th>Completed</th><th>Gaps</th><th>Generated</th></tr></thead><tbody>`;
+  data.forEach(r=>{
+    const dt=new Date(r.generated_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+    html+=`<tr>
+      <td style="font-weight:600;color:var(--white)">${r.report_date}</td>
+      <td>${r.total_properties||0}</td>
+      <td style="color:var(--green)">${r.completed||0}</td>
+      <td style="color:${r.gaps_flagged>0?'var(--orange)':'var(--muted)'}">${r.gaps_flagged||0}</td>
+      <td style="font-size:12px;color:var(--muted)">${dt}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table>`;
+  container.innerHTML=html;
+}
+
+async function generateReport(){
+  const today = new Date().toISOString().split('T')[0];
+  const {data:subs} = await sb.from('phase_submissions')
+    .select('*').gte('submitted_at',today+'T00:00:00').lte('submitted_at',today+'T23:59:59');
+  const total = subs?.length||0;
+  const {error} = await sb.from('daily_reports').insert({
+    report_date:today,
+    generated_by:currentUser.id,
+    total_properties:total,
+    completed:total,
+    gaps_flagged:0,
+  });
+  if(error){ showToast('Error generating report: '+error.message,'error'); return; }
+  showToast('Daily report generated!','success');
+  await loadReports();
+}
+
+// ── UTILS ─────────────────────────────────────────────
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+function showToast(msg,type='success'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast show '+(type==='success'?'success':'error');
+  setTimeout(()=>t.className='toast',3000);
+}
+
+// ── AUTO AUTH ─────────────────────────────────────────
+sb.auth.onAuthStateChange((event,session)=>{
+  if(session?.user && !currentUser) initApp(session.user);
+});
+
+sb.auth.getSession().then(({data:{session}})=>{
+  if(session?.user) initApp(session.user);
+});
+</script>
+</body>
+</html>
