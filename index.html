@@ -823,7 +823,28 @@ async function loadDashboard(){
 }
 
 // ── PROPERTIES ────────────────────────────────────────
-async function loadProperties(){
+function filterProperties(query) {
+  const q = (query || '').toLowerCase().trim();
+  if (typeof allProperties !== 'undefined' && Array.isArray(allProperties)) {
+    if (!q) { renderPropertiesTable(allProperties); return; }
+    const filtered = allProperties.filter(p =>
+      (p.address||'').toLowerCase().includes(q) ||
+      (p.city||'').toLowerCase().includes(q) ||
+      (p.lot_block||'').toLowerCase().includes(q) ||
+      (p.mapcall_id||'').toLowerCase().includes(q) ||
+      (p.zip||'').toLowerCase().includes(q)
+    );
+    renderPropertiesTable(filtered);
+    return;
+  }
+  const rows = document.querySelectorAll('#properties-list tr');
+  rows.forEach((row, idx) => {
+    if (idx === 0) return;
+    const text = row.textContent.toLowerCase();
+    row.style.display = (q === '' || text.includes(q)) ? '' : 'none';
+  });
+}
+  async function loadProperties(){
   const {data,error} = await sb.from('properties').select('*').order('created_at',{ascending:false});
   const container = document.getElementById('properties-list');
   if(error||!data||data.length===0){
