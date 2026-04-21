@@ -1315,13 +1315,11 @@ async function sendLuis(){
   addMsg('Luis is thinking...','t');
 
   try{
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+    const resp=await fetch('https://wryitfoletwskkdqqwcw.supabase.co/functions/v1/luis-proxy',{
       method:'POST',
       headers:{
         'Content-Type':'application/json',
-        'x-api-key':'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',
-        'anthropic-version':'2023-06-01',
-        'anthropic-dangerous-direct-browser-access':'true'
+        'Authorization':'Bearer sb_publishable_xYjhw_vwuQzky1KD2X2STQ_dmJrFgJz',
       },
       body:JSON.stringify({
         model:'claude-haiku-4-5-20251001',
