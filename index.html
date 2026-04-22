@@ -7,6 +7,7 @@
 <title>MyInspector — Field Operations</title>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/full.umd.js"></script>  
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -1365,6 +1366,375 @@ async function sendLuis(){
     addMsg('Connection issue. Try again in a moment.','l');
   }
 }
+</script>
+
+  <script>
+/* =============================================================================
+ * MI-002 PHASE 3B — PhotoQueue Module for MyInspector
+ * Resilient photo capture: IndexedDB persistence + exponential backoff sync.
+ * See photoqueue.js artifact in session outputs for full documentation.
+ * ============================================================================= */
+(function () {
+  'use strict';
+
+  const CONFIG = {
+    DB_NAME:          'myinspector_photos',
+    DB_VERSION:       1,
+    STORE_QUEUE:      'photo_queue',
+    STORE_RESCUE:     'photo_rescue_local',
+    BUCKET:           'inspection-photos',
+    MAX_DIMENSION:    2600,
+    JPEG_QUALITY:     0.85,
+    COMPRESS_TYPE:    'image/jpeg',
+    QUEUE_CEILING_MB: 2048,
+    WARN_PCT:         0.80,
+    BLOCK_PCT:        0.92,
+    SYNC_INTERVAL_MS: 20000,
+    MAX_ATTEMPTS:     999,
+    BACKOFF_SCHEDULE: [0, 30, 120, 600, 1800, 7200, 28800, 86400, 86400],
+    VALID_LABELS: ['house','curbstop_meterpit','watermain_corporation','tapcard','restoration','other'],
+    WHITEBOARD_REQUIRED: ['curbstop_meterpit','watermain_corporation','restoration'],
+  };
+
+  let db = null;
+  let syncTimer = null;
+  let isSyncing = false;
+  const statusListeners = [];
+  let currentStatus = {
+    pending: 0, syncing: 0, failed: 0,
+    storageUsedMB: 0, storageQuotaMB: CONFIG.QUEUE_CEILING_MB, lastSyncAt: null,
+  };
+
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      if (db) { resolve(db); return; }
+      const req = indexedDB.open(CONFIG.DB_NAME, CONFIG.DB_VERSION);
+      req.onerror = () => reject(new Error('IndexedDB open failed: ' + req.error));
+      req.onsuccess = () => { db = req.result; resolve(db); };
+      req.onupgradeneeded = (e) => {
+        const _db = e.target.result;
+        if (!_db.objectStoreNames.contains(CONFIG.STORE_QUEUE)) {
+          const store = _db.createObjectStore(CONFIG.STORE_QUEUE, { keyPath: 'uuid' });
+          store.createIndex('status', 'status', { unique: false });
+          store.createIndex('created_at', 'created_at', { unique: false });
+          store.createIndex('submission_id', 'submission_id', { unique: false });
+          store.createIndex('next_retry_at', 'next_retry_at', { unique: false });
+        }
+        if (!_db.objectStoreNames.contains(CONFIG.STORE_RESCUE)) {
+          const rescue = _db.createObjectStore(CONFIG.STORE_RESCUE, { keyPath: 'uuid' });
+          rescue.createIndex('created_at', 'created_at', { unique: false });
+        }
+      };
+    });
+  }
+
+  function txStore(storeName, mode = 'readonly') {
+    return db.transaction(storeName, mode).objectStore(storeName);
+  }
+  function dbPut(storeName, record) {
+    return new Promise((resolve, reject) => {
+      const req = txStore(storeName, 'readwrite').put(record);
+      req.onsuccess = () => resolve(record);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  function dbDelete(storeName, key) {
+    return new Promise((resolve, reject) => {
+      const req = txStore(storeName, 'readwrite').delete(key);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+  function dbGetAll(storeName) {
+    return new Promise((resolve, reject) => {
+      const req = txStore(storeName).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function extractExif(file) {
+    if (typeof exifr === 'undefined') {
+      return { gps_lat: null, gps_lng: null, captured_at: null };
+    }
+    try {
+      const data = await exifr.parse(file, {
+        gps: true,
+        pick: ['DateTimeOriginal','CreateDate','GPSLatitude','GPSLongitude','latitude','longitude']
+      });
+      if (!data) return { gps_lat: null, gps_lng: null, captured_at: null };
+      return {
+        gps_lat: data.latitude ?? null,
+        gps_lng: data.longitude ?? null,
+        captured_at: (data.DateTimeOriginal || data.CreateDate)
+          ? new Date(data.DateTimeOriginal || data.CreateDate).toISOString()
+          : null,
+      };
+    } catch (e) {
+      console.warn('EXIF parse failed:', e);
+      return { gps_lat: null, gps_lng: null, captured_at: null };
+    }
+  }
+
+  async function compressImage(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        const longEdge = Math.max(width, height);
+        if (longEdge > CONFIG.MAX_DIMENSION) {
+          const scale = CONFIG.MAX_DIMENSION / longEdge;
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          URL.revokeObjectURL(img.src);
+          if (!blob) { reject(new Error('Canvas toBlob returned null')); return; }
+          resolve(blob);
+        }, CONFIG.COMPRESS_TYPE, CONFIG.JPEG_QUALITY);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(img.src);
+        reject(new Error('Image load failed'));
+      };
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  async function checkStorageQuota() {
+    if (!navigator.storage || !navigator.storage.estimate) {
+      return { usedMB: 0, quotaMB: CONFIG.QUEUE_CEILING_MB, pct: 0 };
+    }
+    const { usage = 0, quota = 0 } = await navigator.storage.estimate();
+    const usedMB = usage / (1024 * 1024);
+    const quotaMB = Math.min(quota / (1024 * 1024), CONFIG.QUEUE_CEILING_MB);
+    return { usedMB, quotaMB, pct: quotaMB > 0 ? usedMB / quotaMB : 0 };
+  }
+
+  async function capture(file, metadata = {}) {
+    if (!(file instanceof File) && !(file instanceof Blob)) {
+      throw new Error('capture() requires a File or Blob');
+    }
+    if (!CONFIG.VALID_LABELS.includes(metadata.label)) {
+      throw new Error('Invalid label. Must be: ' + CONFIG.VALID_LABELS.join(', '));
+    }
+    if (!metadata.submission_id && !metadata.property_id) {
+      throw new Error('capture() requires submission_id or property_id');
+    }
+    await openDB();
+    const quota = await checkStorageQuota();
+    if (quota.pct >= CONFIG.BLOCK_PCT) {
+      throw new Error(`Storage ${Math.round(quota.pct*100)}% full. Sync before capturing more.`);
+    }
+    const uuid = crypto.randomUUID();
+    const exif = await extractExif(file);
+    const now = new Date().toISOString();
+    const compressedBlob = await compressImage(file);
+    const record = {
+      uuid,
+      submission_id:    metadata.submission_id || null,
+      property_id:      metadata.property_id || null,
+      firm_id:          metadata.firm_id || null,
+      inspector_id:     metadata.inspector_id || null,
+      label:            metadata.label,
+      source:           metadata.source || 'camera',
+      blob:             compressedBlob,
+      original_size:    file.size,
+      compressed_size:  compressedBlob.size,
+      original_filename: file.name || null,
+      captured_at:      exif.captured_at || now,
+      gps_lat:          exif.gps_lat,
+      gps_lng:          exif.gps_lng,
+      whiteboard_visible: metadata.whiteboard_visible ?? false,
+      notes:            metadata.notes || null,
+      status:           'pending',
+      attempts:         0,
+      last_error:       null,
+      last_attempt_at:  null,
+      next_retry_at:    now,
+      synced_at:        null,
+      path:             null,
+      created_at:       now,
+    };
+    await dbPut(CONFIG.STORE_QUEUE, record);
+    if (quota.pct >= CONFIG.WARN_PCT) {
+      console.warn(`Storage ${Math.round(quota.pct*100)}% full. Sync soon.`);
+    }
+    await updateStatus();
+    scheduleSyncSoon();
+    return { uuid, status: 'captured', localPath: 'indexeddb:' + uuid };
+  }
+
+  async function syncPass() {
+    if (isSyncing) return;
+    isSyncing = true;
+    try {
+      const client = window.sb;
+      if (!client) return;
+      const { data: { session } } = await client.auth.getSession();
+      if (!session) return;
+      const now = Date.now();
+      const all = await dbGetAll(CONFIG.STORE_QUEUE);
+      const due = all.filter(p => p.status === 'pending' && new Date(p.next_retry_at).getTime() <= now);
+      for (const photo of due) {
+        await trySync(photo, client);
+      }
+      currentStatus.lastSyncAt = new Date().toISOString();
+      await updateStatus();
+      await pingLastSync(client, session.user.id);
+    } finally {
+      isSyncing = false;
+    }
+  }
+
+  async function trySync(photo, client) {
+    const attemptAt = new Date().toISOString();
+    try {
+      const firmPart = photo.firm_id || 'no-firm';
+      let path;
+      if (photo.submission_id && photo.property_id) {
+        path = `${firmPart}/${photo.property_id}/${photo.submission_id}/${photo.uuid}.jpg`;
+      } else if (photo.property_id) {
+        path = `${firmPart}/${photo.property_id}/_unattached/${photo.uuid}.jpg`;
+      } else {
+        path = `${firmPart}/_rescue/${photo.uuid}.jpg`;
+      }
+      const { error: uploadError } = await client.storage
+        .from(CONFIG.BUCKET)
+        .upload(path, photo.blob, {
+          contentType: 'image/jpeg', upsert: false, cacheControl: '3600',
+        });
+      if (uploadError && !uploadError.message?.includes('already exists')) {
+        throw uploadError;
+      }
+      if (photo.submission_id) {
+        await appendPhotoToSubmission(client, photo, path);
+      }
+      await dbPut(CONFIG.STORE_QUEUE, {
+        ...photo, blob: null, status: 'synced', path,
+        synced_at: attemptAt, last_error: null,
+      });
+    } catch (err) {
+      const attempts = (photo.attempts || 0) + 1;
+      const backoffSec = CONFIG.BACKOFF_SCHEDULE[Math.min(attempts, CONFIG.BACKOFF_SCHEDULE.length - 1)];
+      await dbPut(CONFIG.STORE_QUEUE, {
+        ...photo, attempts,
+        last_error: err.message || String(err),
+        last_attempt_at: attemptAt,
+        next_retry_at: new Date(Date.now() + backoffSec * 1000).toISOString(),
+      });
+      console.warn(`Photo ${photo.uuid} sync failed (attempt ${attempts}): ${err.message}`);
+    }
+  }
+
+  async function appendPhotoToSubmission(client, photo, path) {
+    const { data: sub, error: fetchErr } = await client
+      .from('phase_submissions').select('photos').eq('id', photo.submission_id).single();
+    if (fetchErr) throw fetchErr;
+    const existing = Array.isArray(sub?.photos) ? sub.photos : [];
+    if (existing.some(p => p.uuid === photo.uuid)) return;
+    const newRecord = {
+      uuid: photo.uuid, label: photo.label, path,
+      captured_at: photo.captured_at,
+      gps_lat: photo.gps_lat, gps_lng: photo.gps_lng,
+      whiteboard_visible: photo.whiteboard_visible,
+      source: photo.source,
+      synced_at: new Date().toISOString(),
+      notes: photo.notes,
+    };
+    const { error: updateErr } = await client
+      .from('phase_submissions').update({ photos: [...existing, newRecord] }).eq('id', photo.submission_id);
+    if (updateErr) throw updateErr;
+  }
+
+  async function pingLastSync(client, userId) {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    await client.from('phase_submissions')
+      .update({ last_client_sync_at: new Date().toISOString() })
+      .eq('submitted_by', userId).gte('submitted_at', since);
+  }
+
+  async function updateStatus() {
+    const all = await dbGetAll(CONFIG.STORE_QUEUE);
+    const pending = all.filter(p => p.status === 'pending' && p.attempts < 5).length;
+    const failed = all.filter(p => p.status === 'pending' && p.attempts >= 5).length;
+    const quota = await checkStorageQuota();
+    currentStatus = {
+      pending, syncing: isSyncing ? 1 : 0, failed,
+      storageUsedMB: Math.round(quota.usedMB * 10) / 10,
+      storageQuotaMB: Math.round(quota.quotaMB),
+      lastSyncAt: currentStatus.lastSyncAt,
+    };
+    statusListeners.forEach(cb => {
+      try { cb(currentStatus); } catch (e) { console.error('Listener error:', e); }
+    });
+  }
+
+  function onStatusChange(callback) {
+    if (typeof callback !== 'function') return;
+    statusListeners.push(callback);
+    callback(currentStatus);
+  }
+  function pending() { return currentStatus.pending; }
+  async function getPendingList() {
+    await openDB();
+    return (await dbGetAll(CONFIG.STORE_QUEUE)).filter(p => p.status === 'pending');
+  }
+  async function getRescueList() {
+    await openDB();
+    return (await dbGetAll(CONFIG.STORE_QUEUE)).filter(p => p.status === 'pending' && p.attempts >= 5);
+  }
+  async function forceSync() {
+    await openDB();
+    const all = await dbGetAll(CONFIG.STORE_QUEUE);
+    const nowIso = new Date().toISOString();
+    for (const photo of all) {
+      if (photo.status === 'pending') {
+        await dbPut(CONFIG.STORE_QUEUE, { ...photo, next_retry_at: nowIso });
+      }
+    }
+    await syncPass();
+  }
+  async function deletePhoto(uuid) {
+    await openDB();
+    await dbDelete(CONFIG.STORE_QUEUE, uuid);
+    await updateStatus();
+  }
+  function scheduleSyncSoon() {
+    setTimeout(() => syncPass().catch(e => console.error('Sync error:', e)), 1000);
+  }
+  function startSyncLoop() {
+    if (syncTimer) return;
+    syncTimer = setInterval(() => {
+      syncPass().catch(e => console.error('Sync error:', e));
+    }, CONFIG.SYNC_INTERVAL_MS);
+    scheduleSyncSoon();
+  }
+
+  window.PhotoQueue = {
+    capture, pending, forceSync, onStatusChange,
+    getPendingList, getRescueList, deletePhoto, CONFIG,
+  };
+
+  (async function init() {
+    try {
+      await openDB();
+      await updateStatus();
+      startSyncLoop();
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') scheduleSyncSoon();
+      });
+      window.addEventListener('online', () => scheduleSyncSoon());
+      console.log('PhotoQueue initialized. Queue ceiling: ' + CONFIG.QUEUE_CEILING_MB + ' MB');
+    } catch (err) {
+      console.error('PhotoQueue init failed:', err);
+    }
+  })();
+})();
 </script>
 
 </body>
