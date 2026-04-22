@@ -369,7 +369,33 @@ html,body{overflow-x:hidden}
   .luis-panel{width:calc(100vw - 40px)}
   .luis-bubble{bottom:70px}
 }
-
+/* MI-002 Phase 3C — Photo slot components */
+.photo-slot{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px}
+.photo-slot-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.photo-slot-title{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:var(--white);letter-spacing:.04em;text-transform:uppercase}
+.photo-slot-optional{font-size:10px;color:var(--muted);font-weight:500;letter-spacing:.04em;text-transform:uppercase}
+.photo-slot-wb-required{font-size:10px;color:var(--orange);font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.photo-slot-buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.photo-slot-btn{background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:12px 10px;font-family:'Source Sans 3',sans-serif;font-size:12px;font-weight:600;color:var(--white);cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px}
+.photo-slot-btn:hover{border-color:var(--blue-light);background:rgba(74,124,196,0.1)}
+.photo-slot-btn input[type="file"]{display:none}
+.photo-slot-btn-icon{font-size:16px;line-height:1}
+.photo-slot-thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.photo-slot-thumb{position:relative;width:72px;height:72px;border-radius:6px;overflow:hidden;border:1px solid var(--border);background:var(--surface3)}
+.photo-slot-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.photo-slot-thumb-status{position:absolute;bottom:2px;right:2px;background:rgba(10,14,20,0.85);border-radius:3px;padding:1px 4px;font-size:9px;font-weight:700;letter-spacing:.04em}
+.photo-slot-thumb-status.pending{color:var(--orange)}
+.photo-slot-thumb-status.capturing{color:var(--blue-light)}
+.photo-slot-thumb-status.synced{color:var(--green)}
+.photo-slot-thumb-status.failed{color:var(--red)}
+.photo-slot-thumb-remove{position:absolute;top:2px;right:2px;background:rgba(10,14,20,0.85);color:var(--white);border:none;border-radius:3px;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:1;padding:0;display:flex;align-items:center;justify-content:center}
+.photo-slot-thumb-remove:hover{background:rgba(200,74,74,0.9)}
+.photo-slot-empty-hint{font-size:11px;color:var(--muted);font-style:italic;padding:8px 0;text-align:center;width:100%}
+.photo-slot-wb-row{display:flex;align-items:center;gap:10px;background:rgba(244,168,32,0.06);border:1px solid rgba(244,168,32,0.2);border-radius:var(--radius);padding:8px 12px;cursor:pointer;margin-top:10px}
+.photo-slot-wb-row.checked{background:rgba(61,155,94,0.08);border-color:rgba(61,155,94,0.3)}
+.photo-slot-wb-box{width:16px;height:16px;border-radius:3px;border:2px solid var(--orange);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;color:white}
+.photo-slot-wb-row.checked .photo-slot-wb-box{background:var(--green);border-color:var(--green)}
+.photo-slot-wb-label{font-size:11px;color:var(--white);line-height:1.3}
 </style>
 </head>
 <body>
@@ -701,6 +727,157 @@ let currentServiceType = null;
 let wbCurbstop = false;
 let wbWatermain = false;
 let wbRestoration = false;
+// --- MI-002 Phase 3C state + helpers ---
+let currentSubmissionUUID = null;
+let currentFirmId = null;
+let currentInspectorId = null;
+const photoSlotState = {};
+
+function newSubmissionUUID() {
+  currentSubmissionUUID = crypto.randomUUID();
+  Object.keys(photoSlotState).forEach(k => delete photoSlotState[k]);
+  return currentSubmissionUUID;
+}
+
+function renderPhotoSlot(label, title, opts = {}) {
+  const whiteboardRequired = !!opts.whiteboardRequired;
+  const optional = !!opts.optional;
+  if (!photoSlotState[label]) {
+    photoSlotState[label] = { photos: [], whiteboardVisible: false };
+  }
+  const slotId = 'photoslot-' + label;
+  const wbRowId = 'photoslot-wb-' + label;
+  const headerRight = optional
+    ? '<span class="photo-slot-optional">Optional</span>'
+    : (whiteboardRequired ? '<span class="photo-slot-wb-required">Whiteboard required</span>' : '');
+  return `
+    <div class="photo-slot" id="${slotId}">
+      <div class="photo-slot-header">
+        <div class="photo-slot-title">${title}</div>
+        ${headerRight}
+      </div>
+      <div class="photo-slot-buttons">
+        <label class="photo-slot-btn">
+          <span class="photo-slot-btn-icon">&#128247;</span>
+          Take Photo
+          <input type="file" accept="image/*" capture="environment"
+            onchange="handlePhotoCapture(event, '${label}', 'camera')">
+        </label>
+        <label class="photo-slot-btn">
+          <span class="photo-slot-btn-icon">&#128193;</span>
+          Upload from Device
+          <input type="file" accept="image/*"
+            onchange="handlePhotoCapture(event, '${label}', 'device_upload')">
+        </label>
+      </div>
+      <div class="photo-slot-thumbs" id="${slotId}-thumbs"></div>
+      ${whiteboardRequired ? `
+      <div class="photo-slot-wb-row" id="${wbRowId}" onclick="togglePhotoSlotWB('${label}')">
+        <div class="photo-slot-wb-box">${photoSlotState[label].whiteboardVisible ? '&#10003;' : ''}</div>
+        <div class="photo-slot-wb-label">
+          Whiteboard is visible in photo(s)<br>
+          <span style="font-size:10px;color:var(--muted)">
+            ${label === 'restoration'
+              ? 'Chain-of-custody — inspector on-site on this date'
+              : 'DEP/EPA/NJAW — open excavation compliance'}
+          </span>
+        </div>
+      </div>` : ''}
+    </div>
+  `;
+}
+
+function togglePhotoSlotWB(label) {
+  const state = photoSlotState[label];
+  if (!state) return;
+  state.whiteboardVisible = !state.whiteboardVisible;
+  const row = document.getElementById('photoslot-wb-' + label);
+  const box = row ? row.querySelector('.photo-slot-wb-box') : null;
+  if (row) row.classList.toggle('checked', state.whiteboardVisible);
+  if (box) box.innerHTML = state.whiteboardVisible ? '&#10003;' : '';
+}
+
+async function handlePhotoCapture(event, label, source) {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+  if (!currentSubmissionUUID) currentSubmissionUUID = crypto.randomUUID();
+  const propId = document.getElementById('submit-property-select')?.value || null;
+  if (!propId) {
+    showToast('Please select a property first', 'error');
+    return;
+  }
+  if (!currentInspectorId && currentUser) currentInspectorId = currentUser.id;
+  const tempUrl = URL.createObjectURL(file);
+  const localRecord = { uuid: null, thumbUrl: tempUrl, status: 'capturing', source };
+  photoSlotState[label] = photoSlotState[label] || { photos: [], whiteboardVisible: false };
+  photoSlotState[label].photos.push(localRecord);
+  renderPhotoSlotThumbs(label);
+  try {
+    const wbVisible = photoSlotState[label].whiteboardVisible;
+    const result = await window.PhotoQueue.capture(file, {
+      label, source,
+      submission_id: currentSubmissionUUID,
+      property_id: propId,
+      firm_id: currentFirmId,
+      inspector_id: currentInspectorId,
+      whiteboard_visible: wbVisible,
+    });
+    localRecord.uuid = result.uuid;
+    localRecord.status = 'pending';
+    renderPhotoSlotThumbs(label);
+    showToast('Photo captured', 'success');
+  } catch (err) {
+    photoSlotState[label].photos = photoSlotState[label].photos.filter(p => p !== localRecord);
+    renderPhotoSlotThumbs(label);
+    URL.revokeObjectURL(tempUrl);
+    showToast('Capture failed: ' + err.message, 'error');
+  }
+}
+
+async function removePhotoFromSlot(label, uuid) {
+  const state = photoSlotState[label];
+  if (!state) return;
+  try { if (uuid) await window.PhotoQueue.deletePhoto(uuid); } catch (e) {}
+  state.photos = state.photos.filter(p => p.uuid !== uuid);
+  renderPhotoSlotThumbs(label);
+}
+
+function renderPhotoSlotThumbs(label) {
+  const container = document.getElementById('photoslot-' + label + '-thumbs');
+  if (!container) return;
+  const state = photoSlotState[label];
+  if (!state || state.photos.length === 0) {
+    container.innerHTML = '<div class="photo-slot-empty-hint">No photos yet</div>';
+    return;
+  }
+  container.innerHTML = state.photos.map(p => `
+    <div class="photo-slot-thumb">
+      <img src="${p.thumbUrl}" alt="${label}">
+      <button class="photo-slot-thumb-remove" onclick="removePhotoFromSlot('${label}','${p.uuid || ''}')" title="Remove">&#10005;</button>
+      <div class="photo-slot-thumb-status ${p.status}">${p.status === 'capturing' ? 'SAVING' : p.status === 'pending' ? 'SYNC' : p.status === 'synced' ? 'DONE' : 'FAIL'}</div>
+    </div>
+  `).join('');
+}
+
+function initPhotoSlotStatusHook() {
+  if (!window.PhotoQueue || !window.PhotoQueue.onStatusChange) return;
+  window.PhotoQueue.onStatusChange(async () => {
+    try {
+      const allPending = await window.PhotoQueue.getPendingList();
+      const pendingMap = {};
+      allPending.forEach(p => { pendingMap[p.uuid] = true; });
+      Object.keys(photoSlotState).forEach(label => {
+        photoSlotState[label].photos.forEach(ph => {
+          if (!ph.uuid) return;
+          if (pendingMap[ph.uuid]) ph.status = 'pending';
+          else ph.status = 'synced';
+        });
+        renderPhotoSlotThumbs(label);
+      });
+    } catch (e) {}
+  });
+}  
 
 // ── AUTH ──────────────────────────────────────────────
 async function login(){
@@ -756,6 +933,7 @@ function showLogin(){
 // ── APP INIT ──────────────────────────────────────────
 async function initApp(user){
   currentUser = user;
+  currentInspectorId = user.id;
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('app').style.display='flex';
   const name = user.user_metadata?.full_name || user.email;
@@ -769,6 +947,7 @@ async function initApp(user){
   await loadDashboard();
   await loadProperties();
   await loadPropertySelect();
+  initPhotoSlotStatusHook();
 }
 
 // ── PANELS ────────────────────────────────────────────
@@ -923,6 +1102,7 @@ function selectServiceType(el, type){
   el.classList.add('selected');
   currentServiceType = type;
   wbCurbstop=false; wbWatermain=false; wbRestoration=false;
+  newSubmissionUUID();
   renderDynamicFields(type);
 }
 
@@ -932,6 +1112,13 @@ function renderDynamicFields(type){
 
   if(type==='test_pit'){
     html+=`<div class="form-section">
+      <div class="form-section-title">Cardinal Photos</div>
+      ${renderPhotoSlot('house', 'House Photo', {})}
+      ${renderPhotoSlot('curbstop_meterpit', 'Curbstop / Meterpit Photo', { whiteboardRequired: true })}
+      ${renderPhotoSlot('tapcard', 'Tapcard Photo', {})}
+      ${renderPhotoSlot('other', 'Additional Photos', { optional: true })}
+    </div>
+    <div class="form-section">
       <div class="form-section-title">Tapcard Information</div>
       <div class="modal-row">
         <div class="modal-field"><label class="modal-label">Company Side Material</label>
@@ -945,8 +1132,6 @@ function renderDynamicFields(type){
             <option value="lead">Lead</option><option value="galvanized">Galvanized</option>
           </select></div>
       </div>
-      <div class="modal-field"><label class="modal-label">AI Tapcard Scan Reference</label>
-        <input class="modal-input" id="f-tapcard" placeholder="Photo filename or scan reference"></div>
       <div class="modal-field"><label class="modal-label">Notes</label>
         <input class="modal-input" id="f-notes" placeholder="Any additional notes..."></div>
     </div>`;
@@ -954,24 +1139,11 @@ function renderDynamicFields(type){
 
   if(type==='service_install'){
     html+=`<div class="form-section">
-      <div class="form-section-title">Curbstop Area Photo</div>
-      <div class="wb-notice">Whiteboard required — DEP/EPA/NJAW mandate. Must show address, date, foreman, and inspector.</div>
-      <div class="modal-field"><label class="modal-label">Curbstop Photo Reference</label>
-        <input class="modal-input" id="f-curbstop-photo" placeholder="Photo filename or reference"></div>
-      <div class="wb-check-row" id="wb-curb-row" onclick="toggleWB('curb')">
-        <div class="wb-checkbox" id="wb-curb-box"></div>
-        <div class="wb-check-label">Whiteboard is visible in this photo<br><span style="font-size:10px;color:var(--muted)">DEP/EPA/NJAW chain-of-custody confirmation</span></div>
-      </div>
-    </div>
-    <div class="form-section">
-      <div class="form-section-title">Watermain Area Photo</div>
-      <div class="wb-notice">Whiteboard required — DEP/EPA/NJAW mandate.</div>
-      <div class="modal-field"><label class="modal-label">Watermain Photo Reference</label>
-        <input class="modal-input" id="f-watermain-photo" placeholder="Photo filename or reference"></div>
-      <div class="wb-check-row" id="wb-main-row" onclick="toggleWB('main')">
-        <div class="wb-checkbox" id="wb-main-box"></div>
-        <div class="wb-check-label">Whiteboard is visible in this photo<br><span style="font-size:10px;color:var(--muted)">DEP/EPA/NJAW chain-of-custody confirmation</span></div>
-      </div>
+      <div class="form-section-title">Cardinal Photos</div>
+      ${renderPhotoSlot('curbstop_meterpit', 'Curbstop / Meterpit Photo', { whiteboardRequired: true })}
+      ${renderPhotoSlot('watermain_corporation', 'Watermain / Corporation Photo', { whiteboardRequired: true })}
+      ${renderPhotoSlot('tapcard', 'Tapcard Photo', {})}
+      ${renderPhotoSlot('other', 'Additional Photos', { optional: true })}
     </div>
     <div class="form-section">
       <div class="form-section-title">Work Order Details</div>
@@ -1016,13 +1188,8 @@ function renderDynamicFields(type){
   if(type==='restoration'){
     html+=`<div class="form-section">
       <div class="form-section-title">Restoration Photo</div>
-      <div class="wb-notice">Whiteboard required — DEP/EPA/NJAW mandate.</div>
-      <div class="modal-field"><label class="modal-label">Restoration Photo Reference</label>
-        <input class="modal-input" id="f-restoration-photo" placeholder="Photo filename or reference"></div>
-      <div class="wb-check-row" id="wb-rest-row" onclick="toggleWB('rest')">
-        <div class="wb-checkbox" id="wb-rest-box"></div>
-        <div class="wb-check-label">Whiteboard is visible in this photo<br><span style="font-size:10px;color:var(--muted)">DEP/EPA/NJAW chain-of-custody confirmation</span></div>
-      </div>
+      ${renderPhotoSlot('restoration', 'Restoration Photo', { whiteboardRequired: true })}
+      ${renderPhotoSlot('other', 'Additional Photos', { optional: true })}
     </div>
     <div class="form-section">
       <div class="form-section-title">Restoration Details</div>
@@ -1074,6 +1241,7 @@ function renderDynamicFields(type){
   }
 
   container.innerHTML=html;
+  Object.keys(photoSlotState).forEach(label => renderPhotoSlotThumbs(label));
 }
 
 function toggleWB(type){
@@ -1098,17 +1266,25 @@ async function submitPhase(){
   const propId = document.getElementById('submit-property-select').value;
   if(!propId){ showToast('Please select a property','error'); return; }
   if(!currentServiceType){ showToast('Please select a service type','error'); return; }
+  if(!currentSubmissionUUID) newSubmissionUUID();
 
-  // Whiteboard validation
-  const curbPhoto = document.getElementById('f-curbstop-photo')?.value;
-  const mainPhoto = document.getElementById('f-watermain-photo')?.value;
-  const restPhoto = document.getElementById('f-restoration-photo')?.value;
-  if(curbPhoto && !wbCurbstop){ showToast('Curbstop photo requires whiteboard confirmation — DEP/EPA/NJAW mandate','error'); return; }
-  if(mainPhoto && !wbWatermain){ showToast('Watermain photo requires whiteboard confirmation — DEP/EPA/NJAW mandate','error'); return; }
-  if(restPhoto && !wbRestoration){ showToast('Restoration photo requires whiteboard confirmation — DEP/EPA/NJAW mandate','error'); return; }
+  // Whiteboard validation: required for slots containing photos
+  const wbRequiredLabels = ['curbstop_meterpit','watermain_corporation','restoration'];
+  for (const label of wbRequiredLabels) {
+    const state = photoSlotState[label];
+    if (state && state.photos.length > 0 && !state.whiteboardVisible) {
+      showToast(label.replace(/_/g,' ') + ' photos require whiteboard confirmation — DEP/EPA/NJAW mandate', 'error');
+      return;
+    }
+  }
 
   const notes = document.getElementById('f-notes')?.value||null;
+  const wbCurb = photoSlotState.curbstop_meterpit?.whiteboardVisible || false;
+  const wbMain = photoSlotState.watermain_corporation?.whiteboardVisible || false;
+  const wbRest = photoSlotState.restoration?.whiteboardVisible || false;
+
   const payload = {
+    id: currentSubmissionUUID,
     property_id: propId,
     submitted_by: currentUser.id,
     service_type: currentServiceType,
@@ -1118,23 +1294,33 @@ async function submitPhase(){
            currentServiceType==='gis_documentation'?'gis_docs':
            currentServiceType==='restoration'?'restoration':'test_pit',
     notes,
-    photo_curbstop_url: curbPhoto||null,
-    photo_curbstop_whiteboard: wbCurbstop,
-    photo_watermain_url: mainPhoto||null,
-    photo_watermain_whiteboard: wbWatermain,
-    photo_restoration_url: restPhoto||null,
-    photo_restoration_whiteboard: wbRestoration,
+    photo_curbstop_whiteboard: wbCurb,
+    photo_watermain_whiteboard: wbMain,
+    photo_restoration_whiteboard: wbRest,
     out_of_sequence: currentServiceType==='out_of_sequence',
     sequence_note: document.getElementById('f-sequence-note')?.value||null,
+    photos: [],
+    last_client_sync_at: new Date().toISOString(),
   };
 
   const {error} = await sb.from('phase_submissions').insert(payload);
   if(error){ showToast('Submission error: '+error.message,'error'); return; }
 
-  // Update property phase
   await sb.from('properties').update({current_phase:payload.phase}).eq('id',propId);
 
-  showToast('Phase submitted successfully!','success');
+  const pendingForThis = (await window.PhotoQueue.getPendingList())
+    .filter(p => p.submission_id === currentSubmissionUUID).length;
+
+  if (pendingForThis > 0) {
+    showToast('Phase submitted. ' + pendingForThis + ' photo(s) syncing in background.', 'success');
+  } else {
+    showToast('Phase submitted successfully!', 'success');
+  }
+
+  if (window.PhotoQueue?.forceSync) {
+    window.PhotoQueue.forceSync().catch(e => console.warn('Force sync error:', e));
+  }
+
   resetSubmitForm();
   await loadDashboard();
 }
@@ -1144,6 +1330,8 @@ function resetSubmitForm(){
   document.querySelectorAll('.service-opt').forEach(o=>o.classList.remove('selected'));
   document.getElementById('dynamic-form-fields').innerHTML='';
   currentServiceType=null; wbCurbstop=false; wbWatermain=false; wbRestoration=false;
+  currentSubmissionUUID = null;
+  Object.keys(photoSlotState).forEach(k => delete photoSlotState[k]);
 }
 
 // ── ALL SUBMISSIONS ───────────────────────────────────
