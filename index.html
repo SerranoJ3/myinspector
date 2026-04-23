@@ -180,6 +180,59 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
   border-radius:16px;padding:28px;width:100%;max-width:560px;
   max-height:90vh;overflow-y:auto;
 }
+.modal-lg{max-width:900px}
+.modal-sub{font-size:12px;color:var(--muted);margin-top:4px}
+
+/* PROPERTY DETAIL */
+.pd-header-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0 24px;
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.pd-stat{display:flex;flex-direction:column;gap:2px}
+.pd-stat-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.pd-stat-val{font-size:13px;color:var(--white);font-weight:600}
+.pd-section-title{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;
+  color:var(--blue-light);letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px;
+  display:flex;align-items:center;gap:8px}
+.pd-section-title span{font-size:11px;color:var(--muted);font-weight:500}
+.pd-submission{background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:14px;margin-bottom:10px}
+.pd-sub-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;
+  cursor:pointer;gap:12px;flex-wrap:wrap}
+.pd-sub-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pd-sub-when{font-size:11px;color:var(--muted)}
+.pd-sub-inspector{font-size:11px;color:var(--muted)}
+.pd-sub-body{display:none;border-top:1px solid var(--border);padding-top:12px;margin-top:6px}
+.pd-submission.open .pd-sub-body{display:block}
+.pd-sub-notes{font-size:12px;color:rgba(237,242,248,0.8);background:var(--surface3);
+  padding:8px 12px;border-radius:6px;margin-bottom:10px;line-height:1.5}
+.pd-sub-wb{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 8px;
+  border-radius:99px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.pd-sub-wb.yes{background:rgba(61,155,94,0.15);color:var(--green)}
+.pd-sub-wb.no{background:rgba(94,122,154,0.15);color:var(--muted)}
+.pd-sub-oos{background:rgba(244,168,32,0.15);color:var(--orange);display:inline-flex;
+  align-items:center;gap:4px;font-size:10px;padding:2px 8px;border-radius:99px;font-weight:700}
+.pd-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-top:10px}
+.pd-photo{position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;
+  background:var(--surface3);border:1px solid var(--border);cursor:pointer}
+.pd-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.pd-photo-label{position:absolute;bottom:0;left:0;right:0;background:rgba(10,14,20,0.85);
+  padding:3px 6px;font-size:9px;color:var(--white);text-align:center;font-weight:600;
+  letter-spacing:.04em;text-transform:uppercase}
+.pd-photo-wb{position:absolute;top:4px;right:4px;background:rgba(61,155,94,0.9);
+  color:white;font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700}
+.pd-caret{color:var(--muted);font-size:12px;transition:transform .2s}
+.pd-submission.open .pd-caret{transform:rotate(90deg)}
+.pd-empty{text-align:center;padding:30px;color:var(--muted);font-size:13px;
+  background:var(--surface2);border:1px dashed var(--border);border-radius:var(--radius)}
+@media(max-width:768px){
+  .pd-header-grid{grid-template-columns:repeat(2,1fr)}
+  .pd-photos{grid-template-columns:repeat(3,1fr)}
+}
+
+/* PHOTO LIGHTBOX */
+.pd-lightbox{position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:2000;
+  display:none;align-items:center;justify-content:center;padding:20px;cursor:pointer}
+.pd-lightbox.open{display:flex}
+.pd-lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px}
 .modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
 .modal-title{font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;color:var(--white)}
 .modal-close{background:transparent;border:none;color:var(--muted);font-size:20px;
@@ -735,6 +788,24 @@ html,body{overflow-x:hidden}
   </div>
 </div>
 
+<!-- PROPERTY DETAIL MODAL -->
+<div class="modal-overlay" id="modal-property-detail">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="pd-title">Property Detail</div>
+        <div class="modal-sub" id="pd-sub"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-property-detail')">✕</button>
+    </div>
+    <div class="pd-header-grid" id="pd-header-grid"></div>
+    <div class="pd-section-title">Phase Submissions <span id="pd-submission-count"></span></div>
+    <div id="pd-submissions-list">
+      <div class="loading"><div class="spinner"></div><br>Loading submissions...</div>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
@@ -1147,11 +1218,11 @@ function filterProperties(query) {
     return;
   }
   let html=`<table><thead><tr><th>Address</th><th>Phase</th><th>Company Side</th><th>Customer Side</th><th>MapCall ID</th></tr></thead><tbody>`;
-  data.forEach(p=>{
+ data.forEach(p=>{
     const phaseClass='ph-'+(p.current_phase||'pending').replace(/_/g,'');
     const cmClass = p.company_material==='lead'?'mat-lead':p.company_material==='copper'?'mat-copper':p.company_material==='galvanized'?'mat-galvanized':'mat-unknown';
     const ckmClass = p.customer_material==='lead'?'mat-lead':p.customer_material==='copper'?'mat-copper':p.customer_material==='galvanized'?'mat-galvanized':'mat-unknown';
-    html+=`<tr>
+    html+=`<tr onclick="openPropertyDetail('${p.id}')">
       <td><div style="font-weight:600;color:var(--white)">${p.address}</div><div style="font-size:11px;color:var(--muted)">${p.address}, ${p.city||''}, NJ ${p.zip||''} · Lot ${p.lot_block||'—'}</div></td>
       <td><span class="phase-badge ${phaseClass}">${(p.current_phase||'pending').replace(/_/g,' ')}</span></td>
       <td class="${cmClass}">${p.company_material||'unknown'}</td>
@@ -1518,6 +1589,152 @@ async function generateReport(){
   if(error){ showToast('Error generating report: '+error.message,'error'); return; }
   showToast('Daily report generated!','success');
   await loadReports();
+}
+
+// ── PROPERTY DETAIL ──────────────────────────────────
+async function openPropertyDetail(propertyId){
+  const modal = document.getElementById('modal-property-detail');
+  modal.classList.add('open');
+  document.getElementById('pd-submissions-list').innerHTML =
+    '<div class="loading"><div class="spinner"></div><br>Loading submissions...</div>';
+  document.getElementById('pd-header-grid').innerHTML = '';
+  document.getElementById('pd-submission-count').textContent = '';
+
+  // Load property
+  const {data:prop, error:propErr} = await sb.from('properties').select('*').eq('id',propertyId).maybeSingle();
+  if(propErr || !prop){
+    showToast('Could not load property','error');
+    closeModal('modal-property-detail');
+    return;
+  }
+
+  // Populate header
+  document.getElementById('pd-title').textContent = prop.address || 'Property';
+  document.getElementById('pd-sub').textContent =
+    [prop.city, prop.state, prop.zip].filter(Boolean).join(', ');
+
+  const cmColor = prop.company_material==='lead'?'var(--red)':prop.company_material==='copper'?'var(--green)':prop.company_material==='galvanized'?'var(--orange)':'var(--muted)';
+  const ckColor = prop.customer_material==='lead'?'var(--red)':prop.customer_material==='copper'?'var(--green)':prop.customer_material==='galvanized'?'var(--orange)':'var(--muted)';
+  const phaseClass = 'ph-'+(prop.current_phase||'pending').replace(/_/g,'');
+
+  document.getElementById('pd-header-grid').innerHTML = `
+    <div class="pd-stat"><div class="pd-stat-label">Current Phase</div>
+      <div class="pd-stat-val"><span class="phase-badge ${phaseClass}">${(prop.current_phase||'pending').replace(/_/g,' ')}</span></div></div>
+    <div class="pd-stat"><div class="pd-stat-label">Lot / Block</div>
+      <div class="pd-stat-val">${prop.lot_block || '—'}</div></div>
+    <div class="pd-stat"><div class="pd-stat-label">Company Material</div>
+      <div class="pd-stat-val" style="color:${cmColor}">${prop.company_material || 'unknown'}</div></div>
+    <div class="pd-stat"><div class="pd-stat-label">Customer Material</div>
+      <div class="pd-stat-val" style="color:${ckColor}">${prop.customer_material || 'unknown'}</div></div>
+    <div class="pd-stat"><div class="pd-stat-label">MapCall ID</div>
+      <div class="pd-stat-val">${prop.mapcall_id || '—'}</div></div>
+    <div class="pd-stat"><div class="pd-stat-label">Municipality</div>
+      <div class="pd-stat-val">${prop.municipality || prop.city || '—'}</div></div>
+    <div class="pd-stat"><div class="pd-stat-label">GPS</div>
+      <div class="pd-stat-val">${prop.lat && prop.lng ? Number(prop.lat).toFixed(5)+', '+Number(prop.lng).toFixed(5) : '—'}</div></div>
+    <div class="pd-stat"><div class="pd-stat-label">Added</div>
+      <div class="pd-stat-val">${prop.created_at ? new Date(prop.created_at).toLocaleDateString() : '—'}</div></div>
+  `;
+
+  // Load all submissions for this property, plus the submitter profiles
+  const {data:subs, error:subErr} = await sb
+    .from('phase_submissions')
+    .select('*')
+    .eq('property_id',propertyId)
+    .order('submitted_at',{ascending:false});
+
+  const container = document.getElementById('pd-submissions-list');
+  if(subErr){
+    container.innerHTML = '<div class="pd-empty">Error loading submissions: '+subErr.message+'</div>';
+    return;
+  }
+  document.getElementById('pd-submission-count').textContent = subs?.length ? `(${subs.length})` : '';
+
+  if(!subs || subs.length === 0){
+    container.innerHTML = '<div class="pd-empty">No phase submissions yet for this property.</div>';
+    return;
+  }
+
+  // Look up inspector names
+  const inspectorIds = [...new Set(subs.map(s=>s.submitted_by).filter(Boolean))];
+  let inspectorMap = {};
+  if(inspectorIds.length){
+    const {data:profs} = await sb.from('profiles').select('id,full_name').in('id',inspectorIds);
+    (profs||[]).forEach(p=>{ inspectorMap[p.id] = p.full_name; });
+  }
+
+  // Build the submissions list
+  container.innerHTML = subs.map((s,idx) => {
+    const phClass = 'ph-'+(s.phase||'pending').replace(/_/g,'');
+    const dt = s.submitted_at ? new Date(s.submitted_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+    const inspector = inspectorMap[s.submitted_by] || 'Unknown inspector';
+    const anyWB = s.photo_curbstop_whiteboard || s.photo_watermain_whiteboard || s.photo_restoration_whiteboard;
+    const wbPill = anyWB
+      ? '<span class="pd-sub-wb yes">✓ Whiteboard</span>'
+      : '<span class="pd-sub-wb no">No WB</span>';
+    const oosPill = s.out_of_sequence ? '<span class="pd-sub-oos">⚠ Out of Sequence</span>' : '';
+
+    const photos = Array.isArray(s.photos) ? s.photos : [];
+    const photosHTML = photos.length ? `
+      <div class="pd-photos">
+        ${photos.map(ph => {
+          const url = ph.path ? `${SUPABASE_URL}/storage/v1/object/public/inspection-photos/${ph.path}` : '';
+          const label = (ph.label||'photo').replace(/_/g,' ');
+          const wbBadge = ph.whiteboard_visible ? '<div class="pd-photo-wb">WB</div>' : '';
+          return `<div class="pd-photo" onclick="openLightbox('${url}')">
+            ${url ? `<img src="${url}" alt="${label}" onerror="this.style.display='none'">` : ''}
+            ${wbBadge}
+            <div class="pd-photo-label">${label}</div>
+          </div>`;
+        }).join('')}
+      </div>` : '<div style="font-size:11px;color:var(--muted);margin-top:8px">No photos attached</div>';
+
+    const notesHTML = s.notes ? `<div class="pd-sub-notes"><strong>Notes:</strong> ${s.notes}</div>` : '';
+    const seqHTML = s.sequence_note ? `<div class="pd-sub-notes"><strong>Sequence note:</strong> ${s.sequence_note}</div>` : '';
+
+    return `
+      <div class="pd-submission" id="pd-sub-${idx}">
+        <div class="pd-sub-header" onclick="togglePDSub(${idx})">
+          <div class="pd-sub-left">
+            <span class="pd-caret">▶</span>
+            <span class="phase-badge ${phClass}">${(s.phase||'pending').replace(/_/g,' ')}</span>
+            <span style="font-size:12px;color:var(--muted)">${(s.service_type||'—').replace(/_/g,' ')}</span>
+            ${wbPill}
+            ${oosPill}
+          </div>
+          <div style="text-align:right">
+            <div class="pd-sub-when">${dt}</div>
+            <div class="pd-sub-inspector">${inspector}</div>
+          </div>
+        </div>
+        <div class="pd-sub-body">
+          ${notesHTML}
+          ${seqHTML}
+          ${photosHTML}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function togglePDSub(idx){
+  const el = document.getElementById('pd-sub-'+idx);
+  if(el) el.classList.toggle('open');
+}
+
+function openLightbox(url){
+  if(!url) return;
+  let box = document.getElementById('pd-lightbox');
+  if(!box){
+    box = document.createElement('div');
+    box.id = 'pd-lightbox';
+    box.className = 'pd-lightbox';
+    box.onclick = () => box.classList.remove('open');
+    box.innerHTML = '<img id="pd-lightbox-img" src="">';
+    document.body.appendChild(box);
+  }
+  document.getElementById('pd-lightbox-img').src = url;
+  box.classList.add('open');
 }
 
 // ── UTILS ─────────────────────────────────────────────
