@@ -422,18 +422,18 @@ html,body{overflow-x:hidden}
       <button class="btn-primary" onclick="login()">Sign In</button>
       <div class="auth-toggle">No account? <a onclick="showSignup()">Create one</a></div>
     </div>
-    <div id="signup-form" style="display:none">
+   <div id="signup-form" style="display:none">
       <div class="field-label">Full Name</div>
       <input class="field-input" type="text" id="signup-name" placeholder="Marco Torres">
       <div class="field-label">Email</div>
       <input class="field-input" type="email" id="signup-email" placeholder="you@firm.com">
       <div class="field-label">Password</div>
       <input class="field-input" type="password" id="signup-password" placeholder="Min 6 characters">
+      <div class="field-label">Firm Code</div>
+      <input class="field-input" type="text" id="signup-firm-code" placeholder="ASK-YOUR-SUPERVISOR" style="text-transform:uppercase">
       <button class="btn-primary" onclick="signup()">Create Account</button>
       <div class="auth-toggle">Have an account? <a onclick="showLogin()">Sign in</a></div>
-    </div>
-  </div>
-</div>
+    </div> 
 
 <!-- MAIN APP -->
 <div id="app">
@@ -893,13 +893,33 @@ async function signup(){
   const name  = document.getElementById('signup-name').value.trim();
   const email = document.getElementById('signup-email').value.trim();
   const pass  = document.getElementById('signup-password').value;
-  if(!name||!email||!pass){ showAuthError('Please fill all fields'); return; }
+  const code  = document.getElementById('signup-firm-code').value.trim().toUpperCase();
+  if(!name||!email||!pass||!code){ showAuthError('Please fill all fields including firm code'); return; }
+
+  // Validate firm code BEFORE creating account
+  const {data:firm,error:firmError} = await sb.from('firms').select('id,name').eq('firm_code',code).maybeSingle();
+  if(firmError||!firm){
+    showAuthError('Invalid firm code. Check with your supervisor.');
+    return;
+  }
+
   const {data,error} = await sb.auth.signUp({
     email, password:pass,
-    options:{data:{full_name:name}}
+    options:{data:{full_name:name, firm_code:code}}
   });
   if(error){ showAuthError(error.message); return; }
-  showToast('Account created! Check your email to confirm.','success');
+
+  // Create profile row attached to the firm
+  if(data.user){
+    await sb.from('profiles').insert({
+      id: data.user.id,
+      full_name: name,
+      firm_id: firm.id,
+      role: 'inspector'
+    });
+  }
+
+  showToast('Account created! Welcome to '+firm.name+'. Check your email to confirm.','success');
   showLogin();
 }
 
@@ -934,13 +954,47 @@ function showLogin(){
 async function initApp(user){
   currentUser = user;
   currentInspectorId = user.id;
+
+  // Load profile + firm — required before anything else loads
+  const {data:profile,error:profileError} = await sb
+    .from('profiles')
+    .select('full_name,role,firm_id,firms(name)')
+    .eq('id',user.id)
+    .maybeSingle();
+
+  if(profileError||!profile){
+    showToast('Profile not found. Contact your supervisor.','error');
+    await sb.auth.signOut();
+    document.getElementById('app').style.display='none';
+    document.getElementById('auth-screen').style.display='flex';
+    return;
+  }
+
+  currentFirmId = profile.firm_id;
+  const firmName = profile.firms?.name || 'Unknown Firm';
+  const isSuperAdmin = profile.role === 'super_admin';
+
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('app').style.display='flex';
-  const name = user.user_metadata?.full_name || user.email;
+
+  const name = profile.full_name || user.user_metadata?.full_name || user.email;
   document.getElementById('nav-user-email').textContent = name;
   const initials = name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
   document.getElementById('sidebar-avatar').textContent = initials;
   document.getElementById('sidebar-name').textContent = name;
+
+  // Show firm name (or SUPER ADMIN badge) in sidebar role line
+  const roleEl = document.querySelector('.user-role');
+  if(roleEl){
+    roleEl.textContent = isSuperAdmin ? '⚡ SUPER ADMIN — All Firms' : firmName;
+    if(isSuperAdmin) roleEl.style.color = 'var(--orange)';
+  }
+
+  // Tint sidebar orange for super_admin so you never forget which account you're in
+  if(isSuperAdmin){
+    document.querySelector('.sidebar').style.background = 'linear-gradient(180deg, rgba(244,168,32,0.08) 0%, var(--surface) 100%)';
+  }
+
   const now = new Date();
   document.getElementById('dash-date').textContent =
     now.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
@@ -1080,7 +1134,7 @@ async function saveProperty(){
     mapcall_id:mapcall||null,
     current_phase:'test_pit',
     state:'NJ',
-    firm_id: null
+    firm_id: currentFirmId
   });
   if(error){ showToast('Error: '+error.message,'error'); return; }
   showToast('Property added successfully','success');
