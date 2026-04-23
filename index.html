@@ -225,6 +225,21 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
   animation:pingA 1.5s infinite}
 @keyframes pingA{0%,100%{opacity:1}50%{opacity:.3}}
 
+/* SYNC BADGE */
+.sync-badge{display:inline-flex;align-items:center;gap:5px;border-radius:99px;
+  padding:3px 10px;font-size:10px;font-weight:600;cursor:default;
+  border:1px solid;transition:all .2s}
+.sync-badge.sync-synced{background:rgba(61,155,94,0.12);border-color:rgba(61,155,94,0.25);color:var(--green)}
+.sync-badge.sync-pending{background:rgba(244,168,32,0.12);border-color:rgba(244,168,32,0.3);color:var(--orange)}
+.sync-badge.sync-failed{background:rgba(200,74,74,0.12);border-color:rgba(200,74,74,0.3);color:var(--red);cursor:pointer}
+.sync-badge.sync-failed:hover{background:rgba(200,74,74,0.2)}
+.sync-icon{display:inline-block}
+.sync-badge.sync-pending .sync-icon{animation:spin 1.2s linear infinite}
+@media(max-width:768px){
+  .sync-badge #sync-text{display:none}
+  .sync-badge{padding:3px 8px}
+}
+
 /* FORM SECTIONS */
 .form-section{margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border)}
 .form-section:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
@@ -449,7 +464,11 @@ html,body{overflow-x:hidden}
       <span><span>My</span>Inspector</span>
     </div>
     <div class="nav-right">
-      <div class="gps-pill"><div class="ping"></div>GPS Active</div>
+     <div class="gps-pill"><div class="ping"></div>GPS Active</div>
+      <div class="sync-badge sync-synced" id="sync-badge" title="Photo sync status">
+        <span class="sync-icon" id="sync-icon">✓</span>
+        <span id="sync-text">All synced</span>
+      </div>
       <div class="nav-user" id="nav-user-email"></div>
       <button class="nav-logout" onclick="logout()">Sign out</button>
     </div>
@@ -864,7 +883,8 @@ function renderPhotoSlotThumbs(label) {
 
 function initPhotoSlotStatusHook() {
   if (!window.PhotoQueue || !window.PhotoQueue.onStatusChange) return;
-  window.PhotoQueue.onStatusChange(async () => {
+  window.PhotoQueue.onStatusChange(async (status) => {
+    // Update photo thumbs on submit screen
     try {
       const allPending = await window.PhotoQueue.getPendingList();
       const pendingMap = {};
@@ -878,8 +898,40 @@ function initPhotoSlotStatusHook() {
         renderPhotoSlotThumbs(label);
       });
     } catch (e) {}
+
+    // Update top-nav sync badge
+    updateSyncBadge(status);
   });
-}  
+}
+
+function updateSyncBadge(status){
+  const badge = document.getElementById('sync-badge');
+  const icon = document.getElementById('sync-icon');
+  const text = document.getElementById('sync-text');
+  if(!badge || !icon || !text) return;
+
+  const pending = status.pending || 0;
+  const failed = status.failed || 0;
+
+  badge.classList.remove('sync-synced','sync-pending','sync-failed');
+
+  if(failed > 0){
+    badge.classList.add('sync-failed');
+    icon.textContent = '⚠';
+    text.textContent = failed + ' failed';
+    badge.title = failed + ' photo(s) failed to sync. Tap to view rescue queue.';
+  } else if(pending > 0){
+    badge.classList.add('sync-pending');
+    icon.textContent = '⟳';
+    text.textContent = pending + ' syncing';
+    badge.title = pending + ' photo(s) syncing in background.';
+  } else {
+    badge.classList.add('sync-synced');
+    icon.textContent = '✓';
+    text.textContent = 'All synced';
+    badge.title = 'All photos synced.';
+  }
+} 
 
 // ── AUTH ──────────────────────────────────────────────
 async function login(){
