@@ -985,39 +985,7 @@ async function initApp(user){
   initPhotoSlotStatusHook();
 }
 
-  currentFirmId = profile.firm_id;
-  const firmName = profile.firms?.name || 'Unknown Firm';
-  const isSuperAdmin = profile.role === 'super_admin';
-
-  document.getElementById('auth-screen').style.display='none';
-  document.getElementById('app').style.display='flex';
-
-  const name = profile.full_name || user.user_metadata?.full_name || user.email;
-  document.getElementById('nav-user-email').textContent = name;
-  const initials = name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-  document.getElementById('sidebar-avatar').textContent = initials;
-  document.getElementById('sidebar-name').textContent = name;
-
-  // Show firm name (or SUPER ADMIN badge) in sidebar role line
-  const roleEl = document.querySelector('.user-role');
-  if(roleEl){
-    roleEl.textContent = isSuperAdmin ? '⚡ SUPER ADMIN — All Firms' : firmName;
-    if(isSuperAdmin) roleEl.style.color = 'var(--orange)';
-  }
-
-  // Tint sidebar orange for super_admin so you never forget which account you're in
-  if(isSuperAdmin){
-    document.querySelector('.sidebar').style.background = 'linear-gradient(180deg, rgba(244,168,32,0.08) 0%, var(--surface) 100%)';
-  }
-
-  const now = new Date();
-  document.getElementById('dash-date').textContent =
-    now.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  await loadDashboard();
-  await loadProperties();
-  await loadPropertySelect();
-  initPhotoSlotStatusHook();
-}
+  
 
 // ── PANELS ────────────────────────────────────────────
 function showPanel(name){
