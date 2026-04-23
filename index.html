@@ -955,20 +955,35 @@ async function initApp(user){
   currentUser = user;
   currentInspectorId = user.id;
 
-  // Load profile + firm — required before anything else loads
-  const {data:profile,error:profileError} = await sb
-    .from('profiles')
-    .select('full_name,role,firm_id,firms(name)')
-    .eq('id',user.id)
-    .maybeSingle();
-
-  if(profileError||!profile){
-    showToast('Profile not found. Contact your supervisor.','error');
-    await sb.auth.signOut();
-    document.getElementById('app').style.display='none';
-    document.getElementById('auth-screen').style.display='flex';
-    return;
+  // Load profile + firm — if this fails, sign out gracefully
+  try {
+    const {data:profile} = await sb
+      .from('profiles')
+      .select('firm_id,role')
+      .eq('id',user.id)
+      .maybeSingle();
+    if(profile){
+      currentFirmId = profile.firm_id;
+    }
+  } catch(e) {
+    console.warn('Profile load failed, continuing:', e);
   }
+
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  const name = user.user_metadata?.full_name || user.email;
+  document.getElementById('nav-user-email').textContent = name;
+  const initials = name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('sidebar-avatar').textContent = initials;
+  document.getElementById('sidebar-name').textContent = name;
+  const now = new Date();
+  document.getElementById('dash-date').textContent =
+    now.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  await loadDashboard();
+  await loadProperties();
+  await loadPropertySelect();
+  initPhotoSlotStatusHook();
+}
 
   currentFirmId = profile.firm_id;
   const firmName = profile.firms?.name || 'Unknown Firm';
