@@ -797,7 +797,7 @@ html,body{overflow-x:hidden}
     </div>
     <div class="modal-field">
       <label class="modal-label">Street Address</label>
-      <input class="modal-input" type="text" id="prop-address" placeholder="123 Oak Street" autocomplete="off" oninput="suggestStreets(this.value)" onfocus="suggestStreets(this.value)" onkeydown="if(event.key==='Escape')hideStreetSuggestions()">
+      <input class="modal-input" type="text" id="prop-address" placeholder="123 Oak Street" autocomplete="new-password" name="prop-address-no-autofill" oninput="suggestStreets(this.value)" onfocus="suggestStreets(this.value)" onkeydown="if(event.key==='Escape')hideStreetSuggestions()">
       <div class="street-suggest" id="street-suggest" style="display:none"></div>
     </div>
     <div class="modal-row">
@@ -1483,10 +1483,15 @@ function openAddProperty(){
 }
 
 let streetIndex = [];
-function buildStreetIndex(){
-  // Extract unique street patterns from existing properties
+async function buildStreetIndex(){
+  // Fetch addresses directly — works even if user hasn't visited Submit Phase yet
+  let source = submitPropertyCache;
+  if(!source || !source.length){
+    const {data} = await sb.from('properties').select('address').order('address');
+    source = data || [];
+  }
   const streetSet = new Set();
-  (submitPropertyCache || []).forEach(p => {
+  source.forEach(p => {
     if(!p.address) return;
     // Strip leading house number: "123 Main St" -> "Main St"
     const stripped = String(p.address).replace(/^\s*\d+[A-Za-z]?\s+/, '').trim();
