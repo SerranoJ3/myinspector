@@ -340,6 +340,28 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
   margin-bottom:8px}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* PROPERTY SEARCH */
+.prop-search-wrap{position:relative}
+.prop-search-results{
+  position:absolute;top:100%;left:0;right:0;z-index:50;
+  background:var(--surface);border:1px solid var(--border);border-top:none;
+  border-radius:0 0 var(--radius) var(--radius);
+  max-height:280px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.4);
+}
+.prop-search-results::-webkit-scrollbar{width:6px}
+.prop-search-results::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.prop-search-item{
+  padding:10px 14px;cursor:pointer;border-bottom:1px solid rgba(74,124,196,0.06);
+  transition:background .1s;
+}
+.prop-search-item:hover,.prop-search-item.active{background:var(--surface2)}
+.prop-search-item-addr{font-size:13px;color:var(--white);font-weight:600}
+.prop-search-item-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.prop-search-empty{padding:16px;text-align:center;color:var(--muted);font-size:12px;font-style:italic}
+.prop-search-selected{
+  background:rgba(27,58,107,0.3);border-color:var(--blue-light)!important;
+}
+
 /* SERVICE TYPE GRID */
 .service-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
 .service-opt{background:var(--surface2);border:1px solid var(--border);
@@ -663,9 +685,11 @@ html,body{overflow-x:hidden}
             <div class="form-section-title">Select Property</div>
             <div class="modal-field">
               <label class="modal-label">Property Address</label>
-              <select class="modal-select" id="submit-property-select">
-                <option value="">Loading properties...</option>
-              </select>
+              <div class="prop-search-wrap">
+                <input class="modal-input" type="text" id="submit-property-search" placeholder="Type to search by address, city, or lot..." autocomplete="off" oninput="filterSubmitPropertyResults(this.value)" onfocus="showSubmitPropertyResults()" onkeydown="if(event.key==='Escape')hideSubmitPropertyResults()">
+                <input type="hidden" id="submit-property-select">
+                <div class="prop-search-results" id="submit-property-results" style="display:none"></div>
+              </div>
             </div>
           </div>
           <div class="form-section">
@@ -1356,16 +1380,84 @@ function filterProperties(query) {
   container.innerHTML=html;
 }
 
+let submitPropertyCache = [];
+
 async function loadPropertySelect(){
-  const {data} = await sb.from('properties').select('id,address,city').order('address');
-  const sel = document.getElementById('submit-property-select');
-  if(!data||data.length===0){
-    sel.innerHTML='<option value="">No properties — add one first</option>';
+  const {data} = await sb.from('properties').select('id,address,city,lot_block,mapcall_id,current_phase').order('address');
+  submitPropertyCache = data || [];
+  const input = document.getElementById('submit-property-search');
+  const hidden = document.getElementById('submit-property-select');
+  if(!submitPropertyCache.length){
+    if(input){
+      input.placeholder = 'No properties — add one first';
+      input.disabled = true;
+    }
     return;
   }
-  sel.innerHTML='<option value="">Select a property...</option>'+
-    data.map(p=>`<option value="${p.id}">${p.address}${p.city?', '+p.city:''}</option>`).join('');
+  if(input){
+    input.placeholder = `Type to search ${submitPropertyCache.length} properties by address, city, lot...`;
+    input.disabled = false;
+  }
+  if(hidden) hidden.value = '';
 }
+
+function renderSubmitPropertyResults(list){
+  const container = document.getElementById('submit-property-results');
+  if(!container) return;
+  if(!list.length){
+    container.innerHTML = '<div class="prop-search-empty">No properties match.</div>';
+    container.style.display = 'block';
+    return;
+  }
+  container.innerHTML = list.slice(0, 50).map(p => `
+    <div class="prop-search-item" onclick="selectSubmitProperty('${p.id}')">
+      <div class="prop-search-item-addr">${p.address}</div>
+      <div class="prop-search-item-meta">${[p.city, p.lot_block ? 'Lot ' + p.lot_block : '', p.mapcall_id, p.current_phase ? p.current_phase.replace(/_/g,' ') : ''].filter(Boolean).join(' · ')}</div>
+    </div>
+  `).join('') + (list.length > 50 ? `<div class="prop-search-empty">${list.length - 50} more — narrow your search...</div>` : '');
+  container.style.display = 'block';
+}
+
+function filterSubmitPropertyResults(query){
+  const q = (query || '').toLowerCase().trim();
+  if(!q){
+    renderSubmitPropertyResults(submitPropertyCache);
+    return;
+  }
+  const filtered = submitPropertyCache.filter(p =>
+    (p.address||'').toLowerCase().includes(q) ||
+    (p.city||'').toLowerCase().includes(q) ||
+    (p.lot_block||'').toLowerCase().includes(q) ||
+    (p.mapcall_id||'').toLowerCase().includes(q)
+  );
+  renderSubmitPropertyResults(filtered);
+}
+
+function showSubmitPropertyResults(){
+  const input = document.getElementById('submit-property-search');
+  if(input) filterSubmitPropertyResults(input.value);
+}
+
+function hideSubmitPropertyResults(){
+  const container = document.getElementById('submit-property-results');
+  if(container) container.style.display = 'none';
+}
+
+function selectSubmitProperty(propId){
+  const prop = submitPropertyCache.find(p => p.id === propId);
+  if(!prop) return;
+  const input = document.getElementById('submit-property-search');
+  const hidden = document.getElementById('submit-property-select');
+  if(input) input.value = `${prop.address}${prop.city ? ', ' + prop.city : ''}`;
+  if(hidden) hidden.value = prop.id;
+  hideSubmitPropertyResults();
+}
+
+// Close search results when clicking outside
+document.addEventListener('click', (e) => {
+  const wrap = e.target.closest('.prop-search-wrap');
+  if(!wrap) hideSubmitPropertyResults();
+});
 
 function openAddProperty(){
   document.getElementById('modal-property').classList.add('open');
@@ -1635,6 +1727,8 @@ async function submitPhase(){
 }
 
 function resetSubmitForm(){
+  const searchInput = document.getElementById('submit-property-search');
+  if(searchInput) searchInput.value='';
   document.getElementById('submit-property-select').value='';
   document.querySelectorAll('.service-opt').forEach(o=>o.classList.remove('selected'));
   document.getElementById('dynamic-form-fields').innerHTML='';
