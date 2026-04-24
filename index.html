@@ -476,6 +476,7 @@ html,body{overflow-x:hidden}
 .photo-slot-thumb-status{position:absolute;bottom:2px;right:2px;background:rgba(10,14,20,0.85);border-radius:3px;padding:1px 4px;font-size:9px;font-weight:700;letter-spacing:.04em}
 .photo-slot-thumb-status.pending{color:var(--orange)}
 .photo-slot-thumb-status.capturing{color:var(--blue-light)}
+.photo-slot-thumb-status.verifying{color:var(--orange);animation:pingA 1.2s infinite}
 .photo-slot-thumb-status.synced{color:var(--green)}
 .photo-slot-thumb-status.failed{color:var(--red)}
 .photo-slot-thumb-remove{position:absolute;top:2px;right:2px;background:rgba(10,14,20,0.85);color:var(--white);border:none;border-radius:3px;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:1;padding:0;display:flex;align-items:center;justify-content:center}
@@ -974,6 +975,36 @@ async function handlePhotoCapture(event, label, source) {
   photoSlotState[label] = photoSlotState[label] || { photos: [], whiteboardVisible: false };
   photoSlotState[label].photos.push(localRecord);
   renderPhotoSlotThumbs(label);
+
+  // MI-151: If this slot requires a whiteboard, call Vision to verify before accepting photo
+  const wbRequiredLabels = ['curbstop_meterpit','watermain_corporation','restoration'];
+  let autoDetectedWB = false;
+  if (wbRequiredLabels.includes(label)) {
+    localRecord.status = 'verifying';
+    renderPhotoSlotThumbs(label);
+    try {
+      autoDetectedWB = await detectWhiteboardInPhoto(file);
+      if (!autoDetectedWB) {
+        // Whiteboard NOT detected — reject photo
+        photoSlotState[label].photos = photoSlotState[label].photos.filter(p => p !== localRecord);
+        renderPhotoSlotThumbs(label);
+        URL.revokeObjectURL(tempUrl);
+        showToast('No whiteboard detected in photo. Retake with whiteboard visible (DEP/EPA/NJAW compliance).', 'error');
+        return;
+      }
+      // Auto-check the whiteboard box since AI verified it
+      photoSlotState[label].whiteboardVisible = true;
+      const row = document.getElementById('photoslot-wb-' + label);
+      const box = row ? row.querySelector('.photo-slot-wb-box') : null;
+      if (row) row.classList.add('checked');
+      if (box) box.innerHTML = '&#10003;';
+    } catch (err) {
+      // Vision call failed — fall back to manual check, warn user
+      console.warn('Whiteboard auto-detect failed, falling back to manual:', err);
+      showToast('Auto-detect unavailable — manually confirm whiteboard below.', 'error');
+    }
+  }
+
   try {
     const wbVisible = photoSlotState[label].whiteboardVisible;
     const result = await window.PhotoQueue.capture(file, {
@@ -987,13 +1018,35 @@ async function handlePhotoCapture(event, label, source) {
     localRecord.uuid = result.uuid;
     localRecord.status = 'pending';
     renderPhotoSlotThumbs(label);
-    showToast('Photo captured', 'success');
+    showToast(autoDetectedWB ? '✓ Photo captured — whiteboard verified' : 'Photo captured', 'success');
   } catch (err) {
     photoSlotState[label].photos = photoSlotState[label].photos.filter(p => p !== localRecord);
     renderPhotoSlotThumbs(label);
     URL.revokeObjectURL(tempUrl);
     showToast('Capture failed: ' + err.message, 'error');
   }
+}
+
+async function detectWhiteboardInPhoto(file){
+  // Convert file to base64 for Vision API
+  const base64 = await new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onload = () => res(String(reader.result).split(',')[1]);
+    reader.onerror = () => rej(new Error('File read failed'));
+    reader.readAsDataURL(file);
+  });
+  const resp = await fetch(`${SUPABASE_URL}/functions/v1/detect-whiteboard`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+    },
+    body: JSON.stringify({ image_base64: base64, media_type: file.type || 'image/jpeg' }),
+  });
+  if (!resp.ok) throw new Error('Vision API HTTP ' + resp.status);
+  const data = await resp.json();
+  console.log('Whiteboard detect result:', data);
+  return data.whiteboard_detected === true;
 }
 
 async function removePhotoFromSlot(label, uuid) {
@@ -1016,7 +1069,7 @@ function renderPhotoSlotThumbs(label) {
     <div class="photo-slot-thumb">
       <img src="${p.thumbUrl}" alt="${label}">
       <button class="photo-slot-thumb-remove" onclick="removePhotoFromSlot('${label}','${p.uuid || ''}')" title="Remove">&#10005;</button>
-      <div class="photo-slot-thumb-status ${p.status}">${p.status === 'capturing' ? 'SAVING' : p.status === 'pending' ? 'SYNC' : p.status === 'synced' ? 'DONE' : 'FAIL'}</div>
+      <div class="photo-slot-thumb-status ${p.status}">${p.status === 'capturing' ? 'SAVING' : p.status === 'verifying' ? 'VERIFY' : p.status === 'pending' ? 'SYNC' : p.status === 'synced' ? 'DONE' : 'FAIL'}</div>
     </div>
   `).join('');
 }
