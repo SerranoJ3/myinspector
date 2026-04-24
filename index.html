@@ -2141,9 +2141,10 @@ async function sendLuis(){
       const { error: uploadError } = await client.storage
         .from(CONFIG.BUCKET)
         .upload(path, photo.blob, {
-          contentType: 'image/jpeg', upsert: false, cacheControl: '3600',
+          contentType: 'image/jpeg', upsert: true, cacheControl: '3600',
         });
-      if (uploadError && !uploadError.message?.includes('already exists')) {
+      if (uploadError && !uploadError.message?.includes('already exists') && !uploadError.message?.includes('Duplicate')) {
+        console.error('Storage upload error detail:', uploadError, 'path:', path);
         throw uploadError;
       }
       if (photo.submission_id) {
@@ -2168,7 +2169,11 @@ async function sendLuis(){
 
   async function appendPhotoToSubmission(client, photo, path) {
     const { data: sub, error: fetchErr } = await client
-      .from('phase_submissions').select('photos').eq('id', photo.submission_id).single();
+      .from('phase_submissions').select('photos').eq('id', photo.submission_id).maybeSingle();
+    if (!sub) {
+      // Submission doesn't exist (likely orphan photo from failed submission attempt). Abandon.
+      throw new Error('Submission ' + photo.submission_id + ' not found — photo is orphaned');
+    }
     if (fetchErr) throw fetchErr;
     const existing = Array.isArray(sub?.photos) ? sub.photos : [];
     if (existing.some(p => p.uuid === photo.uuid)) return;
