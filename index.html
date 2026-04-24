@@ -1674,11 +1674,24 @@ async function openPropertyDetail(propertyId){
       : '<span class="pd-sub-wb no">No WB</span>';
     const oosPill = s.out_of_sequence ? '<span class="pd-sub-oos">⚠ Out of Sequence</span>' : '';
 
-    const photos = Array.isArray(s.photos) ? s.photos : [];
+    // Combine new-style JSONB photos + legacy single-URL columns
+    let photos = Array.isArray(s.photos) ? [...s.photos] : [];
+    if(s.photo_curbstop_url) photos.push({
+      path: null, url: s.photo_curbstop_url, label: 'curbstop_meterpit',
+      whiteboard_visible: s.photo_curbstop_whiteboard, legacy: true
+    });
+    if(s.photo_watermain_url) photos.push({
+      path: null, url: s.photo_watermain_url, label: 'watermain_corporation',
+      whiteboard_visible: s.photo_watermain_whiteboard, legacy: true
+    });
+    if(s.photo_restoration_url) photos.push({
+      path: null, url: s.photo_restoration_url, label: 'restoration',
+      whiteboard_visible: s.photo_restoration_whiteboard, legacy: true
+    });
     const photosHTML = photos.length ? `
       <div class="pd-photos">
         ${photos.map(ph => {
-          const url = ph.path ? `${SUPABASE_URL}/storage/v1/object/public/inspection-photos/${ph.path}` : '';
+          const url = ph.url || (ph.path ? `${SUPABASE_URL}/storage/v1/object/public/inspection-photos/${ph.path}` : '');
           const label = (ph.label||'photo').replace(/_/g,' ');
           const wbBadge = ph.whiteboard_visible ? '<div class="pd-photo-wb">WB</div>' : '';
           return `<div class="pd-photo" onclick="openLightbox('${url}')">
