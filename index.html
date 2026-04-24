@@ -754,8 +754,18 @@ html,body{overflow-x:hidden}
         <div class="table-wrap">
           <div class="table-header">
             <div class="table-title">Submission Log</div>
+        </div>
+        <div style="padding:12px 18px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="search-wrap" style="margin:0">
+            <span class="search-icon">&#128269;</span>
+            <input class="search-input" type="text" id="subs-street-search" placeholder="Filter by street or city..." oninput="filterAllSubmissions()" onkeydown="if(event.key==='Enter')filterAllSubmissions()">
           </div>
-          <div id="all-submissions-list">
+          <div class="search-wrap" style="margin:0">
+            <span class="search-icon">&#128269;</span>
+            <input class="search-input" type="text" id="subs-prop-search" placeholder="Then filter by house #, lot, or MapCall ID..." oninput="filterAllSubmissions()" onkeydown="if(event.key==='Enter')filterAllSubmissions()">
+          </div>
+        </div>
+        <div id="all-submissions-list">
             <div class="loading"><div class="spinner"></div><br>Loading...</div>
           </div>
         </div>
@@ -1825,25 +1835,61 @@ function resetSubmitForm(){
 }
 
 // ── ALL SUBMISSIONS ───────────────────────────────────
+let allSubmissionsCache = [];
+
 async function loadAllSubmissions(){
   const {data,error} = await sb.from('phase_submissions')
-    .select('*,properties(address,city)')
+    .select('*,properties(address,city,zip,lot_block,mapcall_id)')
     .order('submitted_at',{ascending:false})
-    .limit(50);
+    .limit(200);
+  if(error){
+    document.getElementById('all-submissions-list').innerHTML='<div class="loading">Error loading submissions.</div>';
+    return;
+  }
+  allSubmissionsCache = data || [];
+  renderAllSubmissions(allSubmissionsCache);
+}
+
+function filterAllSubmissions(){
+  const street = document.getElementById('subs-street-search')?.value.toLowerCase().trim() || '';
+  const prop = document.getElementById('subs-prop-search')?.value.toLowerCase().trim() || '';
+  let filtered = allSubmissionsCache;
+  if(street){
+    filtered = filtered.filter(s => {
+      const p = s.properties || {};
+      return (p.address||'').toLowerCase().includes(street) ||
+             (p.city||'').toLowerCase().includes(street);
+    });
+  }
+  if(prop){
+    filtered = filtered.filter(s => {
+      const p = s.properties || {};
+      return (p.address||'').toLowerCase().includes(prop) ||
+             (p.lot_block||'').toLowerCase().includes(prop) ||
+             (p.mapcall_id||'').toLowerCase().includes(prop) ||
+             (p.zip||'').toLowerCase().includes(prop);
+    });
+  }
+  renderAllSubmissions(filtered);
+}
+
+function renderAllSubmissions(data){
   const container = document.getElementById('all-submissions-list');
-  if(error||!data||data.length===0){
-    container.innerHTML='<div class="loading">No submissions yet.</div>'; return;
+  if(!data || data.length===0){
+    container.innerHTML='<div class="loading">No submissions match your filters.</div>';
+    return;
   }
   let html=`<table><thead><tr><th>Address</th><th>Phase</th><th>Service Type</th><th>WB Confirmed</th><th>Out of Seq</th><th>Submitted</th></tr></thead><tbody>`;
   data.forEach(s=>{
     const addr=s.properties?.address||'Unknown';
+    const city=s.properties?.city||'';
     const phClass='ph-'+(s.phase||'pending').replace(/_/g,'');
     const dt=new Date(s.submitted_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
     const wb=(s.photo_curbstop_whiteboard||s.photo_watermain_whiteboard||s.photo_restoration_whiteboard)?
       '<span style="color:var(--green);font-weight:600">✓ Yes</span>':'<span style="color:var(--muted)">N/A</span>';
     const oos=s.out_of_sequence?'<span style="color:var(--orange);font-size:11px">Flagged</span>':'<span style="color:var(--muted)">—</span>';
-    html+=`<tr>
-      <td><div style="font-weight:600;color:var(--white)">${addr}</div></td>
+    html+=`<tr onclick="openPropertyDetail('${s.property_id}')">
+      <td><div style="font-weight:600;color:var(--white)">${addr}</div><div style="font-size:11px;color:var(--muted)">${city}</div></td>
       <td><span class="phase-badge ${phClass}">${(s.phase||'—').replace(/_/g,' ')}</span></td>
       <td style="font-size:12px;color:var(--muted)">${(s.service_type||'—').replace(/_/g,' ')}</td>
       <td>${wb}</td><td>${oos}</td>
