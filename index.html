@@ -1473,6 +1473,7 @@ async function submitPhase(){
     id: currentSubmissionUUID,
     property_id: propId,
     submitted_by: currentUser.id,
+    firm_id: currentFirmId,
     service_type: currentServiceType,
     phase: currentServiceType==='test_pit'?'test_pit':
            currentServiceType==='assessment'?'assessment':
