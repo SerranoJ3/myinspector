@@ -813,6 +813,7 @@ html,body{overflow-x:hidden}
 const SUPABASE_URL = 'https://wryitfoletwskkdqqwcw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_xYjhw_vwuQzky1KD2X2STQ_dmJrFgJz';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+window.sb = sb;
 
 let currentUser = null;
 let currentServiceType = null;
