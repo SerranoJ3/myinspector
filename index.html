@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -151,9 +150,11 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .ph-testpit{background:rgba(139,127,208,0.15);color:#8B7FD0}
 .ph-assessment{background:rgba(74,124,196,0.15);color:var(--blue-light)}
 .ph-workorder{background:rgba(244,168,32,0.15);color:var(--orange)}
-.ph-service{background:rgba(244,168,32,0.2);color:var(--orange)}
-.ph-gis{background:rgba(2,128,144,0.15);color:#02C39A}
+.ph-servicework{background:rgba(244,168,32,0.2);color:var(--orange)}
+.ph-gisdocs{background:rgba(2,128,144,0.15);color:#02C39A}
 .ph-restoration{background:rgba(61,155,94,0.15);color:var(--green)}
+.ph-outoforder{background:rgba(200,74,74,0.15);color:var(--red)}
+.ph-tapcard{background:rgba(74,124,196,0.2);color:var(--blue-light)}
 .ph-complete{background:rgba(61,155,94,0.2);color:var(--green)}
 .ph-pending{background:rgba(94,122,154,0.15);color:var(--muted)}
 .mat-lead{color:var(--red);font-weight:600}
@@ -562,9 +563,9 @@ html,body{overflow-x:hidden}
       <input class="field-input" type="text" id="signup-firm-code" placeholder="ASK-YOUR-SUPERVISOR" style="text-transform:uppercase" onkeydown="if(event.key==='Enter')signup()">
       <button class="btn-primary" onclick="signup()">Create Account</button>
       <div class="auth-toggle">Have an account? <a onclick="showLogin()">Sign in</a></div>
-    </div> 
+    </div>
  </div>
-</div>   
+</div>
 
 <!-- MAIN APP -->
 <div id="app">
@@ -719,11 +720,11 @@ html,body{overflow-x:hidden}
                 <span class="svc-name">Assessment</span>
                 <span class="svc-sub">Material check</span>
               </div>
-              <div class="service-opt" onclick="selectServiceType(this,'service_install')">
+              <div class="service-opt" onclick="selectServiceType(this,'service_work')">
                 <span class="svc-name">Service Work</span>
                 <span class="svc-sub">Install + photos</span>
               </div>
-              <div class="service-opt" onclick="selectServiceType(this,'gis_documentation')">
+              <div class="service-opt" onclick="selectServiceType(this,'gis_docs')">
                 <span class="svc-name">GIS / Docs</span>
                 <span class="svc-sub">GPS + blueprint</span>
               </div>
@@ -731,7 +732,7 @@ html,body{overflow-x:hidden}
                 <span class="svc-name">Restoration</span>
                 <span class="svc-sub">Final closeout</span>
               </div>
-              <div class="service-opt" onclick="selectServiceType(this,'out_of_sequence')">
+              <div class="service-opt" onclick="selectServiceType(this,'out_of_order')">
                 <span class="svc-name">Out of Order</span>
                 <span class="svc-sub">Partial / revisit</span>
               </div>
@@ -1175,7 +1176,7 @@ function updateSyncBadge(status){
     text.textContent = 'All synced';
     badge.title = 'All photos synced.';
   }
-} 
+}
 
 // ── AUTH ──────────────────────────────────────────────
 async function login(){
@@ -1307,7 +1308,7 @@ async function initApp(user){
   initPhotoSlotStatusHook();
 }
 
-  
+
 
 // ── PANELS ────────────────────────────────────────────
 function showPanel(name){
@@ -1342,17 +1343,17 @@ async function loadDashboard(){
     container.innerHTML='<div class="loading">No submissions yet. Submit your first phase to get started.</div>';
     return;
   }
-  let html=`<table><thead><tr><th>Address</th><th>Phase</th><th>Service Type</th><th>Submitted</th><th>WB</th></tr></thead><tbody>`;
+  let html=`<table><thead><tr><th>Address</th><th>Phase</th><th>Work Code</th><th>Submitted</th><th>WB</th></tr></thead><tbody>`;
   subs.forEach(s=>{
     const addr = s.properties?.address||'Unknown';
     const city = s.properties?.city||'';
-    const phaseClass = 'ph-'+(s.phase||'pending').replace('_','');
+    const phaseClass = 'ph-'+(s.phase||'pending').replace(/_/g,'');
     const dt = new Date(s.submitted_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
     const wb = (s.photo_curbstop_whiteboard||s.photo_watermain_whiteboard||s.photo_restoration_whiteboard)?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--muted)">—</span>';
     html+=`<tr>
       <td><div style="font-weight:600;color:var(--white)">${addr}</div><div style="font-size:11px;color:var(--muted)">${city}</div></td>
       <td><span class="phase-badge ${phaseClass}">${(s.phase||'pending').replace(/_/g,' ')}</span></td>
-      <td style="font-size:12px;color:var(--muted)">${(s.service_type||'—').replace(/_/g,' ')}</td>
+      <td style="font-size:12px;color:var(--muted)">${s.work_order_code||'—'}</td>
       <td style="font-size:12px;color:var(--muted)">${dt}</td>
       <td>${wb}</td>
     </tr>`;
@@ -1634,7 +1635,7 @@ function renderDynamicFields(type){
     </div>`;
   }
 
-  if(type==='service_install'){
+  if(type==='service_work'){
     html+=`<div class="form-section">
       <div class="form-section-title">Cardinal Photos</div>
       ${renderPhotoSlot('curbstop_meterpit', 'Curbstop / Meterpit Photo', { whiteboardRequired: true })}
@@ -1667,7 +1668,7 @@ function renderDynamicFields(type){
     </div>`;
   }
 
-  if(type==='gis_documentation'){
+  if(type==='gis_docs'){
     html+=`<div class="form-section">
       <div class="form-section-title">GIS Information</div>
       <div class="alert alert-green" style="margin-bottom:12px">
@@ -1724,7 +1725,7 @@ function renderDynamicFields(type){
     </div>`;
   }
 
-  if(type==='out_of_sequence'){
+  if(type==='out_of_order'){
     html+=`<div class="form-section">
       <div class="form-section-title">Out of Sequence Details</div>
       <div class="alert alert-orange">
@@ -1779,23 +1780,20 @@ async function submitPhase(){
   const wbCurb = photoSlotState.curbstop_meterpit?.whiteboardVisible || false;
   const wbMain = photoSlotState.watermain_corporation?.whiteboardVisible || false;
   const wbRest = photoSlotState.restoration?.whiteboardVisible || false;
+  const woCode = document.getElementById('f-wo-code')?.value || null;
 
   const payload = {
     id: currentSubmissionUUID,
     property_id: propId,
     submitted_by: currentUser.id,
     firm_id: currentFirmId,
-    service_type: currentServiceType,
-    phase: currentServiceType==='test_pit'?'test_pit':
-           currentServiceType==='assessment'?'assessment':
-           currentServiceType==='service_install'?'service':
-           currentServiceType==='gis_documentation'?'gis_docs':
-           currentServiceType==='restoration'?'restoration':'test_pit',
+    phase: currentServiceType,
+    work_order_code: woCode || null,
     notes,
     photo_curbstop_whiteboard: wbCurb,
     photo_watermain_whiteboard: wbMain,
     photo_restoration_whiteboard: wbRest,
-    out_of_sequence: currentServiceType==='out_of_sequence',
+    out_of_sequence: currentServiceType==='out_of_order',
     sequence_note: document.getElementById('f-sequence-note')?.value||null,
     photos: [],
     last_client_sync_at: new Date().toISOString(),
@@ -1879,7 +1877,7 @@ function renderAllSubmissions(data){
     container.innerHTML='<div class="loading">No submissions match your filters.</div>';
     return;
   }
-  let html=`<table><thead><tr><th>Address</th><th>Phase</th><th>Service Type</th><th>WB Confirmed</th><th>Out of Seq</th><th>Submitted</th></tr></thead><tbody>`;
+  let html=`<table><thead><tr><th>Address</th><th>Phase</th><th>Work Code</th><th>WB Confirmed</th><th>Out of Seq</th><th>Submitted</th></tr></thead><tbody>`;
   data.forEach(s=>{
     const addr=s.properties?.address||'Unknown';
     const city=s.properties?.city||'';
@@ -1891,7 +1889,7 @@ function renderAllSubmissions(data){
     html+=`<tr onclick="openPropertyDetail('${s.property_id}')">
       <td><div style="font-weight:600;color:var(--white)">${addr}</div><div style="font-size:11px;color:var(--muted)">${city}</div></td>
       <td><span class="phase-badge ${phClass}">${(s.phase||'—').replace(/_/g,' ')}</span></td>
-      <td style="font-size:12px;color:var(--muted)">${(s.service_type||'—').replace(/_/g,' ')}</td>
+      <td style="font-size:12px;color:var(--muted)">${s.work_order_code||'—'}</td>
       <td>${wb}</td><td>${oos}</td>
       <td style="font-size:12px;color:var(--muted)">${dt}</td>
     </tr>`;
@@ -2213,6 +2211,7 @@ async function openPropertyDetail(propertyId){
       ? '<span class="pd-sub-wb yes">✓ Whiteboard</span>'
       : '<span class="pd-sub-wb no">No WB</span>';
     const oosPill = s.out_of_sequence ? '<span class="pd-sub-oos">⚠ Out of Sequence</span>' : '';
+    const woCodePill = s.work_order_code ? `<span style="font-size:10px;background:rgba(244,168,32,0.15);color:var(--orange);padding:2px 8px;border-radius:99px;font-weight:700">${s.work_order_code}</span>` : '';
 
     // Combine new-style JSONB photos + legacy single-URL columns
     let photos = Array.isArray(s.photos) ? [...s.photos] : [];
@@ -2251,7 +2250,7 @@ async function openPropertyDetail(propertyId){
           <div class="pd-sub-left">
             <span class="pd-caret">▶</span>
             <span class="phase-badge ${phClass}">${(s.phase||'pending').replace(/_/g,' ')}</span>
-            <span style="font-size:12px;color:var(--muted)">${(s.service_type||'—').replace(/_/g,' ')}</span>
+            ${woCodePill}
             ${wbPill}
             ${oosPill}
           </div>
