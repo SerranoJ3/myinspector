@@ -29,13 +29,31 @@ This is **production**. Treat all data and writes accordingly.
 
 ## Schema source of truth
 - **Production write table: `phase_submissions`** (NOT legacy `inspections` — that table exists but is not the live target)
-- **13 public tables:** `properties`, `phase_submissions`, `daily_reports`, `modules`, `projects`, `inspections`, `documents`, `luis_conversations`, `rfis`, `firms`, `profiles`, `photo_rescue`, `supervisor_alerts`
-- **RLS:** forced on all 13 tables (MI-200 closed 4/27/26). At least 1 policy per table. Cross-firm isolation verified.
-- **Audit chain:** 4-layer immutability stack via MI-202
-  1. No UPDATE/DELETE grant on Owner Data tables
-  2. BEFORE UPDATE/DELETE trigger raises exception
-  3. SHA-256 hash chain (`'GENESIS'` literal seed, deterministic canonical encoding)
-  4. Nightly S3 Object Lock Compliance, retention 10y + 30d
+- **18 public tables, two categories:**
+  - **13 business tables:** `properties`, `phase_submissions`, `daily_reports`, `modules`, `projects`, `inspections`, `documents`, `luis_conversations`, `rfis`, `firms`, `profiles`, `photo_rescue`, `supervisor_alerts`
+  - **5 compliance tables (added by MI-202):** `audit_log`, `compliance_events`, `destruction_notices`, `legal_holds`, `whiteboard_override_log`
+- **RLS:** forced on all 18 tables (MI-200 closed 4/27/26 for the original 13; MI-202 added the 5 compliance tables under the same regime). Business tables enforce per-firm isolation via `firm_id`. Compliance tables enforce role-based access (typically super_admin) via `profiles.role`. At least 1 policy per table. Cross-firm isolation verified Phase 1 item 2.
+- **Firm isolation:** `profiles.firm_id` (uuid, FK → `firms.id`) is the canonical firm-isolation column. Nullable for super_admin accounts — RLS predicates must handle the NULL branch explicitly.
+- **Audit chain:** 5-layer immutability stack via MI-202
+  1. RLS forced on all 18 tables — baseline access control before any audit logic runs
+  2. AFTER INSERT/UPDATE/DELETE triggers on every Owner Data table call `write_audit_log()` — every mutation produces an audit row
+  3. SHA-256 hash chain on `audit_log` via `audit_log_chain_trigger` BEFORE INSERT — `'GENESIS'` literal seed, pipe-delimited canonical encoding, `\N` for NULL, hex output
+  4. Conditional immutability via `enforce_legal_hold()` BEFORE UPDATE/DELETE — blocks the change only when an active legal hold scopes that row, table, or firm
+  5. Nightly S3 Object Lock Compliance export, retention 10y + 30d
+- **Audit chain primitives:**
+  - **`record_compliance_event` RPC** — banked signature (Phase 1 item 1):
+    ```
+    record_compliance_event(
+      p_event_type     text,                     -- required
+      p_message        text,                     -- required, no default
+      p_severity       text  DEFAULT 'info',
+      p_details        jsonb DEFAULT NULL,
+      p_source         text  DEFAULT NULL,
+      p_correlation_id text  DEFAULT NULL
+    )
+    ```
+    Returns the new event id. Always pass `p_source` and `p_correlation_id` so events trace to a ticket.
+  - **`pgcrypto`** v1.3 installed in the `extensions` schema. Functions using `digest()` / `gen_random_uuid()` must `SET search_path` to include `extensions` so bare calls resolve. MI-202 functions follow this pattern; future RPCs must too.
 - **Schema changes:** migration files only. No raw SQL writes. Changes outside migration history break the audit chain.
 
 ---
@@ -75,6 +93,9 @@ Same NJAW utility rules apply across all sectors. What differs is the role:
 - **ShortHills sector:** inspector dictates means and methods to contractor + interacts with homeowner directly
 
 Tapcard report format and role permissions differ accordingly. See MI-100 for sector toggle.
+
+### 7. Views over Owner Data and compliance tables = `security_invoker = true`
+Postgres views default to `security_invoker = false`, which runs the view as definer (typically `postgres`) and bypasses RLS on the underlying tables. On a multi-tenant compliance system that's a cross-firm leak path. Every view that reads from Owner Data or compliance tables must be created `WITH (security_invoker = true)`, or have it set immediately via `ALTER VIEW`. MI-201 closed this on `compliance_dashboard` retroactively (5/1/26) — don't recreate the bug.
 
 ---
 
@@ -160,8 +181,9 @@ Use this for ALL timeline estimates.
 - "Quick fix via direct SQL" — violates audit chain rule
 - "Skip the whiteboard rule for this case" — only valid if no excavation
 - "Treat ShortHills like other sectors" — role inversion is real, not optional
+- "Create a view for the dashboard" without `security_invoker = true` — violates Principle 7
 
 ---
 
-**Last updated:** April 30, 2026
+**Last updated:** May 1, 2026
 **Source of truth for principles. STATE.md for live state.**
