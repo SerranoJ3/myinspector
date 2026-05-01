@@ -927,6 +927,45 @@ html,body{overflow-x:hidden}
   </div>
 </div>
 
+<!-- MI-109 CARLO AUTHORIZATION MODAL -->
+<div class="modal-overlay" id="modal-cs-auth">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">CS Replacement Authorization</div>
+        <div class="modal-sub">Carlo authorization required — CDM-Smith compliance, no exception</div>
+      </div>
+      <button class="modal-close" onclick="cancelCsAuth()">✕</button>
+    </div>
+    <div class="alert alert-orange" style="margin-bottom:14px">
+      <div><span class="alert-title">All fields required</span>Every attempt is audit-logged. Do not proceed without supervisor authorization.</div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Authorization Date</label>
+        <input class="modal-input" type="date" id="cs-auth-date" oninput="validateCsAuth()">
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Authorization Time</label>
+        <input class="modal-input" type="time" id="cs-auth-time" oninput="validateCsAuth()">
+      </div>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Supervisor Name</label>
+      <input class="modal-input" type="text" id="cs-auth-supervisor" value="Carlo Domenick" oninput="validateCsAuth()">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Reason <span id="cs-auth-reason-counter" style="font-size:10px;color:var(--muted);margin-left:6px">0 / 20 min</span></label>
+      <textarea class="modal-input" id="cs-auth-reason" rows="4" placeholder="Describe why CS replacement was authorized (minimum 20 characters)..." style="resize:none;line-height:1.5" oninput="validateCsAuth()"></textarea>
+    </div>
+    <div id="cs-auth-error" class="alert alert-red" style="display:none;margin-top:10px"></div>
+    <div class="modal-actions">
+      <button class="btn-sm btn-ghost" onclick="cancelCsAuth()">Cancel</button>
+      <button class="btn-sm btn-orange" id="cs-auth-save-btn" onclick="saveCsAuth()" disabled>Save Authorization</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
@@ -946,6 +985,14 @@ let currentSubmissionUUID = null;
 let currentFirmId = null;
 let currentInspectorId = null;
 const photoSlotState = {};
+
+// --- MI-109 CS replacement authorization state ---
+let csReplacementToggle = false;
+let pendingCsAuth = null;
+// Tracks whether the current attempt's phase_submissions row was already INSERTed.
+// If a CS auth RPC call fails on the first try, retries must skip the INSERT
+// (PK conflict + audit-chain immutability prohibit deleting + reinserting).
+let phaseSubmissionInserted = false;
 
 function newSubmissionUUID() {
   currentSubmissionUUID = crypto.randomUUID();
@@ -1600,6 +1647,9 @@ function selectServiceType(el, type){
   el.classList.add('selected');
   currentServiceType = type;
   wbCurbstop=false; wbWatermain=false; wbRestoration=false;
+  csReplacementToggle = false;
+  pendingCsAuth = null;
+  phaseSubmissionInserted = false;
   newSubmissionUUID();
   renderDynamicFields(type);
 }
@@ -1738,8 +1788,24 @@ function renderDynamicFields(type){
     </div>`;
   }
 
+  // MI-109: CS replacement authorization toggle — only for phases that involve excavation
+  if(type==='test_pit' || type==='service_work' || type==='restoration'){
+    html += `<div class="form-section">
+      <div class="form-section-title">CS Replacement</div>
+      <div class="wb-check-row" onclick="toggleCsReplacement()">
+        <div class="wb-checkbox" id="cs-replacement-box"></div>
+        <div class="wb-check-label">
+          CS replacement performed<br>
+          <span style="font-size:10px;color:var(--muted)">Carlo authorization required — CDM-Smith compliance</span>
+        </div>
+      </div>
+      <div id="cs-auth-summary" style="display:none;font-size:11px;color:var(--green);padding:6px 14px"></div>
+    </div>`;
+  }
+
   container.innerHTML=html;
   Object.keys(photoSlotState).forEach(label => renderPhotoSlotThumbs(label));
+  renderCsToggleState();
 }
 
 function toggleWB(type){
@@ -1757,6 +1823,107 @@ function toggleWB(type){
     wbRestoration=!wbRestoration;
     const box=document.getElementById('wb-rest-box');
     if(box){box.textContent=wbRestoration?'✓':'';box.className='wb-checkbox'+(wbRestoration?' checked':'')}
+  }
+}
+
+// ── MI-109 CS REPLACEMENT AUTHORIZATION ──────────────
+function toggleCsReplacement(){
+  if(csReplacementToggle){
+    // Turning OFF — clear any captured auth
+    csReplacementToggle = false;
+    pendingCsAuth = null;
+    renderCsToggleState();
+    return;
+  }
+  // Turning ON — open modal to collect auth
+  openCsAuthModal();
+}
+
+function renderCsToggleState(){
+  const box = document.getElementById('cs-replacement-box');
+  const summary = document.getElementById('cs-auth-summary');
+  if(!box) return;
+  if(csReplacementToggle){
+    box.textContent = '✓';
+    box.className = 'wb-checkbox checked';
+    if(summary && pendingCsAuth){
+      summary.style.display = 'block';
+      summary.textContent = '✓ Authorized by ' + pendingCsAuth.supervisor_name + ' on ' + pendingCsAuth.authorization_date + ' at ' + pendingCsAuth.authorization_time;
+    }
+  } else {
+    box.textContent = '';
+    box.className = 'wb-checkbox';
+    if(summary){ summary.style.display = 'none'; summary.textContent = ''; }
+  }
+}
+
+function openCsAuthModal(){
+  // Pre-fill with existing pending auth (if user re-opens without canceling)
+  const dateEl = document.getElementById('cs-auth-date');
+  const timeEl = document.getElementById('cs-auth-time');
+  const supEl = document.getElementById('cs-auth-supervisor');
+  const reasonEl = document.getElementById('cs-auth-reason');
+  const errEl = document.getElementById('cs-auth-error');
+  if(pendingCsAuth){
+    dateEl.value = pendingCsAuth.authorization_date || '';
+    timeEl.value = pendingCsAuth.authorization_time || '';
+    supEl.value = pendingCsAuth.supervisor_name || 'Carlo Domenick';
+    reasonEl.value = pendingCsAuth.reason || '';
+  } else {
+    dateEl.value = '';
+    timeEl.value = '';
+    supEl.value = 'Carlo Domenick';
+    reasonEl.value = '';
+  }
+  if(errEl){ errEl.style.display = 'none'; errEl.textContent = ''; }
+  validateCsAuth();
+  document.getElementById('modal-cs-auth').classList.add('open');
+}
+
+function validateCsAuth(){
+  const date = document.getElementById('cs-auth-date').value;
+  const time = document.getElementById('cs-auth-time').value;
+  const supervisor = document.getElementById('cs-auth-supervisor').value.trim();
+  const reason = document.getElementById('cs-auth-reason').value;
+  const counter = document.getElementById('cs-auth-reason-counter');
+  const btn = document.getElementById('cs-auth-save-btn');
+  const len = reason.length;
+  if(counter){
+    counter.textContent = len + ' / 20 min';
+    counter.style.color = len >= 20 ? 'var(--green)' : 'var(--muted)';
+  }
+  const valid = !!date && !!time && supervisor.length > 0 && len >= 20;
+  if(btn) btn.disabled = !valid;
+  return valid;
+}
+
+function cancelCsAuth(){
+  document.getElementById('modal-cs-auth').classList.remove('open');
+  // If toggle wasn't already confirmed (no pendingCsAuth), revert toggle to OFF
+  if(!pendingCsAuth){
+    csReplacementToggle = false;
+    renderCsToggleState();
+  }
+}
+
+function saveCsAuth(){
+  if(!validateCsAuth()) return;
+  pendingCsAuth = {
+    authorization_date: document.getElementById('cs-auth-date').value,
+    authorization_time: document.getElementById('cs-auth-time').value,
+    supervisor_name: document.getElementById('cs-auth-supervisor').value.trim(),
+    reason: document.getElementById('cs-auth-reason').value,
+  };
+  csReplacementToggle = true;
+  document.getElementById('modal-cs-auth').classList.remove('open');
+  renderCsToggleState();
+}
+
+function showCsAuthModalError(message){
+  const errEl = document.getElementById('cs-auth-error');
+  if(errEl){
+    errEl.textContent = message;
+    errEl.style.display = 'block';
   }
 }
 
@@ -1799,8 +1966,51 @@ async function submitPhase(){
     last_client_sync_at: new Date().toISOString(),
   };
 
-  const {error} = await sb.from('phase_submissions').insert(payload);
-  if(error){ showToast('Submission error: '+error.message,'error'); return; }
+  // MI-109: if CS replacement toggle is ON, auth must be captured before submit
+  if(csReplacementToggle && !pendingCsAuth){
+    showToast('CS replacement requires Carlo authorization — open the form to complete.', 'error');
+    return;
+  }
+
+  // Skip INSERT if the row was already written on a prior attempt that failed at
+  // the CS-auth RPC step. Audit-chain immutability prohibits delete-and-retry, so
+  // the row stays and the retry just calls the RPC again with the same id.
+  if(!phaseSubmissionInserted){
+    const {error} = await sb.from('phase_submissions').insert(payload);
+    if(error){ showToast('Submission error: '+error.message,'error'); return; }
+    phaseSubmissionInserted = true;
+  }
+
+  // MI-109: If CS replacement performed, call the RPC to record Carlo authorization.
+  // The RPC is the only path that sets cs_replacement=true on phase_submissions and
+  // inserts the cs_replacement_authorizations row. Inspector cannot bypass.
+  if(csReplacementToggle && pendingCsAuth){
+    const {error: authErr} = await sb.rpc('submit_cs_authorization', {
+      p_phase_submission_id: currentSubmissionUUID,
+      p_authorization_date: pendingCsAuth.authorization_date,
+      p_authorization_time: pendingCsAuth.authorization_time,
+      p_reason: pendingCsAuth.reason,
+      p_supervisor_name: pendingCsAuth.supervisor_name,
+    });
+    if(authErr){
+      const code = authErr.code || '';
+      const msg = authErr.message || '';
+      let userMsg;
+      if(code === '42501' || code === 'insufficient_privilege' || msg.startsWith('AUTH_DENIED')){
+        userMsg = 'You do not have permission to authorize CS replacement. Contact your supervisor.';
+      } else if(msg.startsWith('VALIDATION_')){
+        userMsg = msg.replace(/^VALIDATION_[A-Z_]*:?\s*/, '').trim() || msg.slice('VALIDATION_'.length);
+      } else {
+        console.error('CS authorization RPC failed:', authErr);
+        userMsg = 'Authorization failed — please try again.';
+      }
+      showToast(userMsg, 'error');
+      // Re-open modal so inspector can correct + retry. pendingCsAuth retained.
+      openCsAuthModal();
+      showCsAuthModalError(userMsg);
+      return;
+    }
+  }
 
   await sb.from('properties').update({current_phase:payload.phase}).eq('id',propId);
 
@@ -1828,6 +2038,9 @@ function resetSubmitForm(){
   document.querySelectorAll('.service-opt').forEach(o=>o.classList.remove('selected'));
   document.getElementById('dynamic-form-fields').innerHTML='';
   currentServiceType=null; wbCurbstop=false; wbWatermain=false; wbRestoration=false;
+  csReplacementToggle = false;
+  pendingCsAuth = null;
+  phaseSubmissionInserted = false;
   currentSubmissionUUID = null;
   Object.keys(photoSlotState).forEach(k => delete photoSlotState[k]);
 }
