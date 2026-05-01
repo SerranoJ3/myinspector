@@ -134,9 +134,22 @@ Read CLAUDE.md (especially: schema source of truth, audit chain primitives, lock
 Spec: When an inspector marks a CS replacement on a phase submission, the app must require Carlo authorization before submit. Required fields: date, time, reason text (min 20 chars), supervisor name (Carlo Domenick by default but editable). Audit log every attempt (accepted + rejected) via record_compliance_event with p_event_type='cs_replacement.auth.<accepted|rejected>', p_source='MI-109', p_correlation_id=<phase_submission uuid>.
 
 Three teammates:
-1. Backend — migration: cs_replacement_authorizations table (Owner Data, RLS forced, INSERT-only, audit-chained) + cs_replacement bool on phase_submissions + edge function cs-auth-submit. Use record_compliance_event signature from CLAUDE.md verbatim. Any new view created MUST use security_invoker=true (CLAUDE.md principle #7).
-2. Frontend (index.html) — Carlo modal on Submit Phase, validation, error states. Inspector cannot bypass. Handle profiles.firm_id NULL branch for super_admin override flow.
-3. Tests — RLS test (cross-firm isolation), audit log integrity test (every attempt logged with correct correlation_id), E2E flow test (manual checklist okay).
+
+1. Backend
+   - Migration: cs_replacement_authorizations table (Owner Data, RLS forced, INSERT-only via grants, audit-chained) + cs_replacement bool on phase_submissions.
+   - Postgres RPC submit_cs_authorization (SECURITY DEFINER, SET search_path TO public, extensions, pg_temp per CLAUDE.md convention) modeled on record_whiteboard_override. Use record_compliance_event signature from CLAUDE.md verbatim.
+   - Any new view created MUST use security_invoker=true (CLAUDE.md principle #7).
+   - Immutability mechanism for cs_replacement_authorizations rows is a Phase 3 design question. Create the table INSERT-only via grants for now (most reversible default). The GRANT-vs-permanent-legal-hold call gets deferred until record_whiteboard_override + whiteboard_override_log are reviewed as the template — do NOT bake either choice into the migration prematurely.
+
+2. Frontend (index.html)
+   - Carlo modal on Submit Phase, validation, error states. Inspector cannot bypass.
+   - Frontend calls supabase.rpc('submit_cs_authorization', {...}) — no Edge Function.
+   - Handle profiles.firm_id NULL branch for super_admin override flow.
+
+3. Tests
+   - RLS test (cross-firm isolation)
+   - Audit log integrity test (every attempt logged with correct correlation_id)
+   - E2E flow test (manual checklist okay)
 
 Lead synthesizes, opens ONE PR, does NOT merge — Jorge reviews and merges manually.
 
