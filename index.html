@@ -284,6 +284,39 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .wb-checkbox.checked{background:var(--green);border-color:var(--green);color:white}
 .wb-check-label{font-size:12px;color:var(--white);line-height:1.4}
 
+/* MI-109 CS replacement checkbox — compliance-critical, salient styling */
+.cs-repl-row{margin:14px 0 6px;background:rgba(200,74,74,0.06);
+  border:2px solid rgba(200,74,74,0.45);border-radius:var(--radius);padding:12px 14px}
+.cs-repl-row.checked{background:rgba(244,168,32,0.10);border-color:var(--orange)}
+.cs-repl-label{display:flex;align-items:flex-start;gap:12px;cursor:pointer;margin:0}
+.cs-repl-checkbox{width:20px;height:20px;flex-shrink:0;margin-top:2px;cursor:pointer;
+  accent-color:var(--orange)}
+.cs-repl-text{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--white);line-height:1.4}
+.cs-repl-text strong{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;
+  letter-spacing:.04em;color:var(--white)}
+.cs-repl-sub{font-size:11px;color:var(--muted);line-height:1.45}
+.cs-repl-row.checked .cs-repl-text strong{color:var(--orange)}
+
+/* MI-109 Carlo Authorization modal */
+.cs-auth-notice{background:rgba(200,74,74,0.10);border:1px solid rgba(200,74,74,0.4);
+  border-radius:var(--radius);padding:10px 14px;font-size:12px;color:#E88888;
+  margin-bottom:16px;line-height:1.5}
+.cs-auth-notice strong{color:#F4A8A8}
+.cs-auth-error{display:none;background:rgba(200,74,74,0.12);
+  border:1px solid rgba(200,74,74,0.35);border-radius:var(--radius);
+  padding:8px 12px;font-size:12px;color:#E88888;margin-top:10px;line-height:1.4}
+.cs-auth-error.show{display:block}
+.cs-auth-textarea{width:100%;min-height:84px;background:var(--surface2);
+  border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;
+  font-size:13px;color:var(--white);font-family:'Source Sans 3',sans-serif;
+  outline:none;transition:border-color .2s;resize:vertical}
+.cs-auth-textarea:focus{border-color:var(--blue-light)}
+.cs-auth-counter{font-size:10px;color:var(--muted);text-align:right;margin-top:4px;
+  letter-spacing:.04em}
+.cs-auth-counter.ok{color:var(--green)}
+.btn-red{background:var(--red);color:white;border-color:var(--red)}
+.btn-red:hover{background:#A03A3A;border-color:#A03A3A}
+
 /* ALERT */
 .alert{border-radius:var(--radius);padding:12px 14px;margin-bottom:16px;
   display:flex;align-items:flex-start;gap:10px;font-size:13px;line-height:1.5}
@@ -739,6 +772,16 @@ html,body{overflow-x:hidden}
             </div>
           </div>
           <div id="dynamic-form-fields"></div>
+          <!-- MI-109: CS replacement compliance checkbox (CDM-Smith rule c) -->
+          <div id="cs-replacement-row" class="cs-repl-row">
+            <label class="cs-repl-label" for="f-cs-replacement">
+              <input type="checkbox" id="f-cs-replacement" class="cs-repl-checkbox">
+              <span class="cs-repl-text">
+                <strong>This phase includes a CS replacement</strong>
+                <span class="cs-repl-sub">Requires supervisor authorization (CDM-Smith compliance — every CS replacement is logged).</span>
+              </span>
+            </label>
+          </div>
           <div style="display:flex;gap:10px;margin-top:8px">
             <button class="btn-sm btn-orange" onclick="submitPhase()" style="padding:10px 24px">Submit Phase</button>
             <button class="btn-sm btn-ghost" onclick="resetSubmitForm()">Reset</button>
@@ -923,6 +966,45 @@ html,body{overflow-x:hidden}
     <div class="pd-section-title">Phase Submissions <span id="pd-submission-count"></span></div>
     <div id="pd-submissions-list">
       <div class="loading"><div class="spinner"></div><br>Loading submissions...</div>
+    </div>
+  </div>
+</div>
+
+<!-- MI-109 CS REPLACEMENT (CARLO) AUTHORIZATION MODAL -->
+<div class="modal-overlay" id="modal-cs-auth">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">CS Replacement Authorization</div>
+        <div class="modal-sub">Supervisor sign-off required before this submission is saved.</div>
+      </div>
+    </div>
+    <div class="cs-auth-notice">
+      <strong>Per CDM-Smith compliance rule (c)</strong>, every CS replacement requires supervisor authorization. This event is logged.
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">Authorization Date</label>
+        <input class="modal-input" type="date" id="cs-auth-date">
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Authorization Time</label>
+        <input class="modal-input" type="time" id="cs-auth-time">
+      </div>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Supervisor Name</label>
+      <input class="modal-input" type="text" id="cs-auth-supervisor" value="Carlo Domenick" placeholder="Supervisor full name">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Reason for CS Replacement <span style="color:var(--red)">*</span></label>
+      <textarea class="cs-auth-textarea" id="cs-auth-reason" placeholder="Why is this CS being replaced? Min 20 characters." oninput="updateCsAuthReasonCounter()"></textarea>
+      <div class="cs-auth-counter" id="cs-auth-counter">0 / 20 minimum</div>
+    </div>
+    <div class="cs-auth-error" id="cs-auth-error"></div>
+    <div class="modal-actions">
+      <button class="btn-sm btn-red" id="cs-auth-cancel-btn" onclick="csAuthCancel()">Cancel — Do Not Submit</button>
+      <button class="btn-sm btn-orange" id="cs-auth-submit-btn" onclick="csAuthAuthorize()">Authorize &amp; Submit</button>
     </div>
   </div>
 </div>
@@ -1776,6 +1858,19 @@ async function submitPhase(){
     }
   }
 
+  // MI-109: CS replacement gate. If checkbox checked, require Carlo authorization
+  // BEFORE inserting into phase_submissions. No exception path.
+  const csReplacementChecked = !!document.getElementById('f-cs-replacement')?.checked;
+  let csAuthDetails = null; // { supervisor_name, authorized_date, authorized_time, reason }
+  if (csReplacementChecked) {
+    csAuthDetails = await openCsAuthModal();
+    if (!csAuthDetails) {
+      // Cancelled or aborted by user — do NOT insert phase submission.
+      // Cancel toast is already shown by openCsAuthModal's cancel handler.
+      return;
+    }
+  }
+
   const notes = document.getElementById('f-notes')?.value||null;
   const wbCurb = photoSlotState.curbstop_meterpit?.whiteboardVisible || false;
   const wbMain = photoSlotState.watermain_corporation?.whiteboardVisible || false;
@@ -1795,6 +1890,7 @@ async function submitPhase(){
     photo_restoration_whiteboard: wbRest,
     out_of_sequence: currentServiceType==='out_of_order',
     sequence_note: document.getElementById('f-sequence-note')?.value||null,
+    cs_replacement: csReplacementChecked,
     photos: [],
     last_client_sync_at: new Date().toISOString(),
   };
@@ -1830,6 +1926,164 @@ function resetSubmitForm(){
   currentServiceType=null; wbCurbstop=false; wbWatermain=false; wbRestoration=false;
   currentSubmissionUUID = null;
   Object.keys(photoSlotState).forEach(k => delete photoSlotState[k]);
+  // MI-109: clear CS replacement checkbox + visual highlight state
+  const csCb = document.getElementById('f-cs-replacement');
+  if (csCb) csCb.checked = false;
+  const csRow = document.getElementById('cs-replacement-row');
+  if (csRow) csRow.classList.remove('checked');
+}
+
+// ── MI-109 CS REPLACEMENT (CARLO) AUTHORIZATION ──────────
+// Promise-based modal: resolves with auth details object on Authorize success,
+// resolves with null on Cancel or any abort path. Server is the source of truth
+// for audit logging — every Cancel and every Authorize attempt POSTs to
+// cs-auth-submit so the supervisor_alerts / audit_log chain captures intent.
+let _csAuthResolve = null;
+
+document.addEventListener('change', (e) => {
+  if (e.target && e.target.id === 'f-cs-replacement') {
+    const row = document.getElementById('cs-replacement-row');
+    if (row) row.classList.toggle('checked', e.target.checked);
+  }
+});
+
+function updateCsAuthReasonCounter(){
+  const ta = document.getElementById('cs-auth-reason');
+  const counter = document.getElementById('cs-auth-counter');
+  if (!ta || !counter) return;
+  const len = ta.value.trim().length;
+  counter.textContent = len + ' / 20 minimum';
+  counter.classList.toggle('ok', len >= 20);
+}
+
+function openCsAuthModal(){
+  return new Promise((resolve) => {
+    _csAuthResolve = resolve;
+    // Default date = today, time = now (HH:MM)
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2,'0');
+    const dateStr = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate());
+    const timeStr = pad(now.getHours()) + ':' + pad(now.getMinutes());
+    const dateEl = document.getElementById('cs-auth-date');
+    const timeEl = document.getElementById('cs-auth-time');
+    const reasonEl = document.getElementById('cs-auth-reason');
+    const supEl = document.getElementById('cs-auth-supervisor');
+    const errEl = document.getElementById('cs-auth-error');
+    if (dateEl) dateEl.value = dateStr;
+    if (timeEl) timeEl.value = timeStr;
+    if (reasonEl) reasonEl.value = '';
+    if (supEl) supEl.value = 'Carlo Domenick';
+    if (errEl) { errEl.classList.remove('show'); errEl.textContent = ''; }
+    updateCsAuthReasonCounter();
+    setCsAuthBusy(false);
+    document.getElementById('modal-cs-auth').classList.add('open');
+    setTimeout(() => { reasonEl && reasonEl.focus(); }, 50);
+  });
+}
+
+function closeCsAuthModal(){
+  document.getElementById('modal-cs-auth').classList.remove('open');
+}
+
+function setCsAuthBusy(busy){
+  const cancelBtn = document.getElementById('cs-auth-cancel-btn');
+  const submitBtn = document.getElementById('cs-auth-submit-btn');
+  if (cancelBtn) cancelBtn.disabled = !!busy;
+  if (submitBtn) {
+    submitBtn.disabled = !!busy;
+    submitBtn.textContent = busy ? 'Authorizing…' : 'Authorize & Submit';
+  }
+}
+
+function showCsAuthError(msg){
+  const errEl = document.getElementById('cs-auth-error');
+  if (!errEl) return;
+  errEl.textContent = msg;
+  errEl.classList.add('show');
+}
+
+async function csAuthCallEdge(payload){
+  const session = (await sb.auth.getSession()).data.session;
+  const token = session?.access_token || SUPABASE_KEY;
+  const resp = await fetch(`${SUPABASE_URL}/functions/v1/cs-auth-submit`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + token,
+    },
+    body: JSON.stringify(payload),
+  });
+  let data = null;
+  try { data = await resp.json(); } catch(_) { data = null; }
+  return { ok: resp.ok, status: resp.status, data };
+}
+
+async function csAuthCancel(){
+  // Fire-and-forget audit log to edge function. Failure here must not block UX:
+  // the user is cancelling the submission entirely; abort the phase submit either way.
+  setCsAuthBusy(true);
+  try {
+    await csAuthCallEdge({
+      submission_id: currentSubmissionUUID,
+      result: 'cancel',
+    });
+  } catch (err) {
+    console.warn('cs-auth-submit cancel log failed:', err);
+  }
+  setCsAuthBusy(false);
+  closeCsAuthModal();
+  showToast('CS replacement authorization cancelled. Submission not saved.', 'error');
+  if (_csAuthResolve) { const r = _csAuthResolve; _csAuthResolve = null; r(null); }
+}
+
+async function csAuthAuthorize(){
+  const errEl = document.getElementById('cs-auth-error');
+  if (errEl) { errEl.classList.remove('show'); errEl.textContent = ''; }
+  const supervisor_name = (document.getElementById('cs-auth-supervisor')?.value || '').trim();
+  const authorized_date = document.getElementById('cs-auth-date')?.value || '';
+  const authorized_time = document.getElementById('cs-auth-time')?.value || '';
+  const reason = (document.getElementById('cs-auth-reason')?.value || '').trim();
+
+  // Client-side guard. Server re-validates and logs validation failures.
+  if (!supervisor_name) { showCsAuthError('Supervisor name is required.'); return; }
+  if (!authorized_date) { showCsAuthError('Authorization date is required.'); return; }
+  if (!authorized_time) { showCsAuthError('Authorization time is required.'); return; }
+  if (reason.length < 20) {
+    showCsAuthError('Reason must be at least 20 characters (currently ' + reason.length + ').');
+    return;
+  }
+
+  setCsAuthBusy(true);
+  let result;
+  try {
+    result = await csAuthCallEdge({
+      submission_id: currentSubmissionUUID,
+      result: 'authorize',
+      supervisor_name,
+      authorized_date,
+      authorized_time,
+      reason,
+    });
+  } catch (err) {
+    setCsAuthBusy(false);
+    showCsAuthError('Network error: ' + (err?.message || 'unable to reach authorization service.'));
+    return;
+  }
+
+  if (!result.ok) {
+    setCsAuthBusy(false);
+    const serverMsg = result.data?.error || result.data?.message || ('Authorization failed (HTTP ' + result.status + ').');
+    showCsAuthError(serverMsg);
+    return; // modal stays open, phase NOT submitted
+  }
+
+  setCsAuthBusy(false);
+  closeCsAuthModal();
+  if (_csAuthResolve) {
+    const r = _csAuthResolve;
+    _csAuthResolve = null;
+    r({ supervisor_name, authorized_date, authorized_time, reason });
+  }
 }
 
 // ── ALL SUBMISSIONS ───────────────────────────────────
