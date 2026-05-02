@@ -248,17 +248,40 @@ INVENTION #3: `gen_random_uuid()` qualification convention
   - `p_source='MI-109'`
   - `p_correlation_id = phase_submission_id::text`
   - `p_message` = human-readable, e.g. `'CS replacement authorization accepted by Carlo Domenick on 2026-05-01 at 14:30'`
-  - `p_details` = jsonb: `{phase_submission_id, supervisor, authorization_date, authorization_time, reason_length, status, error_code (if rejected)}`
+  - `p_details` = jsonb: `{phase_submission_id, supervisor, authorized_at, reason_length, status, error_code (if rejected)}` — updated per NB3 override (single `authorized_at` replaces date+time split)
 - **INV-NB11:** Validation error codes (in jsonb envelope `error_code` field): `REASON_TOO_SHORT`, `SUPERVISOR_EMPTY`, `PHASE_SUBMISSION_NOT_FOUND`, `FORBIDDEN_CROSS_FIRM` (if RLS-equivalent check needed inside RPC), `ALREADY_RECORDED`. Validation errors return rejected envelope; auth-denied RAISEs `AUTH_DENIED:...` with ERRCODE `'insufficient_privilege'`.
 - **INV-NB12:** Audit triggers on `cs_replacement_authorizations` mirror whatever triggers exist on other Owner Data tables. Backend will attach the same `write_audit_log` trigger(s). Trigger function name assumed `write_audit_log` per CLAUDE.md / lead's note 2; if production trigger has a different name (e.g. `audit_owner_data_trigger`), lead flags and backend matches.
 - **INV-NB13:** Migration filename uses UTC timestamp `YYYYMMDDHHMMSS` per brief — generated from current UTC at write time.
 
 ---
 
-### Decision log (lead/Jorge — fill as resolutions land)
+### Decision log (resolved 2026-05-02 session open)
 
-- INV-1 resolution: <pending>
-- INV-2 resolution: <pending>
-- INV-3 resolution: <pending>
-- NB1–NB13 objections: <none unless flagged here>
+- **INV-1 — RPC return shape:** **(B) JSONB envelope.** Schema:
+  ```
+  {
+    status: 'accepted' | 'rejected' | 'already_recorded',
+    authorization_id: uuid | null,    // present when status='accepted'; may be present on 'already_recorded' (existing row's id)
+    error_code: text | null,          // present when status='rejected' or 'already_recorded' — values per INV-NB11
+    message: text | null              // human-readable, always present
+  }
+  ```
+  Auth-denied still RAISEs `AUTH_DENIED:` with ERRCODE `'insufficient_privilege'` (security boundary, not validation). 23505 on the UNIQUE(phase_submission_id) constraint is caught and surfaced as `status:'already_recorded'` with `error_code='ALREADY_RECORDED'` and the existing `authorization_id` if recoverable.
+
+- **INV-2 — RLS policy expression:** Backend's proposed expression **verbatim**:
+  ```sql
+  USING (
+    firm_id = (SELECT firm_id FROM profiles WHERE id = auth.uid())
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'super_admin')
+  )
+  ```
+  Apply same expression as `WITH CHECK` clause for INSERT-time enforcement.
+
+- **INV-3 — uuid generator:** **Qualified `extensions.gen_random_uuid()`** for the `id` column default.
+
+- **NB3 override — single timestamp:** Column `authorized_at timestamptz NOT NULL` (replaces split `authorization_date date` + `authorization_time time`). RPC parameter `p_authorized_at timestamptz` (replaces `p_authorization_date` + `p_authorization_time`).
+
+- **Frontend follow-up — NB3 client-side combine:** Option A. Frontend combines its date + time inputs into a single ISO 8601 string client-side (`new Date(date + 'T' + time).toISOString()`) and passes as `p_authorized_at`. RPC stays clean; no `make_timestamp(...)` server-side combine. Frontend revise-edit briefed in parallel.
+
+- **NB1, NB2, NB4-NB13:** All approved as backend proposed (no objections).
 
