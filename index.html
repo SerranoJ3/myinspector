@@ -1990,26 +1990,53 @@ async function submitPhase(){
     const authorizedAt = new Date(
       pendingCsAuth.authorization_date + 'T' + pendingCsAuth.authorization_time
     ).toISOString();
-    const {error: authErr} = await sb.rpc('submit_cs_authorization', {
+    const {data: authData, error: authErr} = await sb.rpc('submit_cs_authorization', {
       p_phase_submission_id: currentSubmissionUUID,
       p_authorized_at: authorizedAt,
       p_reason: pendingCsAuth.reason,
       p_supervisor_name: pendingCsAuth.supervisor_name,
     });
+    // AUTH_DENIED is a thrown exception (errcode 42501, message prefix AUTH_DENIED:).
+    // Other RPC outcomes return a JSONB envelope: {status, authorization_id, error_code, message}.
     if(authErr){
       const code = authErr.code || '';
       const msg = authErr.message || '';
       let userMsg;
       if(code === '42501' || code === 'insufficient_privilege' || msg.startsWith('AUTH_DENIED')){
         userMsg = 'You do not have permission to authorize CS replacement. Contact your supervisor.';
-      } else if(msg.startsWith('VALIDATION_')){
-        userMsg = msg.replace(/^VALIDATION_[A-Z_]*:?\s*/, '').trim() || msg.slice('VALIDATION_'.length);
       } else {
         console.error('CS authorization RPC failed:', authErr);
         userMsg = 'Authorization failed — please try again.';
       }
       showToast(userMsg, 'error');
-      // Re-open modal so inspector can correct + retry. pendingCsAuth retained.
+      openCsAuthModal();
+      showCsAuthModalError(userMsg);
+      return;
+    }
+    const status = authData?.status;
+    if(status === 'rejected'){
+      const errorCode = authData?.error_code || '';
+      const envMsg = authData?.message || '';
+      const codeToMsg = {
+        REASON_TOO_SHORT: 'Reason must be at least 20 characters.',
+        SUPERVISOR_EMPTY: 'Supervisor name is required.',
+        PHASE_SUBMISSION_NOT_FOUND: 'Submission not found — please refresh and try again.',
+        FORBIDDEN_CROSS_FIRM: 'Cannot authorize a submission from another firm.',
+      };
+      const userMsg = codeToMsg[errorCode] || envMsg || 'Authorization rejected — please review and try again.';
+      showToast(userMsg, 'error');
+      openCsAuthModal();
+      showCsAuthModalError(userMsg);
+      return;
+    }
+    if(status === 'already_recorded'){
+      // Auth was successfully recorded on a prior attempt. Treat as success — auth IS on file.
+      showToast('Authorization already on file — continuing.', 'success');
+    } else if(status !== 'accepted'){
+      // Unexpected envelope shape — fail safe.
+      console.error('CS authorization RPC returned unexpected envelope:', authData);
+      const userMsg = 'Authorization failed — please try again.';
+      showToast(userMsg, 'error');
       openCsAuthModal();
       showCsAuthModalError(userMsg);
       return;
