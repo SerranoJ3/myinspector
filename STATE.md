@@ -4,8 +4,8 @@
 > **CLAUDE.md** holds locked principles. **STATE.md** holds live state.
 > Conflict with Claude memory: this file wins.
 
-**Last updated:** May 1, 2026 ~6:00pm EDT
-**Updated by:** Jorge + Claude (MI-109 Phase 1 verification + MI-201 leak fix + truth-lock pass)
+**Last updated:** May 2, 2026 ~10:00pm EDT
+**Updated by:** Jorge + Claude (MI-109 Phase 2 PR open #3, draft, awaiting verification)
 
 ---
 
@@ -25,7 +25,7 @@
 | MI-200 RLS forced + at least 1 policy per table | Closed 4/27 | — | — |
 | MI-201 compliance_dashboard `security_invoker` fix | Closed 5/1 | 0.5 | — |
 | MI-202 Audit log + 5-layer immutability stack | Active | — | Active build |
-| **MI-109 CS Replacement Authorization Gate** | Phase 1 verified — Phase 2 build queued | 1.5 + Phase 2 TBD | **CRITICAL — top of queue** |
+| **MI-109 CS Replacement Authorization Gate** | **Phase 2 PR open ([#3](https://github.com/SerranoJ3/myinspector/pull/3)) draft — awaiting Phase 4 verification** | 1.5 (P1) + 2.5 (P2) + P4 TBD | **CRITICAL — verify next session** |
 | **MI-108 No-Work Submission Workflow** | NEW | 2 | HIGH |
 | MI-203 (next gate ticket) | Queued | — | — |
 | MI-204 index on `profiles.firm_id` | Queued | 0.25 | Phase 2 cleanup, perf-only |
@@ -33,13 +33,25 @@
 | `legal_holds` workflow | Queued | — | Table exists per MI-202 (0 rows); workflow not built |
 | Demo tenant + `firm_safe_to_display` | Queued | — | v0.1 hard requirement |
 
-**MI-109 detail (CRITICAL):** When inspector marks a CS replacement on a phase submission, app must require Carlo authorization before submit. Required: date, time, reason text (min ~20 chars), supervisor name (Carlo Domenick by default but editable). Audit log every attempt — successful and rejected. **No exception path.** Source: CDM-Smith email rule (c). **Phase 1 (assumption verification) complete 5/1.** Phase 2 = backend migration + edge function + frontend modal + tests. **Phase 3 design question (deferred):** Immutability mechanism for `cs_replacement_authorizations` rows — GRANT-based revocation (lean for simplicity + explicit audit signal) vs permanent legal hold pattern (layer 4). Defer call until `record_whiteboard_override` + `whiteboard_override_log` are reviewed as the template, since that's our shipped pattern from MI-202.
+**MI-109 detail (PR #3 — draft, awaiting verification):** When inspector marks a CS replacement on a phase submission, app requires Carlo authorization before submit. Required: single `authorized_at` timestamptz, reason ≥ 20 chars, supervisor name (Carlo Domenick by default but editable). Every attempt audit-logged via `record_compliance_event` at severity `'alert'`. **No exception path.** Source: CDM-Smith email rule (c).
+
+- **Phase 1 (5/1):** assumption verification — RPCs, table inventory, triggers, view security_invoker, pgcrypto, profiles schema. Surfaced MI-201 leak. Banked architectural truth into CLAUDE.md.
+- **Phase 2 (5/2):** 3-teammate Agent Team build (frontend / backend / tests). Mid-build surfaced 3 load-bearing inventions (RPC return shape → JSONB envelope, RLS expression, gen_random_uuid qualification) + NB3 override (single `authorized_at` vs split). Post-build review caught 4 more (signature mismatch named-scalars vs jsonb, AUTHORIZED_AT_MISSING unenumerated, PHASE_SUBMISSION_NOT_FOUND overloaded, existing_authorization_id detail key). Consolidated fixup commit `ce2c2a5`. Draft PR #3 open.
+- **Phase 3 (deferred):** Immutability mechanism for `cs_replacement_authorizations` rows — GRANT-based revocation (current default, INSERT-only via grants) vs permanent legal hold pattern (layer 4). Defer call until `record_whiteboard_override` + `whiteboard_override_log` are reviewed as template.
+- **Phase 4 (NEXT SESSION):** verification — apply migration in SQL editor, run `tests/mi109/{rls,audit_integrity}_test.sql` against staging, walk `e2e_checklist.md`. If pass: convert PR to ready-for-review and merge.
 
 **MI-108 detail:** No-work submissions require house photo + whiteboard photo + reason text. Source: CDM-Smith email rule (a).
 
 **MI-201 detail (closed 5/1):** `compliance_dashboard` view ran with `security_invoker=false` (definer behavior), bypassing RLS on underlying compliance tables and exposing cross-firm rows. Fixed via single `ALTER VIEW`, audited via `record_compliance_event` (event id 11, source='MI-201', correlation_id='MI-201'). Discovered during MI-109 Phase 1 item 4. Locked rule promoted to CLAUDE.md principle #7.
 
 **MI-204 detail:** No index on `profiles.firm_id` observed in Phase 1 item 6. Every RLS predicate that filters by firm_id pays a seq-scan cost without it. Not a correctness issue. Migration is a single `CREATE INDEX CONCURRENTLY` on prod.
+
+---
+
+## Phase 2 working artifacts (preserved on `mi-109-rpc-rebuild` branch — review in PR #3)
+
+- `discovery/whiteboard_override_template.md` — Phase 2 architectural notes from Jorge + Decision log + Inventions list. Useful template for future similar compliance gates: NB1-NB13 inventions pattern, load-bearing-INV escalation protocol, chat-truncation workaround pattern.
+- `MI109_HANDOFF.md` — mid-session handoff state captured at 90% chat budget. Demonstrates the "preserve ambiguity in writing rather than fight truncation" pattern. Lessons section worth folding into BUDDY_STANDARD.md after merge.
 
 ---
 
@@ -68,7 +80,8 @@
 4. **Form codes** LSL-R, PLSL-R, GV-R, INS captured in form but not persisted to DB
 
 ## Open investigations (audit chain integrity)
-- **`compliance_events` id gap.** Phase 1 item 2 counted 5 rows; MI-201's audit insert returned id 11. ids 6–10 unaccounted for. `compliance_events` sits outside the `audit_log` layer-2/3 protections, so this gap is its own integrity question, not a stack breach. Worth investigating cause: did a manual cleanup run, did `cleanup_build_test_data` expand its match set, or is the sequence advance from rolled-back inserts (most likely)? Owner: investigate before MI-203 design starts. **Not blocking MI-109 Phase 2.**
+- **`compliance_events` id gap.** Phase 1 item 2 counted 5 rows; MI-201's audit insert returned id 11. ids 6–10 unaccounted for. `compliance_events` sits outside the `audit_log` layer-2/3 protections, so this gap is its own integrity question, not a stack breach. Worth investigating cause: did a manual cleanup run, did `cleanup_build_test_data` expand its match set, or is the sequence advance from rolled-back inserts (most likely)? Owner: investigate before MI-203 design starts. **Not blocking MI-109 Phase 4.**
+- **AUTH_DENIED telemetry gap (accepted limitation).** RAISE EXCEPTION inside the RPC rolls back the inner `compliance_events` INSERT, so AUTH_DENIED attempts are NOT recorded. Flagged in `tests/mi109/e2e_checklist.md` step 31. Follow-up consideration if telemetry is wanted later (e.g., NOTIFY-based out-of-tx logging).
 
 ## Known false positives
 - Whiteboard AI accepts laptop screen as whiteboard (1 case observed). Queued for prompt tuning with sample photos.
@@ -76,17 +89,28 @@
 ---
 
 ## Last 3 sessions
-1. **4/29 ~10pm** — Bulletproof Setup Plan v1 drafted. Tooling brief, memory audit, walkthrough docs prepared. Code tab confirmed open in Claude Desktop.
-2. **4/30** — CDM-Smith email from Jeff Longberg surfaced 5 compliance rules. **MI-108 + MI-109 entered the queue.** MI-109 elevated to top priority. User research meeting plan drafted for data entry team. Tonight: Git installed, Claude Code CLI installed (v2.1.123), Agent Teams flag enabled, repo cloned locally, CLAUDE.md + STATE.md committed. Supabase MCP attempted but OAuth flow failed on Windows — agents work without it for MI-109 (local files + git CLI sufficient). GitHub MCP skipped (Copilot subscription required, not blocking).
-3. **5/1 evening** — MI-109 **Phase 1 verification complete** (6 items banked: RPC signatures, table inventory, triggers, `compliance_dashboard` view, pgcrypto, profiles schema). **MI-201 shipped** (`compliance_dashboard` `security_invoker` false→true, cross-firm leak closed, audit event id 11). Phase 1 surfaced 18-table inventory (13 business + 5 compliance — both categories now in CLAUDE.md), confirmed `record_compliance_event` 6-arg signature (`p_event_type`, `p_message`, `p_severity`, `p_details`, `p_source`, `p_correlation_id`), confirmed pgcrypto v1.3 in `extensions` schema with `SET search_path` convention, confirmed `profiles.firm_id` is canonical firm-isolation column but nullable for super_admin. Truth-locked into CLAUDE.md (new principle #7 on view `security_invoker`; schema source of truth expanded with audit chain primitives). PR #2 verify-list reduced — `audit_log_append` resolved by context (its role is extending the chain in layer 3, not bypassing immutability); canonical encoding match remains the one open item. New ticket: MI-204 (index on `profiles.firm_id`). New investigation: compliance_events id gap.
+1. **4/30** — CDM-Smith email from Jeff Longberg surfaced 5 compliance rules. **MI-108 + MI-109 entered the queue.** MI-109 elevated to top priority. Tools setup: Git, Claude Code CLI v2.1.123, Agent Teams flag, repo cloned. Supabase MCP failed Windows-side (OAuth); GitHub MCP skipped (Copilot subscription).
+2. **5/1 evening** — MI-109 **Phase 1 verification complete** (6 items banked: RPC signatures, table inventory, triggers, `compliance_dashboard` view, pgcrypto, profiles schema). **MI-201 shipped** (`compliance_dashboard` `security_invoker` false→true, cross-firm leak closed, audit event id 11). Phase 1 surfaced 18-table inventory (13 business + 5 compliance — both categories now in CLAUDE.md), confirmed `record_compliance_event` 6-arg signature, confirmed pgcrypto v1.3 in `extensions` schema, confirmed `profiles.firm_id` is canonical firm-isolation column but nullable for super_admin. Truth-locked into CLAUDE.md (new principle #7 on view `security_invoker`; schema source of truth expanded with audit chain primitives). New ticket: MI-204. New investigation: compliance_events id gap. PR #2 closed without merging (postmortem comment posted).
+3. **5/2** — MI-109 **Phase 2 build complete, PR #3 open as draft.** 3-teammate Agent Team (frontend / backend / tests) shipped: Carlo modal + RPC integration in `index.html`, migration with `cs_replacement_authorizations` table + `submit_cs_authorization` RPC (named scalars, JSONB envelope return, INSERT-only via grants, audit-chained), tests v3 (RLS + audit integrity + 50-step e2e checklist). Mid-build escalation surfaced 4 load-bearing inventions; post-build review caught 4 more; one consolidated fixup commit (`ce2c2a5`) covered all of them. Discovery file at `discovery/whiteboard_override_template.md` preserved as template. Mid-flight handoff at `MI109_HANDOFF.md` preserved as pattern. Chat-truncation workaround pattern proven (file channel reliable when chat channel was lossy 5+ times).
 
-## Next session opens with
-1. Read `CLAUDE.md`, then `STATE.md`, then `BUDDY_STANDARD.md`
-2. **MI-109 Phase 2 build** — backend (migration + RLS + edge function) → frontend (modal + validation) → tests. Phase 1 assumptions verified; no blockers.
-3. Then MI-108
-4. Then column-fix pass (4 known bugs above)
-5. Then MI-100 cluster (gated on 3 reference images from Jorge)
-6. **Side track when convenient:** investigate `compliance_events` id gap; design MI-204 index migration
+## Next session opens with — MI-109 Phase 4 verification (Jorge runs solo)
+
+1. Read `BUDDY_STANDARD.md`, `CLAUDE.md`, `STATE.md`
+2. `git pull` then `git checkout mi-109-rpc-rebuild` to get the unmerged work
+3. Apply migration via Supabase dashboard SQL editor (project ref `wryitfoletwskkdqqwcw`). NOT `supabase db push`.
+4. Smoke-test the RPC against staging with a known phase_submission_id; expect `{status:'accepted', authorization_id:..., error_code:null, message:...}`
+5. Run `tests/mi109/rls_test.sql` as `postgres` — expect 7/7 passes
+6. Run `tests/mi109/audit_integrity_test.sql` as `postgres` — expect 11/11 steps
+7. Walk `tests/mi109/e2e_checklist.md` — happy path + 5 negative paths + super_admin override
+8. Verify post-deploy queries from migration header (RLS forced + grants posture + audit triggers attached)
+9. **If all pass:** convert PR #3 from draft → ready-for-review → merge to main. Session-close commit on main marks MI-109 fully closed.
+10. **If anything fails:** comment on PR #3 with the specific failure; lead reconvenes the team for a targeted fixup.
+
+After MI-109 closes:
+- MI-108 (2 sessions, HIGH priority — CDM-Smith rule a)
+- Then column-fix pass (4 known bugs above)
+- Then MI-100 cluster (gated on 3 reference images from Jorge)
+- **Side track when convenient:** investigate `compliance_events` id gap; design MI-204 index migration
 
 ## Blockers (Jorge to resolve when ready)
 - 3 reference images for MI-100 vision parsing (tapcard form, restoration card, admin screenshot)
@@ -107,7 +131,7 @@
 - MyInspector v1.0 (7 modules + BidGrid enterprise + residential + integrations + billing) = **57-78 sessions**
 - Aggressive target: **mid-June 2026**
 - Realistic: **mid-July 2026**
-- Founded: 4:20pm April 20, 2026. 11 days in = ~18% scope.
+- Founded: 4:20pm April 20, 2026. **12 days in = ~20% scope.**
 
 ---
 
@@ -121,37 +145,3 @@
   - Read CLAUDE.md, STATE.md, BUDDY_STANDARD.md
   - Confirm tools live with `claude mcp list` (when MCPs working)
 - **Conflict with Claude memory:** STATE.md wins. Memory updates lag.
-
----
-
-## Next paste-prompt (MI-109 Phase 2 kickoff)
-
-```
-MI-109 Phase 2 build. Phase 1 verification complete — assumptions banked in CLAUDE.md.
-
-Read CLAUDE.md (especially: schema source of truth, audit chain primitives, locked principle #7), STATE.md, and BUDDY_STANDARD.md before any work.
-
-Spec: When an inspector marks a CS replacement on a phase submission, the app must require Carlo authorization before submit. Required fields: date, time, reason text (min 20 chars), supervisor name (Carlo Domenick by default but editable). Audit log every attempt (accepted + rejected) via record_compliance_event with p_event_type='cs_replacement.auth.<accepted|rejected>', p_source='MI-109', p_correlation_id=<phase_submission uuid>.
-
-Three teammates:
-
-1. Backend
-   - Migration: cs_replacement_authorizations table (Owner Data, RLS forced, INSERT-only via grants, audit-chained) + cs_replacement bool on phase_submissions.
-   - Postgres RPC submit_cs_authorization (SECURITY DEFINER, SET search_path TO public, extensions, pg_temp per CLAUDE.md convention) modeled on record_whiteboard_override. Use record_compliance_event signature from CLAUDE.md verbatim.
-   - Any new view created MUST use security_invoker=true (CLAUDE.md principle #7).
-   - Immutability mechanism for cs_replacement_authorizations rows is a Phase 3 design question. Create the table INSERT-only via grants for now (most reversible default). The GRANT-vs-permanent-legal-hold call gets deferred until record_whiteboard_override + whiteboard_override_log are reviewed as the template — do NOT bake either choice into the migration prematurely.
-
-2. Frontend (index.html)
-   - Carlo modal on Submit Phase, validation, error states. Inspector cannot bypass.
-   - Frontend calls supabase.rpc('submit_cs_authorization', {...}) — no Edge Function.
-   - Handle profiles.firm_id NULL branch for super_admin override flow.
-
-3. Tests
-   - RLS test (cross-firm isolation)
-   - Audit log integrity test (every attempt logged with correct correlation_id)
-   - E2E flow test (manual checklist okay)
-
-Lead synthesizes, opens ONE PR, does NOT merge — Jorge reviews and merges manually.
-
-Begin.
-```
