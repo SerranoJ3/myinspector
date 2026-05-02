@@ -1073,6 +1073,14 @@ html,body{overflow-x:hidden}
       </div>
       <button class="btn-sm btn-orange" id="pd-ms-open-btn" onclick="openMaterialsSheetForCurrentProperty()">Open Materials Sheet</button>
     </div>
+    <div id="pd-ms-history-section" style="display:none;margin-bottom:14px">
+      <details>
+        <summary style="cursor:pointer;font-size:11px;color:var(--muted);padding:6px 0;letter-spacing:.06em;text-transform:uppercase;font-weight:700;user-select:none">
+          Materials Sheet History — <span id="pd-ms-history-count">0</span> sheet(s) (active + soft-deleted)
+        </summary>
+        <div id="pd-ms-history-list" style="margin-top:8px"></div>
+      </details>
+    </div>
     <div class="pd-section-title">Phase Submissions <span id="pd-submission-count"></span></div>
     <div id="pd-submissions-list">
       <div class="loading"><div class="spinner"></div><br>Loading submissions...</div>
@@ -1099,7 +1107,7 @@ html,body{overflow-x:hidden}
             <div class="ms-field"><label class="ms-label">Date</label>
               <input class="ms-input" type="date" id="ms-sheet_date"></div>
             <div class="ms-field"><label class="ms-label">Contractor</label>
-              <input class="ms-input" type="text" id="ms-contractor_name" placeholder="Montana Construction" autocomplete="off"></div>
+              <input class="ms-input" type="text" id="ms-contractor_name" placeholder="Montana Construction" list="ms-contractor-options" autocomplete="off"></div>
           </div>
           <div class="ms-row">
             <div class="ms-field"><label class="ms-label">Service Type <span class="ms-label-hint">free text (B2 unconfirmed)</span></label>
@@ -1199,17 +1207,17 @@ html,body{overflow-x:hidden}
               <tr>
                 <td class="ms-grid-row-label">NJAW (Company side)</td>
                 <td><input class="ms-input" type="number" id="ms-njaw_old_size_inches" step="0.25" min="0" placeholder="0.75"></td>
-                <td><input class="ms-input" type="text" id="ms-njaw_old_material" placeholder="Copper / Lead / Galv" autocomplete="off"></td>
+                <td><input class="ms-input" type="text" id="ms-njaw_old_material" placeholder="Copper / Lead / Galv" list="ms-material-options" autocomplete="off"></td>
                 <td><input class="ms-input" type="number" id="ms-njaw_new_size_inches" step="0.25" min="0" placeholder="1"></td>
-                <td><input class="ms-input" type="text" id="ms-njaw_new_material" placeholder="Copper" autocomplete="off"></td>
+                <td><input class="ms-input" type="text" id="ms-njaw_new_material" placeholder="Copper" list="ms-material-options" autocomplete="off"></td>
                 <td><input class="ms-input" type="number" id="ms-njaw_new_amount_feet" min="0" placeholder="ft"></td>
               </tr>
               <tr>
                 <td class="ms-grid-row-label">Customer side</td>
                 <td><input class="ms-input" type="number" id="ms-customer_old_size_inches" step="0.25" min="0" placeholder="0.75"></td>
-                <td><input class="ms-input" type="text" id="ms-customer_old_material" placeholder="Copper / Lead / Galv" autocomplete="off"></td>
+                <td><input class="ms-input" type="text" id="ms-customer_old_material" placeholder="Copper / Lead / Galv" list="ms-material-options" autocomplete="off"></td>
                 <td><input class="ms-input" type="number" id="ms-customer_new_size_inches" step="0.25" min="0" placeholder="1"></td>
-                <td><input class="ms-input" type="text" id="ms-customer_new_material" placeholder="Copper" autocomplete="off"></td>
+                <td><input class="ms-input" type="text" id="ms-customer_new_material" placeholder="Copper" list="ms-material-options" autocomplete="off"></td>
                 <td><input class="ms-input" type="number" id="ms-customer_new_amount_feet" min="0" placeholder="ft"></td>
               </tr>
             </tbody>
@@ -1339,7 +1347,7 @@ html,body{overflow-x:hidden}
             <div class="ms-field"><label class="ms-label">Size of Main (in)</label>
               <input class="ms-input" type="number" id="ms-size_of_main_inches" step="0.25" min="0" placeholder="6 / 8 / 12"></div>
             <div class="ms-field"><label class="ms-label">Type of Main</label>
-              <input class="ms-input" type="text" id="ms-type_of_main" placeholder="ductile iron / cast iron / PVC" autocomplete="off"></div>
+              <input class="ms-input" type="text" id="ms-type_of_main" placeholder="ductile iron / cast iron / PVC" list="ms-type_of_main-options" autocomplete="off"></div>
             <div class="ms-field">
               <label class="ms-label">Service Side</label>
               <div class="ms-chips" id="ms-service_side-chips" data-field="service_side">
@@ -1405,6 +1413,11 @@ html,body{overflow-x:hidden}
         <button class="btn-sm btn-orange" id="ms-save-btn" onclick="saveMaterialsSheet()">Save Materials Sheet</button>
       </div>
     </div>
+    <!-- MI-101 Phase 2a polish: datalists for free-text autocomplete. Populated lazily
+         from prior firm sheets via loadMaterialsSheetAutocomplete(). RLS isolates by firm. -->
+    <datalist id="ms-contractor-options"></datalist>
+    <datalist id="ms-material-options"></datalist>
+    <datalist id="ms-type_of_main-options"></datalist>
   </div>
 </div>
 
@@ -3217,6 +3230,8 @@ async function openPropertyDetail(propertyId){
   // MI-101 Phase 2a: surface the Materials Sheet bar with current sheet status
   // (most-recent active sheet for this property, or "no sheet yet" placeholder).
   refreshMaterialsSheetBar(propertyId).catch(err => console.warn('MS bar refresh error:', err));
+  // Phase 2a polish: also surface the full history (active + soft-deleted) for this property.
+  loadMaterialsSheetHistory(propertyId).catch(err => console.warn('MS history load error:', err));
 
   // Load all submissions for this property, plus the submitter profiles
   const {data:subs, error:subErr} = await sb
@@ -3396,6 +3411,8 @@ async function openMaterialsSheetForProperty(propertyId){
     msSetSaveStatus('idle', 'Not saved');
   }
   document.getElementById('modal-materials-sheet').classList.add('open');
+  // Phase 2a polish: lazy-load autocomplete suggestions for free-text fields
+  loadMaterialsSheetAutocomplete().catch(() => {});
 }
 
 function closeMaterialsSheetModal(){
@@ -3694,6 +3711,7 @@ async function saveMaterialsSheet(){
     msSetSaveStatus('saved', 'Saved ' + new Date().toLocaleTimeString());
     if(currentPropertyDetailId){
       refreshMaterialsSheetBar(currentPropertyDetailId).catch(() => {});
+      loadMaterialsSheetHistory(currentPropertyDetailId).catch(() => {});
     }
   } catch(err){
     console.error('Materials sheet save unexpected error:', err);
@@ -3728,12 +3746,124 @@ async function confirmSoftDeleteMaterialsSheet(){
     closeMaterialsSheetModal();
     if(currentPropertyDetailId){
       refreshMaterialsSheetBar(currentPropertyDetailId).catch(() => {});
+      loadMaterialsSheetHistory(currentPropertyDetailId).catch(() => {});
     }
   } catch(err){
     console.error('Materials sheet soft-delete error:', err);
     msSetSaveStatus('error', 'Soft-delete failed — see console');
   } finally {
     if(btn) btn.disabled = false;
+  }
+}
+
+// Phase 2a polish: free-text autocomplete + property history. Pulls distinct values
+// from prior firm sheets (RLS auto-isolates by firm). Always includes a small set of
+// common defaults so a fresh firm with zero sheets still gets useful suggestions.
+async function loadMaterialsSheetAutocomplete(){
+  try {
+    const { data, error } = await sb.from('materials_sheets')
+      .select('contractor_name, njaw_old_material, njaw_new_material, customer_old_material, customer_new_material, type_of_main')
+      .is('deleted_at', null)
+      .limit(500);
+    if(error){ console.warn('autocomplete load error:', error); return; }
+    const contractors = new Set();
+    const materials = new Set(['Copper','Lead','Galvanized','Cast Iron','PVC','PEX']);
+    const mainTypes = new Set(['Ductile Iron','Cast Iron','PVC','Asbestos Cement']);
+    (data || []).forEach(s => {
+      if(s.contractor_name) contractors.add(s.contractor_name);
+      ['njaw_old_material','njaw_new_material','customer_old_material','customer_new_material'].forEach(k => {
+        if(s[k]) materials.add(s[k]);
+      });
+      if(s.type_of_main) mainTypes.add(s.type_of_main);
+    });
+    msPopulateDatalist('ms-contractor-options', [...contractors].sort());
+    msPopulateDatalist('ms-material-options', [...materials].sort());
+    msPopulateDatalist('ms-type_of_main-options', [...mainTypes].sort());
+  } catch(err){
+    console.warn('autocomplete unexpected error:', err);
+  }
+}
+
+function msPopulateDatalist(id, values){
+  const dl = document.getElementById(id);
+  if(!dl) return;
+  dl.innerHTML = (values || []).map(v => `<option value="${String(v).replace(/"/g,'&quot;')}">`).join('');
+}
+
+// Property Detail: list every materials sheet for this property (active + soft-deleted)
+// with restore/edit actions. Hidden when no sheets exist.
+async function loadMaterialsSheetHistory(propertyId){
+  const section = document.getElementById('pd-ms-history-section');
+  const list = document.getElementById('pd-ms-history-list');
+  const count = document.getElementById('pd-ms-history-count');
+  if(!section || !list || !count) return;
+  try {
+    const { data, error } = await sb.from('materials_sheets')
+      .select('id, sheet_date, contractor_name, foreman_name, created_at, deleted_at')
+      .eq('property_id', propertyId)
+      .order('created_at', { ascending: false });
+    if(error){ console.warn('history load error:', error); section.style.display = 'none'; return; }
+    const sheets = data || [];
+    count.textContent = sheets.length;
+    if(!sheets.length){ section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    list.innerHTML = sheets.map(s => {
+      const dt = s.sheet_date || (s.created_at ? new Date(s.created_at).toLocaleDateString() : '—');
+      const who = s.foreman_name || s.contractor_name || 'unsigned';
+      const isDeleted = !!s.deleted_at;
+      const statusPill = isDeleted
+        ? '<span style="color:var(--red);font-weight:600">Soft-deleted</span>'
+        : '<span style="color:var(--green);font-weight:600">Active</span>';
+      const action = isDeleted
+        ? `<button class="btn-sm btn-ghost" onclick="restoreMaterialsSheet('${s.id}')">Restore</button>`
+        : `<button class="btn-sm btn-ghost" onclick="editMaterialsSheetById('${s.id}')">Edit</button>`;
+      return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;background:var(--surface3);border:1px solid var(--border);border-radius:6px;margin-bottom:6px;font-size:11px;flex-wrap:wrap">
+        <div>
+          <span style="font-weight:600;color:var(--white)">${dt}</span>
+          <span style="color:var(--muted);margin-left:10px">${who}</span>
+          <span style="margin-left:10px">${statusPill}</span>
+        </div>
+        <div>${action}</div>
+      </div>`;
+    }).join('');
+  } catch(err){
+    console.warn('history unexpected error:', err);
+    section.style.display = 'none';
+  }
+}
+
+async function restoreMaterialsSheet(sheetId){
+  if(!confirm('Restore this soft-deleted Materials Sheet? It returns to the active list.')) return;
+  try {
+    const { error } = await sb.from('materials_sheets')
+      .update({ deleted_at: null, deleted_by: null })
+      .eq('id', sheetId);
+    if(error){ showToast('Restore failed: ' + error.message, 'error'); return; }
+    showToast('Materials Sheet restored.', 'success');
+    if(currentPropertyDetailId){
+      refreshMaterialsSheetBar(currentPropertyDetailId).catch(() => {});
+      loadMaterialsSheetHistory(currentPropertyDetailId).catch(() => {});
+    }
+  } catch(err){
+    showToast('Restore failed: ' + (err.message || 'unknown error'), 'error');
+  }
+}
+
+async function editMaterialsSheetById(sheetId){
+  try {
+    const { data, error } = await sb.from('materials_sheets').select('*').eq('id', sheetId).maybeSingle();
+    if(error || !data){ showToast('Could not load sheet: ' + (error?.message || 'not found'), 'error'); return; }
+    msClearForm();
+    msPopulateForm(data);
+    currentMaterialsSheet = data;
+    document.getElementById('ms-modal-title').textContent = 'Edit Materials Sheet';
+    document.getElementById('ms-modal-sub').textContent = `Property — last saved ${new Date(data.created_at).toLocaleString()}`;
+    document.getElementById('ms-delete-btn').style.display = data.deleted_at ? 'none' : 'inline-block';
+    msSetSaveStatus('saved', data.deleted_at ? 'Loaded soft-deleted sheet (restore from history list)' : 'Loaded existing sheet');
+    document.getElementById('modal-materials-sheet').classList.add('open');
+    loadMaterialsSheetAutocomplete().catch(() => {});
+  } catch(err){
+    showToast('Could not load sheet: ' + (err.message || 'unknown error'), 'error');
   }
 }
 
