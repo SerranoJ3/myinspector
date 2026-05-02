@@ -1985,10 +1985,14 @@ async function submitPhase(){
   // The RPC is the only path that sets cs_replacement=true on phase_submissions and
   // inserts the cs_replacement_authorizations row. Inspector cannot bypass.
   if(csReplacementToggle && pendingCsAuth){
+    // Combine the date + time inputs (local wall-clock) into an unambiguous
+    // ISO 8601 timestamp (UTC) for the RPC's p_authorized_at param.
+    const authorizedAt = new Date(
+      pendingCsAuth.authorization_date + 'T' + pendingCsAuth.authorization_time
+    ).toISOString();
     const {error: authErr} = await sb.rpc('submit_cs_authorization', {
       p_phase_submission_id: currentSubmissionUUID,
-      p_authorization_date: pendingCsAuth.authorization_date,
-      p_authorization_time: pendingCsAuth.authorization_time,
+      p_authorized_at: authorizedAt,
       p_reason: pendingCsAuth.reason,
       p_supervisor_name: pendingCsAuth.supervisor_name,
     });
