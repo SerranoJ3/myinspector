@@ -4,8 +4,8 @@
 > **CLAUDE.md** holds locked principles. **STATE.md** holds live state.
 > Conflict with Claude memory: this file wins.
 
-**Last updated:** May 2, 2026 ~10:00pm EDT
-**Updated by:** Jorge + Claude (MI-109 Phase 2 PR open #3, draft, awaiting verification)
+**Last updated:** May 2, 2026 ~11:55pm EDT
+**Updated by:** Jorge + Buddy (MI-109 Phase 4 backend verified — frontend e2e + 3 Rule #9 doc fixes + merge pending)
 
 ---
 
@@ -25,7 +25,7 @@
 | MI-200 RLS forced + at least 1 policy per table | Closed 4/27 | — | — |
 | MI-201 compliance_dashboard `security_invoker` fix | Closed 5/1 | 0.5 | — |
 | MI-202 Audit log + 5-layer immutability stack | Active | — | Active build |
-| **MI-109 CS Replacement Authorization Gate** | **Phase 2 PR open ([#3](https://github.com/SerranoJ3/myinspector/pull/3)) draft — awaiting Phase 4 verification** | 1.5 (P1) + 2.5 (P2) + P4 TBD | **CRITICAL — verify next session** |
+| **MI-109 CS Replacement Authorization Gate** | **Phase 4 backend verified 5/2 late: migration applied via SQL editor, 4 sanity queries green (RLS forced + FORCE, anon/authenticated grants Note 4 clean, `write_audit_log_trg` attached, RPC sig exact), `rls_test.sql` 9/9 PASS, `audit_integrity_test.sql` 8/8 PASS (caught +1→+2 audit_log delta bug). Frontend e2e (50 boxes) + 3 Rule #9 doc fixes + merge pending.** | 1.5 (P1) + 2.5 (P2) + 0.5 (P4 backend) | **HIGH — finish Phase 4 next session** |
 | **MI-108 No-Work Submission Workflow** | NEW | 2 | HIGH |
 | MI-203 (next gate ticket) | Queued | — | — |
 | MI-204 index on `profiles.firm_id` | Queued | 0.25 | Phase 2 cleanup, perf-only |
@@ -89,22 +89,24 @@
 ---
 
 ## Last 3 sessions
-1. **4/30** — CDM-Smith email from Jeff Longberg surfaced 5 compliance rules. **MI-108 + MI-109 entered the queue.** MI-109 elevated to top priority. Tools setup: Git, Claude Code CLI v2.1.123, Agent Teams flag, repo cloned. Supabase MCP failed Windows-side (OAuth); GitHub MCP skipped (Copilot subscription).
-2. **5/1 evening** — MI-109 **Phase 1 verification complete** (6 items banked: RPC signatures, table inventory, triggers, `compliance_dashboard` view, pgcrypto, profiles schema). **MI-201 shipped** (`compliance_dashboard` `security_invoker` false→true, cross-firm leak closed, audit event id 11). Phase 1 surfaced 18-table inventory (13 business + 5 compliance — both categories now in CLAUDE.md), confirmed `record_compliance_event` 6-arg signature, confirmed pgcrypto v1.3 in `extensions` schema, confirmed `profiles.firm_id` is canonical firm-isolation column but nullable for super_admin. Truth-locked into CLAUDE.md (new principle #7 on view `security_invoker`; schema source of truth expanded with audit chain primitives). New ticket: MI-204. New investigation: compliance_events id gap. PR #2 closed without merging (postmortem comment posted).
-3. **5/2** — MI-109 **Phase 2 build complete, PR #3 open as draft.** 3-teammate Agent Team (frontend / backend / tests) shipped: Carlo modal + RPC integration in `index.html`, migration with `cs_replacement_authorizations` table + `submit_cs_authorization` RPC (named scalars, JSONB envelope return, INSERT-only via grants, audit-chained), tests v3 (RLS + audit integrity + 50-step e2e checklist). Mid-build escalation surfaced 4 load-bearing inventions; post-build review caught 4 more; one consolidated fixup commit (`ce2c2a5`) covered all of them. Discovery file at `discovery/whiteboard_override_template.md` preserved as template. Mid-flight handoff at `MI109_HANDOFF.md` preserved as pattern. Chat-truncation workaround pattern proven (file channel reliable when chat channel was lossy 5+ times).
+1. **5/1 evening** — MI-109 **Phase 1 verification complete** (6 items banked: RPC signatures, table inventory, triggers, `compliance_dashboard` view, pgcrypto, profiles schema). **MI-201 shipped** (`compliance_dashboard` `security_invoker` false→true, cross-firm leak closed, audit event id 11). Phase 1 surfaced 18-table inventory (13 business + 5 compliance), confirmed `record_compliance_event` 6-arg signature, confirmed pgcrypto v1.3 in `extensions` schema, confirmed `profiles.firm_id` is canonical firm-isolation column but nullable for super_admin. Truth-locked into CLAUDE.md (new principle #7 on view `security_invoker`). New ticket: MI-204. New investigation: compliance_events id gap. PR #2 closed without merging.
+2. **5/2** — MI-109 **Phase 2 build complete, PR #3 open as draft.** 3-teammate Agent Team (frontend / backend / tests) shipped: Carlo modal + RPC integration in `index.html`, migration with `cs_replacement_authorizations` table + `submit_cs_authorization` RPC (named scalars, JSONB envelope return, INSERT-only via grants, audit-chained), tests v3 (RLS + audit integrity + 50-step e2e checklist). Mid-build escalation surfaced 4 load-bearing inventions; post-build review caught 4 more; one consolidated fixup commit (`ce2c2a5`) covered all of them. Discovery file at `discovery/whiteboard_override_template.md` preserved as template. Mid-flight handoff at `MI109_HANDOFF.md` preserved as pattern. Chat-truncation workaround pattern proven (file channel reliable when chat channel was lossy 5+ times).
+3. **5/2 late (~10pm-12am)** — **SG-001 Node 1 shipped:** filesystem MCP wired up to Buddy on Claude Desktop, scope `C:\...\Code` parent. Buddy now reads CLAUDE/STATE/BUDDY_STANDARD/branch artifacts directly — no more Jorge couriering. Rule #9 file-write gate active and tested (this commit is the first write under the gate). **MI-109 Phase 4 backend verified solo:** migration applied via Supabase SQL editor (clean), 4 sanity queries green, `rls_test.sql` 9/9 PASS, `audit_integrity_test.sql` 8/8 PASS — **caught real bug:** test step 3b expected `audit_log delta=+1` but actual is `+2` because both Owner Data writes audit (cs_auth INSERT + phase_submissions UPDATE). Audit chain working as designed per CLAUDE.md. Three Rule #9 doc fixes queued for tomorrow (audit_integrity_test +1→+2 fix; e2e_checklist `supabase db push`→SQL editor; PR_MI109 stale `audit_log_append` + `payload::text` refs).
 
-## Next session opens with — MI-109 Phase 4 verification (Jorge runs solo)
+## Next session opens with — MI-109 Phase 4 finish (frontend e2e + 3 Rule #9 writes + merge)
 
-1. Read `BUDDY_STANDARD.md`, `CLAUDE.md`, `STATE.md`
-2. `git pull` then `git checkout mi-109-rpc-rebuild` to get the unmerged work
-3. Apply migration via Supabase dashboard SQL editor (project ref `wryitfoletwskkdqqwcw`). NOT `supabase db push`.
-4. Smoke-test the RPC against staging with a known phase_submission_id; expect `{status:'accepted', authorization_id:..., error_code:null, message:...}`
-5. Run `tests/mi109/rls_test.sql` as `postgres` — expect 7/7 passes
-6. Run `tests/mi109/audit_integrity_test.sql` as `postgres` — expect 11/11 steps
-7. Walk `tests/mi109/e2e_checklist.md` — happy path + 5 negative paths + super_admin override
-8. Verify post-deploy queries from migration header (RLS forced + grants posture + audit triggers attached)
-9. **If all pass:** convert PR #3 from draft → ready-for-review → merge to main. Session-close commit on main marks MI-109 fully closed.
-10. **If anything fails:** comment on PR #3 with the specific failure; lead reconvenes the team for a targeted fixup.
+Backend verified 5/2 late: migration shipped, all SQL tests green (caught and worked around real audit_log delta bug). Frontend e2e + doc fixes + merge are what's left.
+
+1. Read `BUDDY_STANDARD.md`, `CLAUDE.md`, `STATE.md`, plus 5/2 late chat scrollback for Rule #9 write specs
+2. `git checkout mi-109-rpc-rebuild` (Phase 4 frontend e2e tests live there, not on main)
+3. Ack 3 pending Rule #9 writes (Buddy posts each gate, Jorge yups):
+   - `tests/mi109/audit_integrity_test.sql` — step 3b expected delta `+1` → `+2`, document both Owner Data writes in comment (this was the real bug we caught)
+   - `tests/mi109/e2e_checklist.md` — Pre-flight item 1: `supabase db push` → `Supabase dashboard SQL editor (NOT supabase db push)` to align with migration header + STATE.md
+   - `PR_MI109.md` — strike `audit_log_append` references (it's `record_compliance_event` per Phase 1); strike `payload::text` claim (chain mechanism is BEFORE INSERT trigger overwrite per CLAUDE.md)
+4. Find Vercel preview URL for branch `mi-109-rpc-rebuild` (Vercel dashboard)
+5. Walk `tests/mi109/e2e_checklist.md` — 50 boxes (Happy 1-15, Negatives 16-36, Cross-firm 37-45, Super_admin 46-50). ~15 min if first-try clean.
+6. **If all 50 pass:** PR #3 draft → ready → squash merge to main. `git checkout main && git pull && git branch -d mi-109-rpc-rebuild`. Update STATE.md (MI-109 closed). Commit + push.
+7. **If anything fails:** comment on PR #3 with exact failure + console/SQL output. Reconvene Agent Team for fresh fixup session — don't fix solo from inside Phase 4.
 
 After MI-109 closes:
 - MI-108 (2 sessions, HIGH priority — CDM-Smith rule a)
