@@ -27,7 +27,16 @@
 --   p_correlation_id: phase_submission_id::text
 --   p_message:       human-readable
 --   p_details jsonb: {phase_submission_id, supervisor, authorized_at,
---                     reason_length, status, error_code (if rejected/duplicate)}
+--                     reason_length, status,
+--                     error_code (if rejected/duplicate),
+--                     existing_authorization_id (already_recorded only)}
+--
+-- Validation error_codes (INV-NB11, bare — no VALIDATION_ prefix):
+--   REASON_TOO_SHORT, SUPERVISOR_EMPTY, PHASE_SUBMISSION_ID_MISSING,
+--   PHASE_SUBMISSION_NOT_FOUND, FORBIDDEN_CROSS_FIRM, AUTHORIZED_AT_MISSING,
+--   ALREADY_RECORDED.
+--   PHASE_SUBMISSION_ID_MISSING and AUTHORIZED_AT_MISSING are param null/empty
+--   checks; PHASE_SUBMISSION_NOT_FOUND is the DB-lookup-miss case.
 --
 -- Run as: postgres
 -- Mode:   single transaction wrapped in BEGIN/ROLLBACK
@@ -108,7 +117,7 @@ BEGIN
 
   v_envelope := public.submit_cs_authorization(
     p_phase_submission_id    => v_sub_a,
-    p_authorizing_supervisor => 'Carlo Domenick',
+    p_supervisor_name => 'Carlo Domenick',
     p_authorized_at          => now(),
     p_reason                 => 'Accepted-path audit test — well over twenty characters per CDM-Smith rule c.'
   );
@@ -314,7 +323,7 @@ BEGIN
 
   v_envelope := public.submit_cs_authorization(
     p_phase_submission_id    => v_sub_b,
-    p_authorizing_supervisor => 'Carlo Domenick',
+    p_supervisor_name => 'Carlo Domenick',
     p_authorized_at          => now(),
     p_reason                 => 'too short'
   );
@@ -427,7 +436,7 @@ BEGIN
 
   v_envelope := public.submit_cs_authorization(
     p_phase_submission_id    => v_sub_a,
-    p_authorizing_supervisor => 'Carlo Domenick',
+    p_supervisor_name => 'Carlo Domenick',
     p_authorized_at          => now(),
     p_reason                 => 'Duplicate retry test — RPC must catch 23505 and return already_recorded.'
   );
@@ -476,6 +485,19 @@ BEGIN
   IF v_dup_row.details->>'error_code' <> 'ALREADY_RECORDED' THEN
     RAISE EXCEPTION 'FAIL 11h: duplicate details.error_code=% (expected ALREADY_RECORDED)',
       v_dup_row.details->>'error_code';
+  END IF;
+  -- existing_authorization_id is allowed (and expected) on duplicate event_type only.
+  IF NOT (v_dup_row.details ? 'existing_authorization_id') THEN
+    RAISE EXCEPTION 'FAIL 11i: duplicate details missing existing_authorization_id — %',
+      v_dup_row.details::text;
+  END IF;
+  IF (v_dup_row.details->>'existing_authorization_id') IS NULL THEN
+    RAISE EXCEPTION 'FAIL 11j: duplicate details.existing_authorization_id is null';
+  END IF;
+  -- Should match the envelope.authorization_id (existing row's id, surfaced from the 23505 catch).
+  IF v_dup_row.details->>'existing_authorization_id' <> v_envelope->>'authorization_id' THEN
+    RAISE EXCEPTION 'FAIL 11k: duplicate details.existing_authorization_id=% does not match envelope.authorization_id=%',
+      v_dup_row.details->>'existing_authorization_id', v_envelope->>'authorization_id';
   END IF;
   RAISE NOTICE 'PASS 11: duplicate envelope + compliance_events row valid';
 END $$;

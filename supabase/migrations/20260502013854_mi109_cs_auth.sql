@@ -12,7 +12,8 @@
 -- 1. Creates `public.cs_replacement_authorizations` (Owner Data, RLS forced,
 --    INSERT-only via grants posture, audit-chained).
 -- 2. Adds `cs_replacement boolean NOT NULL DEFAULT false` to `phase_submissions`.
--- 3. Creates `public.submit_cs_authorization(jsonb)` RPC (SECURITY DEFINER,
+-- 3. Creates `public.submit_cs_authorization(uuid, text, timestamptz, text)`
+--    RPC (SECURITY DEFINER,
 --    JSONB envelope return per INV-1) that validates input, inserts the auth
 --    row, flips `phase_submissions.cs_replacement` to true, and self-logs every
 --    attempt (accepted / rejected / already_recorded) via
@@ -48,12 +49,34 @@
 -- INV-1: RPC returns JSONB envelope `{status, authorization_id?, error_code?,
 --        message}`. Validation rejections return envelope (NOT raise) so
 --        same-transaction `record_compliance_event` INSERTs survive. Only
---        AUTH_DENIED raises (security boundary).
+--        AUTH_DENIED raises (security boundary; the RAISE rolls back the
+--        inner compliance_events INSERT — accepted limitation, see
+--        post-build review note in discovery/whiteboard_override_template.md).
 -- INV-2: RLS uses inline `profiles` subquery; `role = 'super_admin'` for
 --        cross-firm escalation (CLAUDE.md NULL-firm super_admin branch).
 -- INV-3: `extensions.gen_random_uuid()` schema-qualified.
 -- NB3:   Single `authorized_at timestamptz` (lead override of original split).
+-- NB10 (post-build review #4): `existing_authorization_id` is an allowed key
+--        in `compliance_events.details` ONLY on `already_recorded` events.
+-- NB11 (post-build review #2, #3): Error code enumeration is
+--        PHASE_SUBMISSION_ID_MISSING (param null/empty),
+--        PHASE_SUBMISSION_NOT_FOUND (DB lookup miss),
+--        AUTHORIZED_AT_MISSING, SUPERVISOR_EMPTY, REASON_TOO_SHORT,
+--        FORBIDDEN_CROSS_FIRM, ALREADY_RECORDED.
 -- NB1, NB2, NB4-NB13: Approved as proposed.
+--
+-- POST-BUILD REVIEW FIXUPS (resolved 2026-05-02 review pass — see
+-- discovery/whiteboard_override_template.md "Post-build review" block):
+-- #1 RPC signature changed from `(p_args jsonb)` to named scalar params
+--    `(p_phase_submission_id uuid, p_supervisor_name text,
+--      p_authorized_at timestamptz, p_reason text)` to match frontend's
+--    canonical call shape. Note: `p_supervisor_name`, NOT
+--    `p_authorizing_supervisor` — frontend uses the former.
+-- #2 AUTHORIZED_AT_MISSING documented in INV-NB11 list above.
+-- #3 PHASE_SUBMISSION_NOT_FOUND split into
+--    PHASE_SUBMISSION_ID_MISSING (param null/empty) and
+--    PHASE_SUBMISSION_NOT_FOUND (DB lookup miss).
+-- #4 existing_authorization_id detail key documented in NB10.
 --
 -- POST-DEPLOY VERIFICATION (run these against prod after Jorge applies)
 -- ----------------------------------------------------------------------------
@@ -166,16 +189,16 @@ CREATE TRIGGER write_audit_log_trg
   EXECUTE FUNCTION public.write_audit_log();
 
 -- ----------------------------------------------------------------------------
--- 6. RPC — submit_cs_authorization(p_args jsonb) -> jsonb envelope
+-- 6. RPC — submit_cs_authorization(named scalar params) -> jsonb envelope
 -- ----------------------------------------------------------------------------
--- INPUT (jsonb object — single param to keep the RPC signature stable as
--- fields evolve; matches frontend's existing supabase.rpc(name, {...}) call):
---   {
---     phase_submission_id: uuid,
---     authorizing_supervisor: text,    // optional; defaults to 'Carlo Domenick'
---     authorized_at: timestamptz (ISO 8601 string),
---     reason: text                     // min 20 chars after trim
---   }
+-- INPUT (named scalar params — matches frontend's canonical .rpc() call shape;
+-- see post-build review #1 in discovery/whiteboard_override_template.md):
+--   p_phase_submission_id  uuid         (required)
+--   p_supervisor_name      text         (optional; defaults to 'Carlo Domenick'
+--                                        if NULL or empty after btrim)
+--   p_authorized_at        timestamptz  (required; frontend combines its
+--                                        date + time inputs to ISO 8601)
+--   p_reason               text         (required; min 20 chars)
 --
 -- RETURN (jsonb envelope per INV-1):
 --   {
@@ -201,7 +224,12 @@ CREATE TRIGGER write_audit_log_trg
 --   with new authorization_id.
 -- ----------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION public.submit_cs_authorization(p_args jsonb)
+CREATE OR REPLACE FUNCTION public.submit_cs_authorization(
+  p_phase_submission_id uuid,
+  p_supervisor_name     text,
+  p_authorized_at       timestamptz,
+  p_reason              text
+)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -211,9 +239,7 @@ DECLARE
   v_caller_uid           uuid;
   v_caller_firm_id       uuid;
   v_caller_role          text;
-  v_phase_submission_id  uuid;
   v_supervisor           text;
-  v_authorized_at        timestamptz;
   v_reason               text;
   v_phase_firm_id        uuid;
   v_phase_exists         boolean;
@@ -248,26 +274,25 @@ BEGIN
   END IF;
 
   -- ------------------------------------------------------------------------
-  -- (2) Extract and coerce arguments. Defensive: NULLs flow through to
-  --     validation step and become rejected envelopes, NOT raises.
+  -- (2) Normalize args into local vars where defaults / coercion applies.
+  --     Required uuid + timestamptz params are read directly. Defensive:
+  --     NULLs flow to validation step as rejected envelopes, NOT raises.
   -- ------------------------------------------------------------------------
-  v_phase_submission_id := NULLIF(p_args->>'phase_submission_id','')::uuid;
-  v_supervisor          := COALESCE(NULLIF(btrim(p_args->>'authorizing_supervisor'),''), 'Carlo Domenick');
-  v_authorized_at       := NULLIF(p_args->>'authorized_at','')::timestamptz;
-  v_reason              := COALESCE(p_args->>'reason','');
+  v_supervisor := COALESCE(NULLIF(btrim(p_supervisor_name), ''), 'Carlo Domenick');
+  v_reason     := COALESCE(p_reason, '');
 
   -- ------------------------------------------------------------------------
   -- (3) Validation — return rejected envelope (NOT raise) on each failure
   --     so the compliance_events INSERT below survives.
   -- ------------------------------------------------------------------------
-  IF v_phase_submission_id IS NULL THEN
+  IF p_phase_submission_id IS NULL THEN
     v_details := jsonb_build_object(
       'phase_submission_id', NULL,
       'supervisor', v_supervisor,
-      'authorized_at', v_authorized_at,
+      'authorized_at', p_authorized_at,
       'reason_length', length(v_reason),
       'status', 'rejected',
-      'error_code', 'PHASE_SUBMISSION_NOT_FOUND'
+      'error_code', 'PHASE_SUBMISSION_ID_MISSING'
     );
     PERFORM public.record_compliance_event(
       p_event_type    => 'cs_replacement.auth.rejected',
@@ -275,19 +300,19 @@ BEGIN
       p_severity      => 'alert',
       p_details       => v_details,
       p_source        => 'MI-109',
-      p_correlation_id=> COALESCE(p_args->>'phase_submission_id','')
+      p_correlation_id=> ''
     );
     RETURN jsonb_build_object(
       'status', 'rejected',
       'authorization_id', NULL,
-      'error_code', 'PHASE_SUBMISSION_NOT_FOUND',
-      'message', 'phase_submission_id is required'
+      'error_code', 'PHASE_SUBMISSION_ID_MISSING',
+      'message', 'p_phase_submission_id is required'
     );
   END IF;
 
-  IF v_authorized_at IS NULL THEN
+  IF p_authorized_at IS NULL THEN
     v_details := jsonb_build_object(
-      'phase_submission_id', v_phase_submission_id,
+      'phase_submission_id', p_phase_submission_id,
       'supervisor', v_supervisor,
       'authorized_at', NULL,
       'reason_length', length(v_reason),
@@ -300,7 +325,7 @@ BEGIN
       p_severity      => 'alert',
       p_details       => v_details,
       p_source        => 'MI-109',
-      p_correlation_id=> v_phase_submission_id::text
+      p_correlation_id=> p_phase_submission_id::text
     );
     RETURN jsonb_build_object(
       'status', 'rejected',
@@ -312,9 +337,9 @@ BEGIN
 
   IF length(btrim(v_supervisor)) = 0 THEN
     v_details := jsonb_build_object(
-      'phase_submission_id', v_phase_submission_id,
+      'phase_submission_id', p_phase_submission_id,
       'supervisor', v_supervisor,
-      'authorized_at', v_authorized_at,
+      'authorized_at', p_authorized_at,
       'reason_length', length(v_reason),
       'status', 'rejected',
       'error_code', 'SUPERVISOR_EMPTY'
@@ -325,7 +350,7 @@ BEGIN
       p_severity      => 'alert',
       p_details       => v_details,
       p_source        => 'MI-109',
-      p_correlation_id=> v_phase_submission_id::text
+      p_correlation_id=> p_phase_submission_id::text
     );
     RETURN jsonb_build_object(
       'status', 'rejected',
@@ -337,9 +362,9 @@ BEGIN
 
   IF length(v_reason) < 20 THEN
     v_details := jsonb_build_object(
-      'phase_submission_id', v_phase_submission_id,
+      'phase_submission_id', p_phase_submission_id,
       'supervisor', v_supervisor,
-      'authorized_at', v_authorized_at,
+      'authorized_at', p_authorized_at,
       'reason_length', length(v_reason),
       'status', 'rejected',
       'error_code', 'REASON_TOO_SHORT'
@@ -350,7 +375,7 @@ BEGIN
       p_severity      => 'alert',
       p_details       => v_details,
       p_source        => 'MI-109',
-      p_correlation_id=> v_phase_submission_id::text
+      p_correlation_id=> p_phase_submission_id::text
     );
     RETURN jsonb_build_object(
       'status', 'rejected',
@@ -368,13 +393,13 @@ BEGIN
   SELECT firm_id, true
     INTO v_phase_firm_id, v_phase_exists
     FROM public.phase_submissions
-   WHERE id = v_phase_submission_id;
+   WHERE id = p_phase_submission_id;
 
   IF NOT FOUND OR NOT v_phase_exists THEN
     v_details := jsonb_build_object(
-      'phase_submission_id', v_phase_submission_id,
+      'phase_submission_id', p_phase_submission_id,
       'supervisor', v_supervisor,
-      'authorized_at', v_authorized_at,
+      'authorized_at', p_authorized_at,
       'reason_length', length(v_reason),
       'status', 'rejected',
       'error_code', 'PHASE_SUBMISSION_NOT_FOUND'
@@ -385,7 +410,7 @@ BEGIN
       p_severity      => 'alert',
       p_details       => v_details,
       p_source        => 'MI-109',
-      p_correlation_id=> v_phase_submission_id::text
+      p_correlation_id=> p_phase_submission_id::text
     );
     RETURN jsonb_build_object(
       'status', 'rejected',
@@ -400,9 +425,9 @@ BEGIN
   IF v_caller_role IS DISTINCT FROM 'super_admin'
      AND v_phase_firm_id IS DISTINCT FROM v_caller_firm_id THEN
     v_details := jsonb_build_object(
-      'phase_submission_id', v_phase_submission_id,
+      'phase_submission_id', p_phase_submission_id,
       'supervisor', v_supervisor,
-      'authorized_at', v_authorized_at,
+      'authorized_at', p_authorized_at,
       'reason_length', length(v_reason),
       'status', 'rejected',
       'error_code', 'FORBIDDEN_CROSS_FIRM'
@@ -413,7 +438,7 @@ BEGIN
       p_severity      => 'alert',
       p_details       => v_details,
       p_source        => 'MI-109',
-      p_correlation_id=> v_phase_submission_id::text
+      p_correlation_id=> p_phase_submission_id::text
     );
     RETURN jsonb_build_object(
       'status', 'rejected',
@@ -438,9 +463,9 @@ BEGIN
       firm_id
     )
     VALUES (
-      v_phase_submission_id,
+      p_phase_submission_id,
       v_supervisor,
-      v_authorized_at,
+      p_authorized_at,
       v_reason,
       v_caller_uid,
       v_phase_firm_id
@@ -450,12 +475,12 @@ BEGIN
     WHEN unique_violation THEN
       SELECT id INTO v_existing_auth_id
         FROM public.cs_replacement_authorizations
-       WHERE phase_submission_id = v_phase_submission_id;
+       WHERE phase_submission_id = p_phase_submission_id;
 
       v_details := jsonb_build_object(
-        'phase_submission_id', v_phase_submission_id,
+        'phase_submission_id', p_phase_submission_id,
         'supervisor', v_supervisor,
-        'authorized_at', v_authorized_at,
+        'authorized_at', p_authorized_at,
         'reason_length', length(v_reason),
         'status', 'already_recorded',
         'error_code', 'ALREADY_RECORDED',
@@ -467,7 +492,7 @@ BEGIN
         p_severity      => 'alert',
         p_details       => v_details,
         p_source        => 'MI-109',
-        p_correlation_id=> v_phase_submission_id::text
+        p_correlation_id=> p_phase_submission_id::text
       );
       RETURN jsonb_build_object(
         'status', 'already_recorded',
@@ -482,15 +507,15 @@ BEGIN
   -- snapshots to_jsonb(NEW), so the new column travels with it).
   UPDATE public.phase_submissions
      SET cs_replacement = true
-   WHERE id = v_phase_submission_id;
+   WHERE id = p_phase_submission_id;
 
   -- ------------------------------------------------------------------------
   -- (6) Self-log success.
   -- ------------------------------------------------------------------------
   v_details := jsonb_build_object(
-    'phase_submission_id', v_phase_submission_id,
+    'phase_submission_id', p_phase_submission_id,
     'supervisor', v_supervisor,
-    'authorized_at', v_authorized_at,
+    'authorized_at', p_authorized_at,
     'reason_length', length(v_reason),
     'status', 'accepted',
     'authorization_id', v_new_auth_id
@@ -498,8 +523,8 @@ BEGIN
   v_message := format(
     'CS replacement authorization accepted by %s at %s for phase submission %s',
     v_supervisor,
-    v_authorized_at::text,
-    v_phase_submission_id::text
+    p_authorized_at::text,
+    p_phase_submission_id::text
   );
   PERFORM public.record_compliance_event(
     p_event_type    => 'cs_replacement.auth.accepted',
@@ -507,7 +532,7 @@ BEGIN
     p_severity      => 'alert',
     p_details       => v_details,
     p_source        => 'MI-109',
-    p_correlation_id=> v_phase_submission_id::text
+    p_correlation_id=> p_phase_submission_id::text
   );
 
   RETURN jsonb_build_object(
@@ -519,7 +544,7 @@ BEGIN
 END;
 $fn$;
 
-COMMENT ON FUNCTION public.submit_cs_authorization(jsonb) IS
+COMMENT ON FUNCTION public.submit_cs_authorization(uuid, text, timestamptz, text) IS
   'MI-109: Records Carlo Domenick authorization for a CS (curbstop) '
   'replacement on a phase submission. SECURITY DEFINER. Returns JSONB '
   'envelope {status, authorization_id, error_code, message}. Every attempt '
@@ -529,9 +554,9 @@ COMMENT ON FUNCTION public.submit_cs_authorization(jsonb) IS
 -- Grants — RPC is callable by authenticated only; anon must not be able to
 -- record CS authorizations. Mirror whiteboard pattern (note 4): writes flow
 -- via the SECURITY DEFINER function, not via direct table grants.
-REVOKE ALL ON FUNCTION public.submit_cs_authorization(jsonb) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.submit_cs_authorization(jsonb) FROM anon;
-GRANT EXECUTE ON FUNCTION public.submit_cs_authorization(jsonb) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.submit_cs_authorization(jsonb) TO service_role;
+REVOKE ALL ON FUNCTION public.submit_cs_authorization(uuid, text, timestamptz, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.submit_cs_authorization(uuid, text, timestamptz, text) FROM anon;
+GRANT EXECUTE ON FUNCTION public.submit_cs_authorization(uuid, text, timestamptz, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.submit_cs_authorization(uuid, text, timestamptz, text) TO service_role;
 
 COMMIT;

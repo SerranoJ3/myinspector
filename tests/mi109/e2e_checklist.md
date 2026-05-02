@@ -16,7 +16,7 @@ supervisor name). NO EXCEPTION path. Audit log every attempt.
 ```
 public.submit_cs_authorization(
   p_phase_submission_id    uuid,
-  p_authorizing_supervisor text,
+  p_supervisor_name text,
   p_authorized_at          timestamptz,
   p_reason                 text
 ) RETURNS jsonb              -- envelope (INV-1, pattern B)
@@ -28,11 +28,18 @@ public.submit_cs_authorization(
   status:           'accepted' | 'rejected' | 'already_recorded',
   authorization_id: uuid | null,
   error_code:       null | 'REASON_TOO_SHORT' | 'SUPERVISOR_EMPTY'
-                  | 'PHASE_SUBMISSION_NOT_FOUND' | 'FORBIDDEN_CROSS_FIRM'
+                  | 'PHASE_SUBMISSION_ID_MISSING'
+                  | 'PHASE_SUBMISSION_NOT_FOUND'
+                  | 'FORBIDDEN_CROSS_FIRM'
+                  | 'AUTHORIZED_AT_MISSING'
                   | 'ALREADY_RECORDED',
   message:          text
 }
 ```
+
+`PHASE_SUBMISSION_ID_MISSING` and `AUTHORIZED_AT_MISSING` are param-null/empty
+checks; `PHASE_SUBMISSION_NOT_FOUND` is reserved for DB-lookup misses (param
+was a well-formed uuid but no row exists).
 
 **AUTH_DENIED is the only RAISE path** — security-boundary failure raises
 with `ERRCODE='insufficient_privilege'` and message prefix `'AUTH_DENIED:'`.
@@ -48,7 +55,7 @@ with `ERRCODE='insufficient_privilege'` and message prefix `'AUTH_DENIED:'`.
 All compliance events use `severity='alert'`, `source='MI-109'`,
 `correlation_id=phase_submission_id::text`. Details jsonb contains:
 `{phase_submission_id, supervisor, authorized_at, reason_length, status,
-error_code (if rejected/duplicate)}`.
+error_code (if rejected/duplicate), existing_authorization_id (already_recorded only)}`.
 
 ---
 
@@ -144,7 +151,7 @@ error_code (if rejected/duplicate)}`.
         ```js
         await sb.rpc('submit_cs_authorization', {
           p_phase_submission_id: '<fresh_phase_submission_id>',
-          p_authorizing_supervisor: 'Carlo Domenick',
+          p_supervisor_name: 'Carlo Domenick',
           p_authorized_at: new Date().toISOString(),
           p_reason: 'too short'
         })
@@ -175,7 +182,7 @@ error_code (if rejected/duplicate)}`.
 25. [ ] In the modal, clear supervisor name to empty string and type valid
         reason + date + time
 26. [ ] **Authorize** disabled (frontend validation prevents submit)
-27. [ ] If bypassed via devtools (`p_authorizing_supervisor: ''`), envelope
+27. [ ] If bypassed via devtools (`p_supervisor_name: ''`), envelope
         is `{status:'rejected', error_code:'SUPERVISOR_EMPTY', ...}`
 
 ## Negative path 4 — AUTH_DENIED for non-authorized role
@@ -200,7 +207,7 @@ error_code (if rejected/duplicate)}`.
         ```js
         await sb.rpc('submit_cs_authorization', {
           p_phase_submission_id: '<happy_path_phase_submission_id>',
-          p_authorizing_supervisor: 'Carlo Domenick',
+          p_supervisor_name: 'Carlo Domenick',
           p_authorized_at: new Date().toISOString(),
           p_reason: 'Duplicate retry — RPC must surface already_recorded.'
         })
@@ -213,13 +220,17 @@ error_code (if rejected/duplicate)}`.
         submission_id remains `1`).
 36. [ ] `compliance_events` records the duplicate:
         ```sql
-        SELECT event_type, details->>'error_code' AS error_code
+        SELECT event_type,
+               details->>'error_code' AS error_code,
+               details->>'existing_authorization_id' AS existing_id
           FROM compliance_events
          WHERE correlation_id = '<happy_path_phase_submission_id>'
            AND source = 'MI-109'
          ORDER BY created_at DESC LIMIT 1;
         ```
-        → expected: `cs_replacement.auth.duplicate`, `ALREADY_RECORDED`.
+        → expected: `cs_replacement.auth.duplicate`, `ALREADY_RECORDED`,
+        `existing_id` matches the `authorization_id` returned on the
+        original happy-path call.
 
 ## Negative path 6 — network failure mid-submit
 
@@ -246,7 +257,7 @@ error_code (if rejected/duplicate)}`.
         ```js
         await sb.rpc('submit_cs_authorization', {
           p_phase_submission_id: '<firm_A_phase_submission_id>',
-          p_authorizing_supervisor: 'Carlo Domenick',
+          p_supervisor_name: 'Carlo Domenick',
           p_authorized_at: new Date().toISOString(),
           p_reason: 'Cross-firm attack attempt — should be denied by RLS.'
         })

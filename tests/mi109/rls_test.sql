@@ -38,13 +38,18 @@
 -- RPC parameter shape (decision log NB3 override):
 --   submit_cs_authorization(
 --     p_phase_submission_id uuid,
---     p_authorizing_supervisor text,
+--     p_supervisor_name text,
 --     p_authorized_at timestamptz,
 --     p_reason text
 --   ) RETURNS jsonb
 --
 -- Envelope (decision log INV-1):
 --   {status, authorization_id, error_code, message}
+--
+-- Validation error_codes (INV-NB11, bare — no VALIDATION_ prefix):
+--   REASON_TOO_SHORT, SUPERVISOR_EMPTY, PHASE_SUBMISSION_ID_MISSING,
+--   PHASE_SUBMISSION_NOT_FOUND, FORBIDDEN_CROSS_FIRM, AUTHORIZED_AT_MISSING,
+--   ALREADY_RECORDED.
 --
 -- !! TESTER ACTION NEEDED — seed-row column shape !!
 --   Step 0 fixture inserts use a minimal column set for firms,
@@ -155,7 +160,7 @@ BEGIN
 
   v_envelope := public.submit_cs_authorization(
     p_phase_submission_id    => v_sub_a,
-    p_authorizing_supervisor => 'Carlo Domenick',
+    p_supervisor_name => 'Carlo Domenick',
     p_authorized_at          => now(),
     p_reason                 => 'RPC happy-path test reason — exceeds twenty character minimum per CDM-Smith rule c.'
   );
@@ -211,7 +216,7 @@ BEGIN
 
   v_envelope := public.submit_cs_authorization(
     p_phase_submission_id    => v_sub_a,
-    p_authorizing_supervisor => 'Carlo Domenick',
+    p_supervisor_name => 'Carlo Domenick',
     p_authorized_at          => now(),
     p_reason                 => 'Duplicate retry — RPC must catch 23505 and return already_recorded envelope.'
   );
@@ -256,7 +261,7 @@ BEGIN
 
   v_envelope := public.submit_cs_authorization(
     p_phase_submission_id    => v_sub_b,
-    p_authorizing_supervisor => 'Carlo Domenick',
+    p_supervisor_name => 'Carlo Domenick',
     p_authorized_at          => now(),
     p_reason                 => 'too short'
   );
@@ -304,7 +309,7 @@ BEGIN
   BEGIN
     v_envelope := public.submit_cs_authorization(
       p_phase_submission_id    => v_sub_b,
-      p_authorizing_supervisor => 'Carlo Domenick',
+      p_supervisor_name => 'Carlo Domenick',
       p_authorized_at          => now(),
       p_reason                 => 'Cross-firm authorization attempt — RPC must deny by RLS or explicit check.'
     );

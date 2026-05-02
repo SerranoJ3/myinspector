@@ -248,8 +248,8 @@ INVENTION #3: `gen_random_uuid()` qualification convention
   - `p_source='MI-109'`
   - `p_correlation_id = phase_submission_id::text`
   - `p_message` = human-readable, e.g. `'CS replacement authorization accepted by Carlo Domenick on 2026-05-01 at 14:30'`
-  - `p_details` = jsonb: `{phase_submission_id, supervisor, authorized_at, reason_length, status, error_code (if rejected)}` — updated per NB3 override (single `authorized_at` replaces date+time split)
-- **INV-NB11:** Validation error codes (in jsonb envelope `error_code` field): `REASON_TOO_SHORT`, `SUPERVISOR_EMPTY`, `PHASE_SUBMISSION_NOT_FOUND`, `FORBIDDEN_CROSS_FIRM` (if RLS-equivalent check needed inside RPC), `ALREADY_RECORDED`. Validation errors return rejected envelope; auth-denied RAISEs `AUTH_DENIED:...` with ERRCODE `'insufficient_privilege'`.
+  - `p_details` = jsonb: `{phase_submission_id, supervisor, authorized_at, reason_length, status, error_code (if rejected)}` — updated per NB3 override (single `authorized_at` replaces date+time split). Plus `existing_authorization_id` (allowed ONLY on `already_recorded` events — see post-build review #4).
+- **INV-NB11:** Validation error codes (in jsonb envelope `error_code` field): `PHASE_SUBMISSION_ID_MISSING` (param null/empty), `PHASE_SUBMISSION_NOT_FOUND` (DB lookup miss), `AUTHORIZED_AT_MISSING`, `SUPERVISOR_EMPTY`, `REASON_TOO_SHORT`, `FORBIDDEN_CROSS_FIRM`, `ALREADY_RECORDED`. Validation errors return rejected envelope; auth-denied RAISEs `AUTH_DENIED:...` with ERRCODE `'insufficient_privilege'` (rollback per post-build review accepted-limitation note).
 - **INV-NB12:** Audit triggers on `cs_replacement_authorizations` mirror whatever triggers exist on other Owner Data tables. Backend will attach the same `write_audit_log` trigger(s). Trigger function name assumed `write_audit_log` per CLAUDE.md / lead's note 2; if production trigger has a different name (e.g. `audit_owner_data_trigger`), lead flags and backend matches.
 - **INV-NB13:** Migration filename uses UTC timestamp `YYYYMMDDHHMMSS` per brief — generated from current UTC at write time.
 
@@ -284,4 +284,12 @@ INVENTION #3: `gen_random_uuid()` qualification convention
 - **Frontend follow-up — NB3 client-side combine:** Option A. Frontend combines its date + time inputs into a single ISO 8601 string client-side (`new Date(date + 'T' + time).toISOString()`) and passes as `p_authorized_at`. RPC stays clean; no `make_timestamp(...)` server-side combine. Frontend revise-edit briefed in parallel.
 
 - **NB1, NB2, NB4-NB13:** All approved as backend proposed (no objections).
+
+#### Post-build review (resolved 2026-05-02 review pass)
+
+- **#1 — RPC signature:** Option B. Backend revises from `(p_args jsonb)` to named scalar params matching frontend's existing call shape: `(p_phase_submission_id uuid, p_supervisor_name text, p_authorized_at timestamptz, p_reason text)`. Frontend stays idle; canonical names are its existing ones. Tests v2 had `p_authorizing_supervisor` — fixup renames to `p_supervisor_name`.
+- **#2 — AUTHORIZED_AT_MISSING:** Added to INV-NB11. Backend's migration already raises this; documenting only.
+- **#3 — PHASE_SUBMISSION_NOT_FOUND split:** Distinct codes — `PHASE_SUBMISSION_ID_MISSING` (param null/empty) vs `PHASE_SUBMISSION_NOT_FOUND` (DB lookup miss). Backend renames the param-null path's error code.
+- **#4 — `existing_authorization_id` detail key:** Allowed in `compliance_events.details` ONLY on `already_recorded` events. Added to INV-NB10.
+- **AUTH_DENIED telemetry gap (accepted limitation):** RAISE EXCEPTION inside the RPC rolls back the inner `compliance_events` INSERT, so AUTH_DENIED attempts are NOT recorded in compliance_events. Accepted as known gap; flagged in tests' e2e_checklist for future telemetry follow-up if needed.
 
