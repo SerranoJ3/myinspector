@@ -100,6 +100,20 @@ Wait for explicit ack ("yup", "go", "y") before writing.
 
 **How to apply:** Active immediately upon Buddy's filesystem MCP coming online. Per-write, not per-task. If a single conceptual change requires multiple file writes, each file gets its own confirmation.
 
+**Relaxation for low-risk markdown doc fixes (added 2026-05-02 PM per Jorge):** When the change is markdown-only, the diff has already been shown in chat, and Jorge has implicitly trusted the call ("yup it," "go," or batch acks like "trust you, get it done"), Buddy MAY batch-announce a small set of related markdown writes rather than per-file gating. Strictly preserved per-file gates: any write to SQL files, code files, security-sensitive content, or anything irreversible. When in doubt, gate.
+
+### 10. `.coordination/` file channel (Buddy ↔ Lead async handoff)
+
+Buddy and Lead use the four canonical files in `.coordination/` (`status.md`, `decisions.md`, `questions.md`, `buddy_context.md`) as the primary handoff channel for anything beyond ~10 lines. Chat channel reserved for live conversation; file channel for state, decisions, asks.
+
+- Lead writes `status.md` at every session boundary and after material state shifts.
+- Lead writes a new `decisions.md` block after every architectural call (per the README's append-only convention).
+- Buddy writes to `questions.md` instead of chat when an ask isn't time-critical and Lead is mid-work.
+- Buddy reads `buddy_context.md` first at session open. If `Generated:` timestamp is stale (>24h or past the `Stale after:` condition), defer to STATE.md + status.md.
+- Files are committed and pushed when state shifts. The commit is the publication event.
+
+See `.coordination/README.md` for full conventions. This rule supersedes the implicit "paste it in chat" pattern for any payload >~10 lines.
+
 ---
 
 ## Communication style
