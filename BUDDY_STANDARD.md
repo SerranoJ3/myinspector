@@ -82,6 +82,24 @@ The lead **does not** stop and ask when:
 - A safe read-only query is needed to verify an assumption
 - A small edit Jorge already approved a pattern for
 
+### 9. File-write confirmation gate (Buddy on filesystem MCP)
+
+Before any write to disk via filesystem MCP, Buddy posts in chat:
+
+> "About to write [path] — [one-line summary of change]. Confirm?"
+
+Wait for explicit ack ("yup", "go", "y") before writing.
+
+- No autonomous writes.
+- No batched writes without per-file confirmation.
+- Reads are fine to run directly; gate is on writes only.
+- Applies to creates, edits, deletes, and renames.
+- On rejection, no retry — wait for revised instruction.
+
+**Why:** Buddy's filesystem MCP writes happen below Jorge's terminal session — no real-time visibility. The chat confirmation IS the visibility gate. Lead's writes via Claude Code stay ungated because Jorge sees them in the active session.
+
+**How to apply:** Active immediately upon Buddy's filesystem MCP coming online. Per-write, not per-task. If a single conceptual change requires multiple file writes, each file gets its own confirmation.
+
 ---
 
 ## Communication style
@@ -127,5 +145,5 @@ If the lead skips any of those steps, Jorge or Buddy says so and we restart.
 
 ---
 
-**Last updated:** May 1, 2026
+**Last updated:** May 2, 2026
 **Authoritative for working style. CLAUDE.md authoritative for product principles.**
