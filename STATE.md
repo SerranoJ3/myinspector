@@ -4,8 +4,8 @@
 > **CLAUDE.md** holds locked principles. **STATE.md** holds live state.
 > Conflict with Claude memory: this file wins.
 
-**Last updated:** May 2, 2026 ~12:30pm EDT
-**Updated by:** Jorge + Buddy (MI-109 Phase 4 closed via SQL coverage — manual e2e walk deferred to MI-109.5; ready to merge PR #3)
+**Last updated:** May 2, 2026 ~12:50pm EDT
+**Updated by:** Jorge + Buddy (MI-109 closed — PR #3 squash-merged to main as `e76fac2`; pivot to SG-001 Node 2)
 
 ---
 
@@ -25,7 +25,7 @@
 | MI-200 RLS forced + at least 1 policy per table | Closed 4/27 | — | — |
 | MI-201 compliance_dashboard `security_invoker` fix | Closed 5/1 | 0.5 | — |
 | MI-202 Audit log + 5-layer immutability stack | Active | — | Active build |
-| **MI-109 CS Replacement Authorization Gate** | **Phase 4 closed via SQL coverage 5/2 midday: migration applied, 4 sanity queries green, `rls_test.sql` 9/9, `audit_integrity_test.sql` 8/8 (real bug caught + fixed: audit_log delta +1→+2). 3 Rule #9 doc fixes shipped (commit f7c2144). Manual UI e2e walk deferred to MI-109.5 — PR ready for merge.** | 1.5 (P1) + 2.5 (P2) + 0.5 (P4) | **READY TO MERGE — flip PR #3 draft→ready, squash to main** |
+| **MI-109 CS Replacement Authorization Gate** | **CLOSED 5/2 midday — PR #3 squash-merged to main (`e76fac2`). Backend live (migration applied to prod 5/2 late). Frontend Carlo modal deploys via Vercel auto. SQL coverage 17/17 (rls 9/9 + audit 8/8). 1 real bug caught + fixed during Phase 4 (audit_log delta +1→+2). 3 doc fixes shipped (commit `f7c2144`). Manual e2e walk deferred to MI-109.5.** | 4.5 total (1.5 P1 + 2.5 P2 + 0.5 P4) | Closed |
 | **MI-109.5 Manual e2e UI walk on isolated staging** | NEW — deferred from MI-109 Phase 4 | 1 | LOW — SQL coverage already proved every code path; UI walk would be duplicate confidence at the cost of immutable audit_log writes on prod (preview deployment hits prod Supabase). Walk after SG-001 Node 2 ships isolated test tenant. |
 | **MI-108 No-Work Submission Workflow** | NEW | 2 | HIGH |
 | MI-203 (next gate ticket) | Queued | — | — |
