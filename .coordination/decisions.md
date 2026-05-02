@@ -102,3 +102,24 @@
 **Source:** Jorge approved migration text 2026-05-02 13:50 EDT ("yup"); Buddy executed via `Supabase:apply_migration`.
 
 **Affects:** SG-001 Node 3 validation (now production-proven). Pattern locked: Buddy applies, Buddy verifies, Lead/Jorge no longer in the SQL paste loop. MI-108 backend = DONE; frontend handed off to Lead via `MI108_FRONTEND_BRIEF.md`.
+
+---
+
+## 2026-05-02 ~14:15 EDT — `compliance_events` id gap fully accounted, not an integrity issue
+
+**Decision:** The `compliance_events` table id gap (open investigation banked from MI-109 Phase 1) is fully explained by two normal-Postgres patterns, NOT a chain or integrity breach. Investigation closed. No corrective action needed.
+
+**Findings:**
+- Rows present at investigation time (5/2 ~14:15): ids 4, 7, 8, 9, 10, 11 (6 rows). Sequence at last_value=23.
+- Missing ids: 1-3, 5, 6, 12-23.
+- **Pattern A — intentional cleanup:** ids 1-3 wiped by `cleanup_build_test_data()` function (super-admin-only, deletes rows matching `correlation_id LIKE 'TEST-%'` / `'RPC-TEST-%'` / `'INSTR-TEST-%'` or `event_type='subsystem.smoke_test'` or `source='manual_session'`). The function self-logs at completion — id 7 is the cleanup function's own log entry (`source='cleanup_build_test_data'`, severity='notice').
+- **Pattern B — sequence advance from rolled-back transactions:** ids 5, 6, 12-23. Postgres sequences advance non-transactionally; failed/rolled-back inserts still consume their id. Twelve advances since 5/1 evening (id 11 = MI-201) = MI-109 Phase 1 verification queries + Phase 2 build attempts (PR #2 closed without merging) + MI-202 build cycles. Consistent with active build pace.
+
+**Reasoning:**
+`compliance_events` has no hash chain — that protection lives on `audit_log`. Gaps in `compliance_events` are expected behavior for any rolled-back transaction. The cleanup function explicitly self-logs, so its actions are auditable inside the same table. No chain breach exists.
+
+**Architectural input for MI-203 design:** do NOT attempt chain-protection on `compliance_events`. Keep it as the semi-volatile narrative log. If a specific compliance event needs immutable integrity guarantee, route it through `audit_log` (or both layers). Don't conflate the layers — `compliance_events` is for narrative, `audit_log` is for integrity.
+
+**Source:** Buddy investigation 2026-05-02 ~14:15 EDT via Supabase MCP. Three queries: (1) row dump ordered by id, (2) sequence current value via `compliance_events_id_seq`, (3) `cleanup_build_test_data` function definition via `pg_get_functiondef`. Hypothesis from buddy_context.md ("sequence-advance-from-rolled-back-inserts most likely cause") confirmed and refined to two-pattern explanation.
+
+**Affects:** Closes the open investigation parked since MI-109 Phase 1 (now removable from `status.md` Active investigations + buddy_context.md Active investigations). Banks pattern for future compliance gates: write to `compliance_events` for narrative; write to `audit_log` for integrity. Demonstrates Supabase MCP self-investigation pattern (Buddy did the whole investigation without Jorge / Lead involvement).
