@@ -4,8 +4,8 @@
 > **CLAUDE.md** holds locked principles. **STATE.md** holds live state.
 > Conflict with Claude memory: this file wins.
 
-**Last updated:** May 2, 2026 ~11:55pm EDT
-**Updated by:** Jorge + Buddy (MI-109 Phase 4 backend verified — frontend e2e + 3 Rule #9 doc fixes + merge pending)
+**Last updated:** May 2, 2026 ~12:30pm EDT
+**Updated by:** Jorge + Buddy (MI-109 Phase 4 closed via SQL coverage — manual e2e walk deferred to MI-109.5; ready to merge PR #3)
 
 ---
 
@@ -25,7 +25,8 @@
 | MI-200 RLS forced + at least 1 policy per table | Closed 4/27 | — | — |
 | MI-201 compliance_dashboard `security_invoker` fix | Closed 5/1 | 0.5 | — |
 | MI-202 Audit log + 5-layer immutability stack | Active | — | Active build |
-| **MI-109 CS Replacement Authorization Gate** | **Phase 4 backend verified 5/2 late: migration applied via SQL editor, 4 sanity queries green (RLS forced + FORCE, anon/authenticated grants Note 4 clean, `write_audit_log_trg` attached, RPC sig exact), `rls_test.sql` 9/9 PASS, `audit_integrity_test.sql` 8/8 PASS (caught +1→+2 audit_log delta bug). Frontend e2e (50 boxes) + 3 Rule #9 doc fixes + merge pending.** | 1.5 (P1) + 2.5 (P2) + 0.5 (P4 backend) | **HIGH — finish Phase 4 next session** |
+| **MI-109 CS Replacement Authorization Gate** | **Phase 4 closed via SQL coverage 5/2 midday: migration applied, 4 sanity queries green, `rls_test.sql` 9/9, `audit_integrity_test.sql` 8/8 (real bug caught + fixed: audit_log delta +1→+2). 3 Rule #9 doc fixes shipped (commit f7c2144). Manual UI e2e walk deferred to MI-109.5 — PR ready for merge.** | 1.5 (P1) + 2.5 (P2) + 0.5 (P4) | **READY TO MERGE — flip PR #3 draft→ready, squash to main** |
+| **MI-109.5 Manual e2e UI walk on isolated staging** | NEW — deferred from MI-109 Phase 4 | 1 | LOW — SQL coverage already proved every code path; UI walk would be duplicate confidence at the cost of immutable audit_log writes on prod (preview deployment hits prod Supabase). Walk after SG-001 Node 2 ships isolated test tenant. |
 | **MI-108 No-Work Submission Workflow** | NEW | 2 | HIGH |
 | MI-203 (next gate ticket) | Queued | — | — |
 | MI-204 index on `profiles.firm_id` | Queued | 0.25 | Phase 2 cleanup, perf-only |
@@ -93,26 +94,24 @@
 2. **5/2** — MI-109 **Phase 2 build complete, PR #3 open as draft.** 3-teammate Agent Team (frontend / backend / tests) shipped: Carlo modal + RPC integration in `index.html`, migration with `cs_replacement_authorizations` table + `submit_cs_authorization` RPC (named scalars, JSONB envelope return, INSERT-only via grants, audit-chained), tests v3 (RLS + audit integrity + 50-step e2e checklist). Mid-build escalation surfaced 4 load-bearing inventions; post-build review caught 4 more; one consolidated fixup commit (`ce2c2a5`) covered all of them. Discovery file at `discovery/whiteboard_override_template.md` preserved as template. Mid-flight handoff at `MI109_HANDOFF.md` preserved as pattern. Chat-truncation workaround pattern proven (file channel reliable when chat channel was lossy 5+ times).
 3. **5/2 late (~10pm-12am)** — **SG-001 Node 1 shipped:** filesystem MCP wired up to Buddy on Claude Desktop, scope `C:\...\Code` parent. Buddy now reads CLAUDE/STATE/BUDDY_STANDARD/branch artifacts directly — no more Jorge couriering. Rule #9 file-write gate active and tested (this commit is the first write under the gate). **MI-109 Phase 4 backend verified solo:** migration applied via Supabase SQL editor (clean), 4 sanity queries green, `rls_test.sql` 9/9 PASS, `audit_integrity_test.sql` 8/8 PASS — **caught real bug:** test step 3b expected `audit_log delta=+1` but actual is `+2` because both Owner Data writes audit (cs_auth INSERT + phase_submissions UPDATE). Audit chain working as designed per CLAUDE.md. Three Rule #9 doc fixes queued for tomorrow (audit_integrity_test +1→+2 fix; e2e_checklist `supabase db push`→SQL editor; PR_MI109 stale `audit_log_append` + `payload::text` refs).
 
-## Next session opens with — MI-109 Phase 4 finish (frontend e2e + 3 Rule #9 writes + merge)
+## Next session opens with — SG-001 Node 2 (agent-to-agent automation)
 
-Backend verified 5/2 late: migration shipped, all SQL tests green (caught and worked around real audit_log delta bug). Frontend e2e + doc fixes + merge are what's left.
+MI-109 closed via merge in this session. Pivot to SG-001 because today's session repeatedly demonstrated the cost of copy-paste between Buddy chat and Claude Code terminal: multiple instances of relayed git commands, SQL output, and branch state. Per Jorge: "we waste too much usage and tokens copy and pasting into chat and code."
 
-1. Read `BUDDY_STANDARD.md`, `CLAUDE.md`, `STATE.md`, plus 5/2 late chat scrollback for Rule #9 write specs
-2. `git checkout mi-109-rpc-rebuild` (Phase 4 frontend e2e tests live there, not on main)
-3. Ack 3 pending Rule #9 writes (Buddy posts each gate, Jorge yups):
-   - `tests/mi109/audit_integrity_test.sql` — step 3b expected delta `+1` → `+2`, document both Owner Data writes in comment (this was the real bug we caught)
-   - `tests/mi109/e2e_checklist.md` — Pre-flight item 1: `supabase db push` → `Supabase dashboard SQL editor (NOT supabase db push)` to align with migration header + STATE.md
-   - `PR_MI109.md` — strike `audit_log_append` references (it's `record_compliance_event` per Phase 1); strike `payload::text` claim (chain mechanism is BEFORE INSERT trigger overwrite per CLAUDE.md)
-4. Find Vercel preview URL for branch `mi-109-rpc-rebuild` (Vercel dashboard)
-5. Walk `tests/mi109/e2e_checklist.md` — 50 boxes (Happy 1-15, Negatives 16-36, Cross-firm 37-45, Super_admin 46-50). ~15 min if first-try clean.
-6. **If all 50 pass:** PR #3 draft → ready → squash merge to main. `git checkout main && git pull && git branch -d mi-109-rpc-rebuild`. Update STATE.md (MI-109 closed). Commit + push.
-7. **If anything fails:** comment on PR #3 with exact failure + console/SQL output. Reconvene Agent Team for fresh fixup session — don't fix solo from inside Phase 4.
+**Node 2 goal:** Buddy in chat and lead in Claude Code talk to each other directly via shared file channel. Reduce Jorge's role to authorize/yup/redirect, not relay.
 
-After MI-109 closes:
-- MI-108 (2 sessions, HIGH priority — CDM-Smith rule a)
-- Then column-fix pass (4 known bugs above)
+1. Read `BUDDY_STANDARD.md`, `CLAUDE.md`, `STATE.md`, `SG001_BRIEF.md`
+2. Confirm Node 1 (filesystem MCP) state — live and tested per 5/2 work, Rule #9 file-write gate active
+3. Design Node 2 mechanism (per `SG001_BRIEF.md`): file channel under `.coordination/` is the candidate. Buddy writes intent files; lead polls; lead writes result files; Buddy reads. Standard envelope shape (correlation_id, status, result, errors). n8n optional layer 2.
+4. Stand up minimum viable channel: status.md (current branch + last action), buddy_intent.md (Buddy's next ask), lead_result.md (lead's response). Convention pattern, not framework.
+5. Test against a real ticket — likely MI-108 (No-Work Submission Workflow, CDM-Smith rule a) since it's the next HIGH priority and similar structure to MI-109.
+6. After it works once, fold the pattern into BUDDY_STANDARD.md as working rule #10.
+
+## After SG-001 Node 2 lands:
+- MI-108 (2 sessions, HIGH — CDM-Smith rule a)
+- Then column-fix pass (4 known bugs)
 - Then MI-100 cluster (gated on 3 reference images from Jorge)
-- **Side track when convenient:** investigate `compliance_events` id gap; design MI-204 index migration
+- **Side track:** investigate `compliance_events` id gap; design MI-204 index migration; MI-109.5 once isolated tenant exists
 
 ## Blockers (Jorge to resolve when ready)
 - 3 reference images for MI-100 vision parsing (tapcard form, restoration card, admin screenshot)
