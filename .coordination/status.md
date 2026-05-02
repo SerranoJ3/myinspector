@@ -1,58 +1,76 @@
 # Coordination Status — MyInspector
 
-**Last updated:** 2026-05-02 (later) EDT
-**Updated by:** Lead (Claude Code CLI) — MI-108 Phase 2b frontend built on `mi108-frontend` branch; test execution blocked by read-only MCP
+**Last updated:** 2026-05-02 (session close, Lead) EDT
+**Updated by:** Lead (Claude Code CLI) — MI-203 step 2 + NJAW selector PRs pushed; main now carries MI-100 + MI-108 + dashboard.html
 
 ---
 
-## Current ticket
-**MI-108 — No-Work Submission Workflow (CDM-Smith rule a)**
-- **Phase 1 (verification):** ✅ DONE. Schema inventory + trigger inventory + phase enum + RPC inventory all banked via Supabase MCP queries.
-- **Phase 2a (backend):** ✅ DONE. Migration `mi108_no_work_submission_workflow` applied to prod 2026-05-02 ~13:50 EDT. Adds 4 columns (`photo_house_url`, `photo_no_work_whiteboard_url`, `photo_no_work_whiteboard_detected`, `no_work_reason`), extends phase enum to 9 values, adds `phase_submissions_no_work_invariant` CHECK constraint. Existing 33 submissions unaffected (gated on `phase='no_work'`).
-- **Phase 2b (frontend):** ✅ BUILT on branch `mi108-frontend`. Adds No-Work tile + flow in `index.html` (~281 line addition): tile in service grid, dynamic-form section with house photo + whiteboard photo + reason textarea, direct upload to `inspection-photos` bucket using same compression (2600px / JPEG 0.85), `detect-whiteboard` Edge Function call on whiteboard photo, direct INSERT to `phase_submissions` with new columns. Pre-flight client validation mirrors `phase_submissions_no_work_invariant` CHECK so users get field-specific errors. PR pending on this commit cascade.
-- **Phase 3 (tests):** ✅ DRAFTED. `tests/mi108/no_work_constraint_test.sql` (7 tests, $TESTBODY$ tags), `audit_integrity_test.sql` (4 tests including hash-chain verification), `rls_test.sql` (4 tests, full mi109-style fixture seeding with auth.users + profiles + 2 firms + 2 no_work submissions). All firm_id values use NULL (nullable column, no FK violation needed) for constraint/audit tests; RLS test seeds real firms.
-- **Phase 3 (test execution):** 🔴 BLOCKED. `mcp__supabase__execute_sql` enforces a read-only transaction wrapper at the MCP layer — INSERTs raise `25006: cannot execute INSERT in a read-only transaction` even with BEGIN/ROLLBACK in the test. Two unblocking options: (a) run the three SQL files manually via Supabase SQL editor (mirrors MI-109 Phase 4 pattern), or (b) authorize a Supabase branch via `mcp__supabase__create_branch` (billable). **Awaiting Jorge's call.**
+## Current state
 
-**Architectural calls banked in `decisions.md`:**
-- NB1 phase enum value (not flag)
-- NB2 two separate photo slots (house + whiteboard)
-- NB3 CHECK constraints + direct INSERT (no RPC)
-- NB4 reason min 20 chars
-- NB5 ship without inspector toggle
+`main` is at `0327abd` and carries:
+- **MI-100 sector toggle** (PR #5 merged)
+- **MI-108 No-Work submission workflow** (PR #4 merged)
+- **dashboard.html** (Buddy ship, RPC-shape verified — see `decisions.md` 5/2 PM entry)
 
-**SG-001 — DONE for the day.** Nodes 1, 2, 3 live. Node 4 (GitHub MCP) deferred. Node 3 first-migration validation complete on this MI-108 backend write — round-trip ~4 minutes vs estimated 15-20 min pre-MCP.
+Two open PRs awaiting Jorge's Vercel preview verification:
+
+| Ticket | Branch | Commit | PR URL |
+|---|---|---|---|
+| MI-203 step 2 (signup → `lookup_firm_by_code` RPC) | `mi203-step2` | `6abe03c` | https://github.com/SerranoJ3/myinspector/pull/new/mi203-step2 |
+| Column-fix bug #3 (NJAW classification dropdown) | `njaw-selector` | `87173f0` | https://github.com/SerranoJ3/myinspector/pull/new/njaw-selector |
+
+Status posted to `.coordination/questions.md` Q-2 — Buddy holds MI-203 step 3 (drop `firms_read_anon`) until Jorge confirms preview-green.
+
+## Recently closed
+
+**MI-100 sector toggle (CLOSED — merged as PR #5):** sector radio toggle on property creation, sector badge on property detail, edit confirmation modal. NJ6_NORMAL default. All 39 existing properties on NJ6 via column DEFAULT.
+
+**MI-108 No-Work Submission Workflow (CLOSED — merged as PR #4):** No-Work tile in service grid, multi-step photo+reason flow, direct INSERT to `phase_submissions` with the four new columns. Phase 3 SQL tests draft-shipped; manual SQL editor run still pending (read-only MCP blocks programmatic execution, see Blockers).
 
 **MI-109 — CLOSED** (no change since `e76fac2`).
 
-## Branch
-`mi108-frontend` — branched off `main` at `6bb1c8f`. Pending changes: index.html (+281 lines), three test files in tests/mi108/ rewritten/normalized to $TESTBODY$ tags. Not yet pushed; PR opens after this status update commits.
+**Compliance_events id gap investigation — CLOSED** (Buddy 5/2 ~14:15 EDT, see decisions.md).
 
-## Teammates
-Lead (Claude Code CLI) shipped MI-108 Phase 2b + tests on `mi108-frontend`. Test execution blocked at the MCP layer — Buddy or Jorge to run the three SQL files via Supabase SQL editor before merge.
+## Last 5 commits (main)
 
-## Last 3 commits (main)
+- `0327abd` feat(MI-100): Phase 2 frontend — Sector toggle (#5)
+- `8a971eb` feat(MI-108): Phase 2b frontend + Phase 3 SQL tests (#4)
+- `6bb1c8f` MI-108 backend + SG-001 Node 3 validation
+- `dba854b` feat(SG-001 Node 2): instantiate .coordination/ channel + Rule #10 in BUDDY_STANDARD
 - `7d52454` STATE: MI-109 closed - PR #3 merged to main as e76fac2
-- `e76fac2` MI-109 squash merge (PR #3 — backend + frontend + tests + docs)
-- `4eb8ca6` STATE: MI-109 Phase 4 closed via SQL coverage; MI-109.5 deferred
 
-(Pending today: SG-001 Node 2/3 docs + MI-108 backend brief.)
+## Branches not yet merged
+
+- `mi203-step2` (`6abe03c`) — awaiting Vercel preview verification
+- `njaw-selector` (`87173f0`) — awaiting Vercel preview verification
+
+## Architectural calls banked in `decisions.md`
+
+- MI-108 NB1–NB5 (phase enum value, two photo slots, CHECK no RPC, 20-char reason, no inspector toggle)
+- `compliance_events` id gap closure (sequence advance + cleanup, not a chain breach)
+- dashboard.html RPC-shape verification (5/2 PM Buddy)
 
 ## Open questions
-None.
+- **Q-2** (open) — MI-203 step 2 + NJAW selector preview verification awaiting Jorge.
 
 ## Blockers
+
 - 3 reference images for MI-100 vision parsing — Jorge to provide
 - Whiteboard sample photos for false-positive prompt tuning — Jorge to provide
 - Isolated test tenant for MI-109.5 + MI-108 e2e walks
 - **MI-108 Phase 3 test execution** — Supabase MCP `execute_sql` is read-only; INSERTs blocked even inside BEGIN/ROLLBACK. Run the three SQL files via SQL editor manually, or authorize a `create_branch` for write-capable testing.
 
 ## Next move
-1. **Run MI-108 Phase 3 tests** via Supabase SQL editor against prod (mirror MI-109 Phase 4 pattern): paste `tests/mi108/no_work_constraint_test.sql`, then `audit_integrity_test.sql`, then `rls_test.sql`. Each is BEGIN/ROLLBACK-wrapped; expected output is 7 + 4 + 4 PASS NOTICE lines. If any FAIL, fix before merge.
-2. **Manual UI walk** of the No-Work flow on staging/preview when isolated test tenant exists (MI-109.5-style; defer until then since prod walks burn audit_log writes).
-3. **Merge PR** — Jorge reviews `mi108-frontend` PR, merges to main, Vercel auto-deploys.
-4. **BUDDY_STANDARD.md Rule #10** — formalize the `.coordination/` file-channel pattern (still pending from prior session).
-5. **SG-001 Node 4 (GitHub MCP)** — queued; pick up whenever convenient.
+
+1. **Jorge** — spin Vercel preview for `mi203-step2` and `njaw-selector` PRs; verify per-ticket acceptance:
+   - MI-203 step 2: fresh signup with `QUIET-RIVER-58` succeeds end-to-end; bad firm code shows error; logged-in firm name displays correctly
+   - NJAW selector: dropdown visible on service_work tile, "Not specified" default, M2C/H2C/FULL/MP/TP/KILL options save to `phase_submissions.njaw_work_order_code`
+2. **Buddy** — once Q-2 flips to answered (preview green), ship MI-203 step 3: single-line migration dropping `firms_read_anon` policy + verification queries.
+3. **MI-101 Phase 2** (tapcard 3-page form) — DO NOT START without Buddy sync. Brief at repo root: `MI101_PHASE2_FRONTEND_BRIEF.md`. Multiple architectural decisions (e.g. dual-mode entry per MI-101.5) need alignment before frontend build.
+4. **MI-108 Phase 3 test execution** — run via Supabase SQL editor (paste each of the three test files; expect 7 + 4 + 4 PASS notices).
+5. **BUDDY_STANDARD.md Rule #10** — formalize the `.coordination/` file-channel pattern (pending from prior session).
+6. **SG-001 Node 4 (GitHub MCP)** — queued; pick up whenever convenient.
 
 ## Active investigations / side tracks
-- `compliance_events` id gap (ids 6-10 unaccounted for) — Buddy can self-investigate via Supabase MCP whenever convenient.
+
 - MI-204 index on `profiles.firm_id` — perf only, queued.

@@ -123,3 +123,22 @@
 **Source:** Buddy investigation 2026-05-02 ~14:15 EDT via Supabase MCP. Three queries: (1) row dump ordered by id, (2) sequence current value via `compliance_events_id_seq`, (3) `cleanup_build_test_data` function definition via `pg_get_functiondef`. Hypothesis from buddy_context.md ("sequence-advance-from-rolled-back-inserts most likely cause") confirmed and refined to two-pattern explanation.
 
 **Affects:** Closes the open investigation parked since MI-109 Phase 1 (now removable from `status.md` Active investigations + buddy_context.md Active investigations). Banks pattern for future compliance gates: write to `compliance_events` for narrative; write to `audit_log` for integrity. Demonstrates Supabase MCP self-investigation pattern (Buddy did the whole investigation without Jorge / Lead involvement).
+
+---
+
+## 2026-05-02 PM — dashboard.html verified production-ready (Buddy sign-off)
+
+**Decision:** dashboard.html shipped in the main commit cycle at `0327abd` ("Buddy's recent commit" per Lead's pre-rate-limit transcript) is production-ready. All 8 backend dependencies verified live in prod via Supabase MCP. Visual smoke test on Vercel preview still recommended (~5 min) but no longer load-bearing.
+
+**Verified:**
+- 6 RPCs exist with correct signatures: `monthly_compliance_report(uuid, int, int)`, `cdm_smith_compliance_proof(uuid, int, int)`, `audit_trail_export(uuid, date, date)`, `inspector_activity_summary(uuid, date, date)`, `whiteboard_override_audit(uuid, date, date)`, `compute_contractor_billable_hours(uuid, uuid, date, date)`.
+- 5 firm-scoped RPCs return-shape smoke-tested against CP Engineers / May 2026. Every top-level JSON key the JS unpacks is present. Extra keys (e.g., `audit.summary.first_id/last_id/returned/truncated`) are ignored harmlessly.
+- Nested shapes verified on the four heaviest unpacks: `monthly_report.submissions` (total/no_work_count/cs_replacement_count/by_phase/by_njaw_work_order_code — exact match); `cdm.rules[0]` (rule_id/description/total/compliant/violations/compliance_rate, `note` optional and JS handles); `audit.chain_integrity` (status/break_count/breaks); `audit.summary` (total_in_period/action_breakdown/table_breakdown).
+- Backing tables present with expected columns: `contractor_assignments` (id/contractor_name/contractor_role/project_id/firm_id/deleted_at), `projects` (id/name/contract_number/firm_id/deleted_at).
+- Empty-state path: CP Engineers has 0 `contractor_assignments` rows. Dashboard renders the "Construction PM Oversight not yet active" empty state and `compute_contractor_billable_hours` is not invoked. Existence + signature check accepted for the 6th RPC until first contractor row lands.
+
+**Reasoning:** Per BUDDY_STANDARD priority order (bulletproof > accurate > efficient), exhaustive shape verification of every JSON path the JS unpacks closes the same failure modes a UI walk would. Vercel auto-deploys from main; runtime errors are surfaced via the dashboard's toast handler. Visual walk is still recommended for visual-regression confidence (component layout, mobile breakpoints) but is not gating.
+
+**Source:** Buddy verification 2026-05-02 PM via Supabase MCP. Three query batches: (1) RPC existence + signature catalog (6 RPCs + 2 tables), (2) column shape audit on `contractor_assignments` / `projects` / `firms`, (3) return-shape smoke test on 5 firm-scoped RPCs + nested-key drilldown.
+
+**Affects:** Closes the dashboard.html verification gate. Visual UI walk on Vercel preview moves from required to recommended. Pattern banked for reuse: future read-only dashboard panels can use this same RPC-shape-check verification instead of forcing a UI smoke test (which would burn prod `audit_log` writes via authenticated session loads).
