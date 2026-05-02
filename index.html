@@ -157,6 +157,20 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .ph-tapcard{background:rgba(74,124,196,0.2);color:var(--blue-light)}
 .ph-complete{background:rgba(61,155,94,0.2);color:var(--green)}
 .ph-pending{background:rgba(94,122,154,0.15);color:var(--muted)}
+/* MI-100 sector */
+.sector-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:.06em;text-transform:uppercase}
+.sector-nj6{background:rgba(94,122,154,0.18);color:var(--muted);border:1px solid rgba(94,122,154,0.3)}
+.sector-short-hills{background:rgba(244,168,32,0.15);color:var(--orange);border:1px solid rgba(244,168,32,0.35)}
+.sector-edit-btn{margin-left:8px;font-size:10px;padding:2px 8px;background:transparent;color:var(--blue-light);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-family:'Source Sans 3',sans-serif}
+.sector-edit-btn:hover{border-color:var(--blue-light);background:rgba(74,124,196,0.08)}
+.sector-radio-group{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sector-radio{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:2px}
+.sector-radio:hover{border-color:var(--blue-light)}
+.sector-radio input[type="radio"]{display:none}
+.sector-radio.selected{background:rgba(27,58,107,0.4);border-color:var(--blue-light)}
+.sector-radio.selected .sector-radio-name{color:var(--blue-light)}
+.sector-radio-name{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:var(--white)}
+.sector-radio-sub{font-size:10px;color:var(--muted)}
 .mat-lead{color:var(--red);font-weight:600}
 .mat-copper{color:var(--green);font-weight:600}
 .mat-unknown{color:var(--muted)}
@@ -857,9 +871,61 @@ html,body{overflow-x:hidden}
       <label class="modal-label">MapCall ID (optional)</label>
       <input class="modal-input" type="text" id="prop-mapcall" placeholder="NJAW-XXXX">
     </div>
+    <div class="modal-field">
+      <label class="modal-label">Sector</label>
+      <div class="sector-radio-group" id="prop-sector-group">
+        <label class="sector-radio selected" data-value="NJ6_NORMAL" onclick="selectPropSector('NJ6_NORMAL')">
+          <span class="sector-radio-name">NJ6 Normal</span>
+          <span class="sector-radio-sub">Default — CP / Essex County</span>
+        </label>
+        <label class="sector-radio" data-value="NJAW_SHORT_HILLS" onclick="selectPropSector('NJAW_SHORT_HILLS')">
+          <span class="sector-radio-name">NJAW Short Hills</span>
+          <span class="sector-radio-sub">Millburn / SH role-inversion</span>
+        </label>
+      </div>
+      <input type="hidden" id="prop-sector" value="NJ6_NORMAL">
+    </div>
     <div class="modal-actions">
       <button class="btn-sm btn-ghost" onclick="closeModal('modal-property')">Cancel</button>
       <button class="btn-sm btn-orange" onclick="saveProperty()">Save Property</button>
+    </div>
+  </div>
+</div>
+
+<!-- MI-100 SECTOR EDIT CONFIRMATION MODAL -->
+<div class="modal-overlay" id="modal-sector-edit">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Change Property Sector</div>
+        <div class="modal-sub">Sector drives tapcard form, restoration card, and homeowner interaction rules</div>
+      </div>
+      <button class="modal-close" onclick="cancelSectorEdit()">&#10005;</button>
+    </div>
+    <div class="alert alert-orange" style="margin-bottom:14px">
+      <div><span class="alert-title">Load-bearing change</span>Once MI-101 / MI-102 ship, sector divergence affects tapcard form layout, restoration card format, and Luis interaction rules. Confirm before saving.</div>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">From</label>
+      <div id="sector-edit-from" class="modal-input" style="background:var(--surface3);font-weight:600">—</div>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">To</label>
+      <div class="sector-radio-group" id="sector-edit-to-group">
+        <label class="sector-radio" data-value="NJ6_NORMAL" onclick="selectSectorEditTarget('NJ6_NORMAL')">
+          <span class="sector-radio-name">NJ6 Normal</span>
+          <span class="sector-radio-sub">CP / Essex County</span>
+        </label>
+        <label class="sector-radio" data-value="NJAW_SHORT_HILLS" onclick="selectSectorEditTarget('NJAW_SHORT_HILLS')">
+          <span class="sector-radio-name">NJAW Short Hills</span>
+          <span class="sector-radio-sub">Millburn / SH role-inversion</span>
+        </label>
+      </div>
+    </div>
+    <div id="sector-edit-error" class="alert alert-red" style="display:none;margin-top:10px"></div>
+    <div class="modal-actions">
+      <button class="btn-sm btn-ghost" onclick="cancelSectorEdit()">Cancel</button>
+      <button class="btn-sm btn-orange" id="sector-edit-save-btn" onclick="confirmSectorEdit()" disabled>Save Sector Change</button>
     </div>
   </div>
 </div>
@@ -1608,6 +1674,19 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// MI-100: sector selection in property creation modal
+function selectPropSector(value){
+  if(value !== 'NJ6_NORMAL' && value !== 'NJAW_SHORT_HILLS') return;
+  const group = document.getElementById('prop-sector-group');
+  if(group){
+    group.querySelectorAll('.sector-radio').forEach(el => {
+      el.classList.toggle('selected', el.dataset.value === value);
+    });
+  }
+  const hidden = document.getElementById('prop-sector');
+  if(hidden) hidden.value = value;
+}
+
 async function saveProperty(){
   const address = document.getElementById('prop-address').value.trim();
   const city    = document.getElementById('prop-city').value.trim();
@@ -1617,6 +1696,7 @@ async function saveProperty(){
   const cmat    = document.getElementById('prop-company-mat').value;
   const cumat   = document.getElementById('prop-customer-mat').value;
   const mapcall = document.getElementById('prop-mapcall').value.trim();
+  const sector  = document.getElementById('prop-sector')?.value || 'NJ6_NORMAL';
   if(!address){ showToast('Address is required','error'); return; }
   const {error} = await sb.from('properties').insert({
     address, city, zip,
@@ -1625,9 +1705,18 @@ async function saveProperty(){
     mapcall_id:mapcall||null,
     current_phase:'test_pit',
     state:'NJ',
+    sector,
     firm_id: currentFirmId
   });
-  if(error){ showToast('Error: '+error.message,'error'); return; }
+  if(error){
+    // CHECK guard — controlled UI shouldn't trigger this, but surface cleanly if it does
+    if((error.message || '').includes('properties_sector_enum')){
+      showToast('Invalid sector value — pick NJ6 Normal or NJAW Short Hills.', 'error');
+    } else {
+      showToast('Error: ' + error.message, 'error');
+    }
+    return;
+  }
   showToast('Property added successfully','success');
   closeModal('modal-property');
   await loadProperties();
@@ -1639,6 +1728,7 @@ async function saveProperty(){
   document.getElementById('prop-lot').value='';
   document.getElementById('prop-block').value='';
   document.getElementById('prop-mapcall').value='';
+  selectPropSector('NJ6_NORMAL');
 }
 
 // ── SUBMIT PHASE ──────────────────────────────────────
@@ -2399,9 +2489,18 @@ async function openPropertyDetail(propertyId){
   const ckColor = prop.customer_material==='lead'?'var(--red)':prop.customer_material==='copper'?'var(--green)':prop.customer_material==='galvanized'?'var(--orange)':'var(--muted)';
   const phaseClass = 'ph-'+(prop.current_phase||'pending').replace(/_/g,'');
 
+  const sectorVal = prop.sector || 'NJ6_NORMAL';
+  const sectorClass = sectorVal === 'NJAW_SHORT_HILLS' ? 'sector-short-hills' : 'sector-nj6';
+  const sectorLabel = sectorVal === 'NJAW_SHORT_HILLS' ? 'NJAW Short Hills' : 'NJ6 Normal';
+
   document.getElementById('pd-header-grid').innerHTML = `
     <div class="pd-stat"><div class="pd-stat-label">Current Phase</div>
       <div class="pd-stat-val"><span class="phase-badge ${phaseClass}">${(prop.current_phase||'pending').replace(/_/g,' ')}</span></div></div>
+    <div class="pd-stat"><div class="pd-stat-label">Sector</div>
+      <div class="pd-stat-val">
+        <span class="sector-badge ${sectorClass}">${sectorLabel}</span>
+        <button class="sector-edit-btn" onclick="openSectorEditModal('${prop.id}','${sectorVal}')">Change</button>
+      </div></div>
     <div class="pd-stat"><div class="pd-stat-label">Lot / Block</div>
       <div class="pd-stat-val">${prop.lot_block || '—'}</div></div>
     <div class="pd-stat"><div class="pd-stat-label">Company Material</div>
@@ -2531,6 +2630,84 @@ function openLightbox(url){
   }
   document.getElementById('pd-lightbox-img').src = url;
   box.classList.add('open');
+}
+
+// ── MI-100 SECTOR EDIT (Property Detail) ──────────────
+// Sector is a load-bearing change (drives MI-101/MI-102 form layout +
+// homeowner interaction rules) so the edit goes through a confirmation
+// modal rather than an inline toggle.
+let pendingSectorEdit = null;
+
+function openSectorEditModal(propId, currentSector){
+  pendingSectorEdit = { propId, currentSector, target: null };
+  const fromEl = document.getElementById('sector-edit-from');
+  const fromLabel = currentSector === 'NJAW_SHORT_HILLS' ? 'NJAW Short Hills' : 'NJ6 Normal';
+  if(fromEl) fromEl.textContent = fromLabel + ' (' + currentSector + ')';
+
+  // Reset target selection — pre-select the OPPOSITE sector since the user
+  // clicked Change with intent to flip. They can still re-pick the current one
+  // (no-op safeguard handled in confirmSectorEdit).
+  const opposite = currentSector === 'NJAW_SHORT_HILLS' ? 'NJ6_NORMAL' : 'NJAW_SHORT_HILLS';
+  selectSectorEditTarget(opposite);
+
+  const errEl = document.getElementById('sector-edit-error');
+  if(errEl){ errEl.style.display = 'none'; errEl.textContent = ''; }
+
+  document.getElementById('modal-sector-edit').classList.add('open');
+}
+
+function selectSectorEditTarget(value){
+  if(value !== 'NJ6_NORMAL' && value !== 'NJAW_SHORT_HILLS') return;
+  if(!pendingSectorEdit) return;
+  pendingSectorEdit.target = value;
+  const group = document.getElementById('sector-edit-to-group');
+  if(group){
+    group.querySelectorAll('.sector-radio').forEach(el => {
+      el.classList.toggle('selected', el.dataset.value === value);
+    });
+  }
+  const btn = document.getElementById('sector-edit-save-btn');
+  if(btn) btn.disabled = !value || value === pendingSectorEdit.currentSector;
+}
+
+function cancelSectorEdit(){
+  pendingSectorEdit = null;
+  document.getElementById('modal-sector-edit').classList.remove('open');
+}
+
+async function confirmSectorEdit(){
+  if(!pendingSectorEdit || !pendingSectorEdit.propId || !pendingSectorEdit.target) return;
+  const { propId, currentSector, target } = pendingSectorEdit;
+  if(target === currentSector){
+    showToast('Sector unchanged.', 'error');
+    return;
+  }
+  const errEl = document.getElementById('sector-edit-error');
+  const btn = document.getElementById('sector-edit-save-btn');
+  if(btn) btn.disabled = true;
+
+  const { error } = await sb.from('properties').update({ sector: target }).eq('id', propId);
+  if(error){
+    const msg = error.message || '';
+    let userMsg;
+    if(msg.includes('properties_sector_enum')){
+      userMsg = 'Invalid sector value — only NJ6 Normal and NJAW Short Hills are accepted.';
+    } else {
+      userMsg = 'Sector update failed: ' + msg;
+    }
+    if(errEl){ errEl.textContent = userMsg; errEl.style.display = 'block'; }
+    if(btn) btn.disabled = false;
+    console.error('Sector update error:', error);
+    return;
+  }
+
+  showToast('Sector updated to ' + (target === 'NJAW_SHORT_HILLS' ? 'NJAW Short Hills' : 'NJ6 Normal') + '.', 'success');
+  pendingSectorEdit = null;
+  document.getElementById('modal-sector-edit').classList.remove('open');
+
+  // Refresh property detail + properties list so the new sector is visible.
+  await openPropertyDetail(propId);
+  loadProperties().catch(() => {});
 }
 
 // ── UTILS ─────────────────────────────────────────────
