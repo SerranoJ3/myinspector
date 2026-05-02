@@ -1,60 +1,40 @@
 -- =============================================================================
--- MI-109 — Audit integrity test
+-- MI-109 — Audit integrity test (v2)
 -- =============================================================================
--- Purpose: prove that submit_cs_authorization produces correct audit artifacts
--- for both accepted and rejected calls.
+-- Purpose: prove that submit_cs_authorization produces the expected audit
+-- artifacts for accepted, rejected, and already_recorded RPC paths.
 --
--- Accepted call:
---   1. exactly one new row in cs_replacement_authorizations
---   2. exactly one new row in audit_log (Layer 3 — write_audit_log AFTER trigger
---      fires on the cs_replacement_authorizations INSERT)
---   3. exactly one new row in compliance_events with:
---        event_type      = 'cs_replacement.auth.accepted'
---        severity        = 'alert'
---        source          = 'MI-109'
---        correlation_id  = phase_submission_id::text
---        details         contains the supervisor_name + actor_id keys
---   4. audit_log row's chain link is internally consistent (assertion deferred —
---      see TODO Q8-Q10 below)
+-- Authority: discovery/whiteboard_override_template.md "Architectural Notes
+-- from Jorge" (Notes 2/3) + "Decision log (resolved 2026-05-02 session open)"
+-- (INV-1 envelope schema, INV-NB10 compliance event shape, INV-NB11 error
+-- code enum).
 --
--- Rejected call (reason < 20 chars):
---   1. zero new rows in cs_replacement_authorizations
---   2. exactly one new row in compliance_events with:
---        event_type      = 'cs_replacement.auth.rejected'
---        severity        = 'alert'
---        source          = 'MI-109'
---        correlation_id  = phase_submission_id::text
---        details         contains rejection_reason
---   3. phase_submissions.cs_replacement is unchanged
---   4. (Contract 4 deferred) audit_log delta — for now the assertion is "no
---      regression of cs_replacement_authorizations row count + compliance_events
---      gained one rejected row." See TODO Q1.
+-- Audit chain mechanism (Note 2 + Note 3):
+--   - RPC inserts cs_replacement_authorizations row.
+--   - write_audit_log AFTER trigger on cs_replacement_authorizations fires
+--     and writes audit_log with prev_hash='PENDING', row_hash='PENDING'.
+--   - BEFORE INSERT trigger on audit_log overwrites both placeholders with
+--     the real hash chain values. Test verifies overwrite happened (no
+--     'PENDING' values remain on the new audit_log row).
+--   - DO NOT re-implement canonical encoding in this test.
+--
+-- Compliance event shape (INV-NB10):
+--   p_event_type:    'cs_replacement.auth.accepted'
+--                  | 'cs_replacement.auth.rejected'
+--                  | 'cs_replacement.auth.duplicate'
+--   p_severity:      'alert'
+--   p_source:        'MI-109'
+--   p_correlation_id: phase_submission_id::text
+--   p_message:       human-readable
+--   p_details jsonb: {phase_submission_id, supervisor, authorized_at,
+--                     reason_length, status, error_code (if rejected/duplicate)}
 --
 -- Run as: postgres
 -- Mode:   single transaction wrapped in BEGIN/ROLLBACK
 --
--- ASSUMPTIONS:
---   - public.audit_log table exists with at least: id, event_type text, created_at
---     timestamptz. Other column names (prev_hash, current_hash, payload, etc.)
---     are NOT asserted here until Q8-Q10 land.
---   - public.compliance_events columns per record_compliance_event signature:
---       event_type text, message text, severity text, details jsonb,
---       source text, correlation_id text, created_at timestamptz
---   - submit_cs_authorization parameter shape per Phase 2 backend brief:
---       p_submission_id, p_supervisor_name, p_authorized_date, p_authorized_time,
---       p_reason
---
--- TODO BLOCKS (resolve when Q1 + Q8-Q10 land in discovery dump):
---   [Q8-Q10] audit_log chain-link assertions: prev_hash on the new row matches
---            previous row's current_hash, and current_hash matches the chain-
---            trigger's deterministic computation. Until live column names are
---            confirmed, only row-count delta + event_type are asserted.
---   [Q1]     Rejection envelope vs exception: if submit_cs_authorization uses
---            RAISE EXCEPTION for validation, the inner record_compliance_event
---            INSERT rolls back too — losing the rejection log. If Q1 reveals
---            the whiteboard-override pattern uses the JSONB-envelope approach,
---            replace the EXCEPTION block in test 5 with a direct-call assertion
---            on the returned envelope.
+-- !! TESTER ACTION NEEDED — seed-row column shape !!
+--   Same as rls_test.sql — minimal seed inserts; extend if NOT NULL columns
+--   on firms/phase_submissions are missing.
 -- =============================================================================
 
 BEGIN;
@@ -62,21 +42,22 @@ BEGIN;
 SET LOCAL client_min_messages = NOTICE;
 
 -- -----------------------------------------------------------------------------
--- 0. Test fixtures: one firm, one user, one phase_submission
+-- 0. Test fixtures: one firm, one user, two phase_submissions
+--    (sub_a for accepted+duplicate paths; sub_b for rejected path)
 -- -----------------------------------------------------------------------------
 DO $$
 DECLARE
-  v_firm uuid := gen_random_uuid();
-  v_user uuid := gen_random_uuid();
-  v_sub  uuid := gen_random_uuid();
+  v_firm uuid := extensions.gen_random_uuid();
+  v_user uuid := extensions.gen_random_uuid();
+  v_sub_a uuid := extensions.gen_random_uuid();
+  v_sub_b uuid := extensions.gen_random_uuid();
 BEGIN
   PERFORM set_config('mi109.firm', v_firm::text, true);
   PERFORM set_config('mi109.user', v_user::text, true);
-  PERFORM set_config('mi109.sub',  v_sub::text,  true);
+  PERFORM set_config('mi109.sub_a', v_sub_a::text, true);
+  PERFORM set_config('mi109.sub_b', v_sub_b::text, true);
 
-  -- TODO: extend column lists below to match live schema if NOT NULL violations
-  -- occur on the seed step. Likely columns missing for phase_submissions:
-  -- phase, property_id, created_by, submitted_at. Confirm via \d on staging.
+  -- TODO: extend column lists if live schema has additional NOT NULL columns.
   INSERT INTO public.firms (id, name, firm_code)
     VALUES (v_firm, 'TEST-FIRM-AUDIT-MI109', 'TEST-AUDIT-MI109');
 
@@ -89,9 +70,11 @@ BEGIN
     VALUES (v_user, v_firm, 'inspector', 'Test Inspector Audit');
 
   INSERT INTO public.phase_submissions (id, firm_id, cs_replacement)
-    VALUES (v_sub, v_firm, true);
+    VALUES (v_sub_a, v_firm, true),
+           (v_sub_b, v_firm, true);
 
-  RAISE NOTICE 'fixtures seeded — firm=%, user=%, sub=%', v_firm, v_user, v_sub;
+  RAISE NOTICE 'fixtures seeded — firm=%, user=%, sub_a=%, sub_b=%',
+    v_firm, v_user, v_sub_a, v_sub_b;
 END $$;
 
 -- -----------------------------------------------------------------------------
@@ -99,50 +82,48 @@ END $$;
 -- -----------------------------------------------------------------------------
 DO $$
 DECLARE
-  v_auth_count        int;
-  v_audit_count       int;
-  v_compliance_count  int;
+  v_auth int; v_audit int; v_compliance int;
 BEGIN
-  SELECT count(*) INTO v_auth_count        FROM public.cs_replacement_authorizations;
-  SELECT count(*) INTO v_audit_count       FROM public.audit_log;
-  SELECT count(*) INTO v_compliance_count  FROM public.compliance_events;
-
-  PERFORM set_config('mi109.b_auth',       v_auth_count::text,       true);
-  PERFORM set_config('mi109.b_audit',      v_audit_count::text,      true);
-  PERFORM set_config('mi109.b_compliance', v_compliance_count::text, true);
-
+  SELECT count(*) INTO v_auth       FROM public.cs_replacement_authorizations;
+  SELECT count(*) INTO v_audit      FROM public.audit_log;
+  SELECT count(*) INTO v_compliance FROM public.compliance_events;
+  PERFORM set_config('mi109.b_auth',       v_auth::text,       true);
+  PERFORM set_config('mi109.b_audit',      v_audit::text,      true);
+  PERFORM set_config('mi109.b_compliance', v_compliance::text, true);
   RAISE NOTICE 'baseline — auth=%, audit_log=%, compliance_events=%',
-    v_auth_count, v_audit_count, v_compliance_count;
+    v_auth, v_audit, v_compliance;
 END $$;
 
 -- -----------------------------------------------------------------------------
--- 2. Accepted RPC call
+-- 2. Accepted RPC call → envelope assertion
 -- -----------------------------------------------------------------------------
 DO $$
 DECLARE
   v_user uuid := current_setting('mi109.user')::uuid;
-  v_sub  uuid := current_setting('mi109.sub')::uuid;
+  v_sub_a uuid := current_setting('mi109.sub_a')::uuid;
+  v_envelope jsonb;
 BEGIN
   PERFORM set_config('request.jwt.claim.sub', v_user::text, true);
-  EXECUTE format('SET LOCAL ROLE authenticated');
+  EXECUTE 'SET LOCAL ROLE authenticated';
 
-  PERFORM public.submit_cs_authorization(
-    p_submission_id   => v_sub,
-    p_supervisor_name => 'Carlo Domenick',
-    p_authorized_date => current_date,
-    p_authorized_time => current_time::time,
-    p_reason          => 'Accepted-path test — reason text well over twenty characters per CDM-Smith rule c.'
+  v_envelope := public.submit_cs_authorization(
+    p_phase_submission_id    => v_sub_a,
+    p_authorizing_supervisor => 'Carlo Domenick',
+    p_authorized_at          => now(),
+    p_reason                 => 'Accepted-path audit test — well over twenty characters per CDM-Smith rule c.'
   );
+  RESET ROLE;
 
-  RESET ROLE;
-  RAISE NOTICE 'PASS 2: submit_cs_authorization (accepted) returned successfully';
-EXCEPTION WHEN OTHERS THEN
-  RESET ROLE;
-  RAISE EXCEPTION 'FAIL 2: accepted RPC call raised — % / %', SQLSTATE, SQLERRM;
+  IF v_envelope->>'status' <> 'accepted' THEN
+    RAISE EXCEPTION 'FAIL 2: accepted envelope.status=% — full=%',
+      v_envelope->>'status', v_envelope::text;
+  END IF;
+  PERFORM set_config('mi109.auth_id', v_envelope->>'authorization_id', true);
+  RAISE NOTICE 'PASS 2: accepted envelope — authorization_id=%', v_envelope->>'authorization_id';
 END $$;
 
 -- -----------------------------------------------------------------------------
--- 3. Verify row deltas after accepted call:
+-- 3. Verify deltas after accepted call:
 --    cs_replacement_authorizations +1, audit_log +1, compliance_events +1
 -- -----------------------------------------------------------------------------
 DO $$
@@ -150,9 +131,7 @@ DECLARE
   v_b_auth       int := current_setting('mi109.b_auth')::int;
   v_b_audit      int := current_setting('mi109.b_audit')::int;
   v_b_compliance int := current_setting('mi109.b_compliance')::int;
-  v_a_auth       int;
-  v_a_audit      int;
-  v_a_compliance int;
+  v_a_auth       int; v_a_audit int; v_a_compliance int;
 BEGIN
   SELECT count(*) INTO v_a_auth       FROM public.cs_replacement_authorizations;
   SELECT count(*) INTO v_a_audit      FROM public.audit_log;
@@ -162,10 +141,12 @@ BEGIN
     RAISE EXCEPTION 'FAIL 3a: cs_replacement_authorizations delta=% (expected +1)', v_a_auth - v_b_auth;
   END IF;
   IF v_a_audit <> v_b_audit + 1 THEN
-    RAISE EXCEPTION 'FAIL 3b: audit_log delta=% (expected +1 from Layer-3 trigger)', v_a_audit - v_b_audit;
+    RAISE EXCEPTION 'FAIL 3b: audit_log delta=% (expected +1 from write_audit_log AFTER trigger)',
+      v_a_audit - v_b_audit;
   END IF;
   IF v_a_compliance <> v_b_compliance + 1 THEN
-    RAISE EXCEPTION 'FAIL 3c: compliance_events delta=% (expected +1 accepted row)', v_a_compliance - v_b_compliance;
+    RAISE EXCEPTION 'FAIL 3c: compliance_events delta=% (expected +1 accepted row)',
+      v_a_compliance - v_b_compliance;
   END IF;
   RAISE NOTICE 'PASS 3: deltas correct — auth=+1, audit_log=+1, compliance_events=+1';
 END $$;
@@ -176,203 +157,327 @@ END $$;
 DO $$
 DECLARE
   v_user uuid := current_setting('mi109.user')::uuid;
-  v_sub  uuid := current_setting('mi109.sub')::uuid;
-  v_row  record;
+  v_sub_a uuid := current_setting('mi109.sub_a')::uuid;
+  v_row record;
 BEGIN
   SELECT *
     INTO v_row
     FROM public.compliance_events
    WHERE event_type = 'cs_replacement.auth.accepted'
-     AND correlation_id = v_sub::text
+     AND correlation_id = v_sub_a::text
      AND source = 'MI-109'
    ORDER BY created_at DESC
    LIMIT 1;
 
   IF v_row IS NULL THEN
-    RAISE EXCEPTION 'FAIL 4a: no compliance_events row for cs_replacement.auth.accepted / correlation_id=%', v_sub;
+    RAISE EXCEPTION 'FAIL 4a: no compliance_events row for cs_replacement.auth.accepted / correlation_id=%', v_sub_a;
   END IF;
   IF v_row.severity <> 'alert' THEN
     RAISE EXCEPTION 'FAIL 4b: severity=% (expected alert)', v_row.severity;
   END IF;
-  IF v_row.details IS NULL THEN
-    RAISE EXCEPTION 'FAIL 4c: details jsonb is NULL';
+  IF v_row.details IS NULL OR jsonb_typeof(v_row.details) <> 'object' THEN
+    RAISE EXCEPTION 'FAIL 4c: details missing or not jsonb object — typeof=%',
+      jsonb_typeof(v_row.details);
   END IF;
-  -- Expected keys per backend brief — supervisor_name and actor identity should
-  -- be observable in details. Loose check: details has at least one key.
-  IF jsonb_typeof(v_row.details) <> 'object' THEN
-    RAISE EXCEPTION 'FAIL 4d: details is not a jsonb object (typeof=%)', jsonb_typeof(v_row.details);
+  IF NOT (v_row.details ? 'phase_submission_id') THEN
+    RAISE EXCEPTION 'FAIL 4d: details missing phase_submission_id — %', v_row.details::text;
   END IF;
-  RAISE NOTICE 'PASS 4: accepted compliance_events row valid — id=%', v_row.id;
+  IF NOT (v_row.details ? 'supervisor') THEN
+    RAISE EXCEPTION 'FAIL 4e: details missing supervisor — %', v_row.details::text;
+  END IF;
+  IF NOT (v_row.details ? 'authorized_at') THEN
+    RAISE EXCEPTION 'FAIL 4f: details missing authorized_at — %', v_row.details::text;
+  END IF;
+  IF NOT (v_row.details ? 'reason_length') THEN
+    RAISE EXCEPTION 'FAIL 4g: details missing reason_length — %', v_row.details::text;
+  END IF;
+  IF NOT (v_row.details ? 'status') THEN
+    RAISE EXCEPTION 'FAIL 4h: details missing status — %', v_row.details::text;
+  END IF;
+  IF v_row.details->>'status' <> 'accepted' THEN
+    RAISE EXCEPTION 'FAIL 4i: details.status=% (expected accepted)', v_row.details->>'status';
+  END IF;
+  RAISE NOTICE 'PASS 4: accepted compliance_events row valid';
 END $$;
 
 -- -----------------------------------------------------------------------------
--- 5. Verify audit_log row exists and is the most recent for the new auth row
---    [TODO Q8-Q10] add chain-link assertion: prev_hash on this row matches
---    current_hash on the previous audit_log row, and current_hash matches what
---    audit_log_chain_trigger computed (compute via SELECT against existing
---    rows, NOT by re-encoding payload here).
+-- 5. Verify audit_log row written by write_audit_log AFTER trigger:
+--    - prev_hash and row_hash are NOT 'PENDING' (chain trigger overwrote)
+--    - row_hash matches lowercase hex (sha256-shaped)
 -- -----------------------------------------------------------------------------
 DO $$
 DECLARE
-  v_user uuid := current_setting('mi109.user')::uuid;
-  v_recent_audit_event_type text;
+  v_recent_prev text;
+  v_recent_hash text;
 BEGIN
-  SELECT event_type
-    INTO v_recent_audit_event_type
+  SELECT prev_hash, row_hash
+    INTO v_recent_prev, v_recent_hash
     FROM public.audit_log
    ORDER BY created_at DESC, id DESC
    LIMIT 1;
 
-  -- Expected: the audit_log row written by the AFTER INSERT trigger references
-  -- the cs_replacement_authorizations table. Until Q8 confirms exact column
-  -- names and event_type literal, assert only that *some* recent row exists.
-  -- TODO: replace with strict assertion once Q8-Q10 land:
-  --   IF v_recent_audit_event_type NOT IN ('cs_auth_accepted', 'INSERT')
-  --      OR v_recent_table_name <> 'cs_replacement_authorizations'
-  --      OR v_recent_actor_id <> v_user
-  --   THEN RAISE...
-  IF v_recent_audit_event_type IS NULL THEN
-    RAISE EXCEPTION 'FAIL 5: audit_log empty after accepted RPC call';
+  IF v_recent_prev IS NULL THEN
+    RAISE EXCEPTION 'FAIL 5a: prev_hash NULL on newest audit_log row';
   END IF;
-  RAISE NOTICE 'PASS 5 (loose, Q8-Q10 pending): audit_log latest event_type=%',
-    v_recent_audit_event_type;
+  IF v_recent_hash IS NULL THEN
+    RAISE EXCEPTION 'FAIL 5b: row_hash NULL on newest audit_log row';
+  END IF;
+  IF v_recent_prev = 'PENDING' THEN
+    RAISE EXCEPTION 'FAIL 5c: prev_hash still PENDING — BEFORE INSERT chain trigger did not overwrite (Note 3)';
+  END IF;
+  IF v_recent_hash = 'PENDING' THEN
+    RAISE EXCEPTION 'FAIL 5d: row_hash still PENDING — chain trigger did not overwrite';
+  END IF;
+  IF v_recent_hash !~ '^[0-9a-f]+$' THEN
+    RAISE EXCEPTION 'FAIL 5e: row_hash not lowercase hex — %', v_recent_hash;
+  END IF;
+  RAISE NOTICE 'PASS 5: audit_log chain populated — prev=%, hash=%',
+    left(v_recent_prev, 12) || '...', left(v_recent_hash, 12) || '...';
 END $$;
 
 -- -----------------------------------------------------------------------------
--- 6. Re-snapshot before rejected call
+-- 6. Verify chain link: prev_hash on the new row equals row_hash of the row
+--    that immediately precedes it. Computed by SELECT, not by re-encoding.
 -- -----------------------------------------------------------------------------
 DO $$
 DECLARE
-  v_auth_count        int;
-  v_audit_count       int;
-  v_compliance_count  int;
+  v_prev text;
+  v_predecessor_hash text;
 BEGIN
-  SELECT count(*) INTO v_auth_count        FROM public.cs_replacement_authorizations;
-  SELECT count(*) INTO v_audit_count       FROM public.audit_log;
-  SELECT count(*) INTO v_compliance_count  FROM public.compliance_events;
+  SELECT prev_hash INTO v_prev
+    FROM public.audit_log
+   ORDER BY created_at DESC, id DESC
+   LIMIT 1;
 
-  PERFORM set_config('mi109.r_auth',       v_auth_count::text,       true);
-  PERFORM set_config('mi109.r_audit',      v_audit_count::text,      true);
-  PERFORM set_config('mi109.r_compliance', v_compliance_count::text, true);
-  RAISE NOTICE 'pre-reject snapshot — auth=%, audit_log=%, compliance_events=%',
-    v_auth_count, v_audit_count, v_compliance_count;
+  SELECT row_hash INTO v_predecessor_hash
+    FROM public.audit_log
+   ORDER BY created_at DESC, id DESC
+   OFFSET 1 LIMIT 1;
+
+  IF v_predecessor_hash IS NULL THEN
+    -- audit_log was empty before our insert; prev_hash should be GENESIS seed.
+    IF v_prev <> 'GENESIS' THEN
+      RAISE EXCEPTION 'FAIL 6a: audit_log was empty pre-insert; expected prev_hash=GENESIS, got %', v_prev;
+    END IF;
+    RAISE NOTICE 'PASS 6: chain link valid — empty pre-insert, prev_hash=GENESIS';
+  ELSE
+    IF v_prev <> v_predecessor_hash THEN
+      RAISE EXCEPTION 'FAIL 6b: chain break — new prev_hash=% does not match predecessor row_hash=%',
+        v_prev, v_predecessor_hash;
+    END IF;
+    RAISE NOTICE 'PASS 6: chain link valid — new prev_hash matches predecessor row_hash';
+  END IF;
 END $$;
 
 -- -----------------------------------------------------------------------------
--- 7. Capture phase_submissions.cs_replacement before rejected call
+-- 7. Re-snapshot before rejected call
 -- -----------------------------------------------------------------------------
 DO $$
 DECLARE
-  v_sub uuid := current_setting('mi109.sub')::uuid;
+  v_auth int; v_audit int; v_compliance int;
+BEGIN
+  SELECT count(*) INTO v_auth       FROM public.cs_replacement_authorizations;
+  SELECT count(*) INTO v_audit      FROM public.audit_log;
+  SELECT count(*) INTO v_compliance FROM public.compliance_events;
+  PERFORM set_config('mi109.r_auth',       v_auth::text,       true);
+  PERFORM set_config('mi109.r_audit',      v_audit::text,      true);
+  PERFORM set_config('mi109.r_compliance', v_compliance::text, true);
+  RAISE NOTICE 'pre-reject snapshot — auth=%, audit_log=%, compliance_events=%',
+    v_auth, v_audit, v_compliance;
+END $$;
+
+-- -----------------------------------------------------------------------------
+-- 8. Capture phase_submissions.cs_replacement before rejected call
+-- -----------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_sub_b uuid := current_setting('mi109.sub_b')::uuid;
   v_flag boolean;
 BEGIN
-  SELECT cs_replacement INTO v_flag FROM public.phase_submissions WHERE id = v_sub;
+  SELECT cs_replacement INTO v_flag FROM public.phase_submissions WHERE id = v_sub_b;
   PERFORM set_config('mi109.flag_before', v_flag::text, true);
 END $$;
 
 -- -----------------------------------------------------------------------------
--- 8. Rejected RPC call (reason < 20 chars)
---    [TODO Q1] Two possible patterns:
---      (i)  RPC raises VALIDATION_ exception — inner BEGIN/EXCEPTION traps it,
---           but the rejection compliance_events INSERT also rolls back.
---           Assertion in step 9 then has to be relaxed.
---      (ii) RPC returns a JSONB envelope {status:'rejected', error:'...'} —
---           no exception raised, compliance_events row commits cleanly.
---    For v1 we assume pattern (ii) is what Q1 will reveal (matches the brief's
---    "audit every attempt"). If Q1 reveals (i), revise: wrap in EXCEPTION block
---    and rely on async/dblink path or accept rejection-log loss explicitly.
+-- 9. Rejected RPC call (reason < 20 chars) — envelope return, no exception.
+--    Per INV-1 (envelope pattern), validation must NOT raise. RAISE is reserved
+--    for AUTH_DENIED only.
 -- -----------------------------------------------------------------------------
 DO $$
 DECLARE
   v_user uuid := current_setting('mi109.user')::uuid;
-  v_sub  uuid := current_setting('mi109.sub')::uuid;
+  v_sub_b uuid := current_setting('mi109.sub_b')::uuid;
+  v_envelope jsonb;
 BEGIN
   PERFORM set_config('request.jwt.claim.sub', v_user::text, true);
-  EXECUTE format('SET LOCAL ROLE authenticated');
+  EXECUTE 'SET LOCAL ROLE authenticated';
 
-  BEGIN
-    PERFORM public.submit_cs_authorization(
-      p_submission_id   => v_sub,
-      p_supervisor_name => 'Carlo Domenick',
-      p_authorized_date => current_date,
-      p_authorized_time => current_time::time,
-      p_reason          => 'too short'
-    );
-    -- If the RPC returns an envelope, falling through here is expected.
-    RESET ROLE;
-    RAISE NOTICE 'INFO 8: rejected RPC returned without raising (envelope pattern)';
-  EXCEPTION WHEN OTHERS THEN
-    RESET ROLE;
-    -- Pattern (i): exception raised. Assert message prefix is VALIDATION_.
-    IF SQLERRM NOT LIKE 'VALIDATION_%' THEN
-      RAISE EXCEPTION 'FAIL 8: rejection raised but message did not start with VALIDATION_ — % / %',
-        SQLSTATE, SQLERRM;
-    END IF;
-    RAISE NOTICE 'INFO 8: rejected RPC raised VALIDATION_ exception (exception pattern) — %', SQLERRM;
-  END;
+  v_envelope := public.submit_cs_authorization(
+    p_phase_submission_id    => v_sub_b,
+    p_authorizing_supervisor => 'Carlo Domenick',
+    p_authorized_at          => now(),
+    p_reason                 => 'too short'
+  );
+  RESET ROLE;
+
+  IF v_envelope->>'status' <> 'rejected' THEN
+    RAISE EXCEPTION 'FAIL 9a: rejection envelope.status=% (expected rejected) — full=%',
+      v_envelope->>'status', v_envelope::text;
+  END IF;
+  IF v_envelope->>'error_code' <> 'REASON_TOO_SHORT' THEN
+    RAISE EXCEPTION 'FAIL 9b: rejection envelope.error_code=% (expected REASON_TOO_SHORT)',
+      v_envelope->>'error_code';
+  END IF;
+  IF v_envelope->>'authorization_id' IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL 9c: rejection envelope.authorization_id non-null — full=%', v_envelope::text;
+  END IF;
+  RAISE NOTICE 'PASS 9: rejected envelope correct';
 END $$;
 
 -- -----------------------------------------------------------------------------
--- 9. Verify rejection side-effects:
+-- 10. Verify rejection side-effects:
 --      cs_replacement_authorizations: +0
---      phase_submissions.cs_replacement: unchanged
+--      audit_log: +0 (no row inserted, no chain entry)
 --      compliance_events: +1 with event_type 'cs_replacement.auth.rejected'
---    [TODO Q1] If RPC uses pattern (i) AND record_compliance_event is not run
---    out-of-transaction, compliance_events delta will be 0 and this test will
---    fail — that's the architectural decision Q1 forces.
+--      phase_submissions.cs_replacement: unchanged
 -- -----------------------------------------------------------------------------
 DO $$
 DECLARE
-  v_sub uuid := current_setting('mi109.sub')::uuid;
+  v_sub_b uuid := current_setting('mi109.sub_b')::uuid;
   v_r_auth       int := current_setting('mi109.r_auth')::int;
+  v_r_audit      int := current_setting('mi109.r_audit')::int;
   v_r_compliance int := current_setting('mi109.r_compliance')::int;
-  v_a_auth       int;
-  v_a_compliance int;
-  v_flag_before  boolean := current_setting('mi109.flag_before')::boolean;
-  v_flag_after   boolean;
-  v_reject_row   record;
+  v_a_auth int; v_a_audit int; v_a_compliance int;
+  v_flag_before boolean := current_setting('mi109.flag_before')::boolean;
+  v_flag_after  boolean;
+  v_reject_row  record;
 BEGIN
   SELECT count(*) INTO v_a_auth       FROM public.cs_replacement_authorizations;
+  SELECT count(*) INTO v_a_audit      FROM public.audit_log;
   SELECT count(*) INTO v_a_compliance FROM public.compliance_events;
-  SELECT cs_replacement INTO v_flag_after FROM public.phase_submissions WHERE id = v_sub;
+  SELECT cs_replacement INTO v_flag_after FROM public.phase_submissions WHERE id = v_sub_b;
 
   IF v_a_auth <> v_r_auth THEN
-    RAISE EXCEPTION 'FAIL 9a: cs_replacement_authorizations delta=% on rejection (expected 0)',
+    RAISE EXCEPTION 'FAIL 10a: cs_replacement_authorizations delta=% on rejection (expected 0)',
       v_a_auth - v_r_auth;
   END IF;
+  IF v_a_audit <> v_r_audit THEN
+    RAISE EXCEPTION 'FAIL 10b: audit_log delta=% on rejection (expected 0)', v_a_audit - v_r_audit;
+  END IF;
+  IF v_a_compliance <> v_r_compliance + 1 THEN
+    RAISE EXCEPTION 'FAIL 10c: compliance_events delta=% on rejection (expected +1) — envelope pattern must persist event',
+      v_a_compliance - v_r_compliance;
+  END IF;
   IF v_flag_before IS DISTINCT FROM v_flag_after THEN
-    RAISE EXCEPTION 'FAIL 9b: phase_submissions.cs_replacement changed on rejection (% -> %)',
+    RAISE EXCEPTION 'FAIL 10d: phase_submissions.cs_replacement changed (% -> %)',
       v_flag_before, v_flag_after;
   END IF;
 
-  IF v_a_compliance = v_r_compliance THEN
-    RAISE WARNING 'INFO 9c: compliance_events delta=0 on rejection — Q1 outcome is pattern (i) without out-of-transaction logging. Architectural decision needed.';
-  ELSIF v_a_compliance = v_r_compliance + 1 THEN
-    SELECT *
-      INTO v_reject_row
-      FROM public.compliance_events
-     WHERE event_type = 'cs_replacement.auth.rejected'
-       AND correlation_id = v_sub::text
-       AND source = 'MI-109'
-     ORDER BY created_at DESC
-     LIMIT 1;
+  SELECT *
+    INTO v_reject_row
+    FROM public.compliance_events
+   WHERE event_type = 'cs_replacement.auth.rejected'
+     AND correlation_id = v_sub_b::text
+     AND source = 'MI-109'
+   ORDER BY created_at DESC
+   LIMIT 1;
 
-    IF v_reject_row IS NULL THEN
-      RAISE EXCEPTION 'FAIL 9d: compliance_events +1 but no matching rejected row for sub=%', v_sub;
-    END IF;
-    IF v_reject_row.severity <> 'alert' THEN
-      RAISE EXCEPTION 'FAIL 9e: rejected severity=% (expected alert)', v_reject_row.severity;
-    END IF;
-    -- details should contain the rejection reason. Loose check: object with
-    -- at least one key whose value mentions 'reason' OR 'validation'.
-    IF jsonb_typeof(v_reject_row.details) <> 'object' THEN
-      RAISE EXCEPTION 'FAIL 9f: rejected details is not jsonb object';
-    END IF;
-    RAISE NOTICE 'PASS 9: rejected compliance_events row valid — id=%', v_reject_row.id;
-  ELSE
-    RAISE EXCEPTION 'FAIL 9g: compliance_events delta=% on rejection (expected 0 or 1)',
-      v_a_compliance - v_r_compliance;
+  IF v_reject_row IS NULL THEN
+    RAISE EXCEPTION 'FAIL 10e: no compliance_events row for cs_replacement.auth.rejected / correlation_id=%', v_sub_b;
   END IF;
+  IF v_reject_row.severity <> 'alert' THEN
+    RAISE EXCEPTION 'FAIL 10f: rejected severity=% (expected alert)', v_reject_row.severity;
+  END IF;
+  IF jsonb_typeof(v_reject_row.details) <> 'object' THEN
+    RAISE EXCEPTION 'FAIL 10g: rejected details not jsonb object';
+  END IF;
+  IF v_reject_row.details->>'error_code' <> 'REASON_TOO_SHORT' THEN
+    RAISE EXCEPTION 'FAIL 10h: rejected details.error_code=% (expected REASON_TOO_SHORT)',
+      v_reject_row.details->>'error_code';
+  END IF;
+  IF v_reject_row.details->>'status' <> 'rejected' THEN
+    RAISE EXCEPTION 'FAIL 10i: rejected details.status=% (expected rejected)', v_reject_row.details->>'status';
+  END IF;
+  RAISE NOTICE 'PASS 10: rejected compliance_events row valid, no other side effects';
+END $$;
+
+-- -----------------------------------------------------------------------------
+-- 11. Duplicate path: re-call RPC on sub_a (already authorized in step 2)
+--      Expected envelope: {status:'already_recorded', error_code:'ALREADY_RECORDED', ...}
+--      Side effects:
+--        cs_replacement_authorizations: +0
+--        audit_log: +0
+--        compliance_events: +1 with event_type 'cs_replacement.auth.duplicate'
+-- -----------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_user uuid := current_setting('mi109.user')::uuid;
+  v_sub_a uuid := current_setting('mi109.sub_a')::uuid;
+  v_envelope jsonb;
+  v_b_auth int; v_b_audit int; v_b_compliance int;
+  v_a_auth int; v_a_audit int; v_a_compliance int;
+  v_dup_row record;
+BEGIN
+  SELECT count(*) INTO v_b_auth       FROM public.cs_replacement_authorizations;
+  SELECT count(*) INTO v_b_audit      FROM public.audit_log;
+  SELECT count(*) INTO v_b_compliance FROM public.compliance_events;
+
+  PERFORM set_config('request.jwt.claim.sub', v_user::text, true);
+  EXECUTE 'SET LOCAL ROLE authenticated';
+
+  v_envelope := public.submit_cs_authorization(
+    p_phase_submission_id    => v_sub_a,
+    p_authorizing_supervisor => 'Carlo Domenick',
+    p_authorized_at          => now(),
+    p_reason                 => 'Duplicate retry test — RPC must catch 23505 and return already_recorded.'
+  );
+  RESET ROLE;
+
+  IF v_envelope->>'status' <> 'already_recorded' THEN
+    RAISE EXCEPTION 'FAIL 11a: duplicate envelope.status=% (expected already_recorded) — full=%',
+      v_envelope->>'status', v_envelope::text;
+  END IF;
+  IF v_envelope->>'error_code' <> 'ALREADY_RECORDED' THEN
+    RAISE EXCEPTION 'FAIL 11b: duplicate envelope.error_code=% (expected ALREADY_RECORDED)',
+      v_envelope->>'error_code';
+  END IF;
+
+  SELECT count(*) INTO v_a_auth       FROM public.cs_replacement_authorizations;
+  SELECT count(*) INTO v_a_audit      FROM public.audit_log;
+  SELECT count(*) INTO v_a_compliance FROM public.compliance_events;
+
+  IF v_a_auth <> v_b_auth THEN
+    RAISE EXCEPTION 'FAIL 11c: cs_replacement_authorizations delta=% on duplicate (expected 0)',
+      v_a_auth - v_b_auth;
+  END IF;
+  IF v_a_audit <> v_b_audit THEN
+    RAISE EXCEPTION 'FAIL 11d: audit_log delta=% on duplicate (expected 0)', v_a_audit - v_b_audit;
+  END IF;
+  IF v_a_compliance <> v_b_compliance + 1 THEN
+    RAISE EXCEPTION 'FAIL 11e: compliance_events delta=% on duplicate (expected +1)',
+      v_a_compliance - v_b_compliance;
+  END IF;
+
+  SELECT *
+    INTO v_dup_row
+    FROM public.compliance_events
+   WHERE event_type = 'cs_replacement.auth.duplicate'
+     AND correlation_id = v_sub_a::text
+     AND source = 'MI-109'
+   ORDER BY created_at DESC
+   LIMIT 1;
+
+  IF v_dup_row IS NULL THEN
+    RAISE EXCEPTION 'FAIL 11f: no compliance_events row for cs_replacement.auth.duplicate / correlation_id=%', v_sub_a;
+  END IF;
+  IF v_dup_row.severity <> 'alert' THEN
+    RAISE EXCEPTION 'FAIL 11g: duplicate severity=% (expected alert)', v_dup_row.severity;
+  END IF;
+  IF v_dup_row.details->>'error_code' <> 'ALREADY_RECORDED' THEN
+    RAISE EXCEPTION 'FAIL 11h: duplicate details.error_code=% (expected ALREADY_RECORDED)',
+      v_dup_row.details->>'error_code';
+  END IF;
+  RAISE NOTICE 'PASS 11: duplicate envelope + compliance_events row valid';
 END $$;
 
 -- =============================================================================
