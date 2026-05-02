@@ -54,7 +54,7 @@ SET LOCAL client_min_messages = NOTICE;
 -- 0. Test fixtures: one firm, one user, two phase_submissions
 --    (sub_a for accepted+duplicate paths; sub_b for rejected path)
 -- -----------------------------------------------------------------------------
-DO $$
+DO $TESTBODY$
 DECLARE
   v_firm uuid := extensions.gen_random_uuid();
   v_user uuid := extensions.gen_random_uuid();
@@ -84,12 +84,12 @@ BEGIN
 
   RAISE NOTICE 'fixtures seeded — firm=%, user=%, sub_a=%, sub_b=%',
     v_firm, v_user, v_sub_a, v_sub_b;
-END $$;
+END $TESTBODY$;
 
 -- -----------------------------------------------------------------------------
 -- 1. Snapshot baseline counts before any RPC call
 -- -----------------------------------------------------------------------------
-DO $$
+DO $TESTBODY$
 DECLARE
   v_auth int; v_audit int; v_compliance int;
 BEGIN
@@ -101,12 +101,12 @@ BEGIN
   PERFORM set_config('mi109.b_compliance', v_compliance::text, true);
   RAISE NOTICE 'baseline — auth=%, audit_log=%, compliance_events=%',
     v_auth, v_audit, v_compliance;
-END $$;
+END $TESTBODY$;
 
 -- -----------------------------------------------------------------------------
 -- 2. Accepted RPC call → envelope assertion
 -- -----------------------------------------------------------------------------
-DO $$
+DO $TESTBODY$
 DECLARE
   v_user uuid := current_setting('mi109.user')::uuid;
   v_sub_a uuid := current_setting('mi109.sub_a')::uuid;
@@ -129,13 +129,15 @@ BEGIN
   END IF;
   PERFORM set_config('mi109.auth_id', v_envelope->>'authorization_id', true);
   RAISE NOTICE 'PASS 2: accepted envelope — authorization_id=%', v_envelope->>'authorization_id';
-END $$;
+END $TESTBODY$;
 
 -- -----------------------------------------------------------------------------
 -- 3. Verify deltas after accepted call:
---    cs_replacement_authorizations +1, audit_log +1, compliance_events +1
+--    cs_replacement_authorizations +1, audit_log +2 (one for cs_auth INSERT,
+--    one for phase_submissions UPDATE — both Owner Data writes audit per
+--    CLAUDE.md chain layer 2), compliance_events +1
 -- -----------------------------------------------------------------------------
-DO $$
+DO $TESTBODY$
 DECLARE
   v_b_auth       int := current_setting('mi109.b_auth')::int;
   v_b_audit      int := current_setting('mi109.b_audit')::int;
@@ -149,21 +151,21 @@ BEGIN
   IF v_a_auth <> v_b_auth + 1 THEN
     RAISE EXCEPTION 'FAIL 3a: cs_replacement_authorizations delta=% (expected +1)', v_a_auth - v_b_auth;
   END IF;
-  IF v_a_audit <> v_b_audit + 1 THEN
-    RAISE EXCEPTION 'FAIL 3b: audit_log delta=% (expected +1 from write_audit_log AFTER trigger)',
+  IF v_a_audit <> v_b_audit + 2 THEN
+    RAISE EXCEPTION 'FAIL 3b: audit_log delta=% (expected +2: cs_auth INSERT + phase_submissions UPDATE both fire write_audit_log per CLAUDE.md audit chain layer 2)',
       v_a_audit - v_b_audit;
   END IF;
   IF v_a_compliance <> v_b_compliance + 1 THEN
     RAISE EXCEPTION 'FAIL 3c: compliance_events delta=% (expected +1 accepted row)',
       v_a_compliance - v_b_compliance;
   END IF;
-  RAISE NOTICE 'PASS 3: deltas correct — auth=+1, audit_log=+1, compliance_events=+1';
-END $$;
+  RAISE NOTICE 'PASS 3: deltas correct — auth=+1, audit_log=+2, compliance_events=+1';
+END $TESTBODY$;
 
 -- -----------------------------------------------------------------------------
 -- 4. Verify accepted compliance_events row content
 -- -----------------------------------------------------------------------------
-DO $$
+DO $TESTBODY$
 DECLARE
   v_user uuid := current_setting('mi109.user')::uuid;
   v_sub_a uuid := current_setting('mi109.sub_a')::uuid;
@@ -207,14 +209,14 @@ BEGIN
     RAISE EXCEPTION 'FAIL 4i: details.status=% (expected accepted)', v_row.details->>'status';
   END IF;
   RAISE NOTICE 'PASS 4: accepted compliance_events row valid';
-END $$;
+END $TESTBODY$;
 
 -- -----------------------------------------------------------------------------
 -- 5. Verify audit_log row written by write_audit_log AFTER trigger:
 --    - prev_hash and row_hash are NOT 'PENDING' (chain trigger overwrote)
 --    - row_hash matches lowercase hex (sha256-shaped)
 -- -----------------------------------------------------------------------------
-DO $$
+DO $TESTBODY$
 DECLARE
   v_recent_prev text;
   v_recent_hash text;
@@ -242,13 +244,13 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS 5: audit_log chain populated — prev=%, hash=%',
     left(v_recent_prev, 12) || '...', left(v_recent_hash, 12) || '...';
-END $$;
+END $TESTBODY$;
 
 -- -----------------------------------------------------------------------------
 -- 6. Verify chain link: prev_hash on the new row equals row_hash of the row
 --    that immediately precedes it. Computed by SELECT, not by re-encoding.
 -- -----------------------------------------------------------------------------
-DO $$
+DO $TESTBODY$
 DECLARE
   v_prev text;
   v_predecessor_hash text;
@@ -276,12 +278,12 @@ BEGIN
     END IF;
     RAISE NOTICE 'PASS 6: chain link valid — new prev_hash matches predecessor row_hash';
   END IF;
-END $$;
+END $TESTBODY$;
 
 -- -----------------------------------------------------------------------------
 -- 7. Re-snapshot before rejected call
 -- -----------------------------------------------------------------------------
-DO $$
+DO $TESTBODY$
 DECLARE
   v_auth int; v_audit int; v_compliance int;
 BEGIN
@@ -293,26 +295,26 @@ BEGIN
   PERFORM set_config('mi109.r_compliance', v_compliance::text, true);
   RAISE NOTICE 'pre-reject snapshot — auth=%, audit_log=%, compliance_events=%',
     v_auth, v_audit, v_compliance;
-END $$;
+END $TESTBODY$;
 
 -- -----------------------------------------------------------------------------
 -- 8. Capture phase_submissions.cs_replacement before rejected call
 -- -----------------------------------------------------------------------------
-DO $$
+DO $TESTBODY$
 DECLARE
   v_sub_b uuid := current_setting('mi109.sub_b')::uuid;
   v_flag boolean;
 BEGIN
   SELECT cs_replacement INTO v_flag FROM public.phase_submissions WHERE id = v_sub_b;
   PERFORM set_config('mi109.flag_before', v_flag::text, true);
-END $$;
+END $TESTBODY$;
 
 -- -----------------------------------------------------------------------------
 -- 9. Rejected RPC call (reason < 20 chars) — envelope return, no exception.
 --    Per INV-1 (envelope pattern), validation must NOT raise. RAISE is reserved
 --    for AUTH_DENIED only.
 -- -----------------------------------------------------------------------------
-DO $$
+DO $TESTBODY$
 DECLARE
   v_user uuid := current_setting('mi109.user')::uuid;
   v_sub_b uuid := current_setting('mi109.sub_b')::uuid;
@@ -341,7 +343,7 @@ BEGIN
     RAISE EXCEPTION 'FAIL 9c: rejection envelope.authorization_id non-null — full=%', v_envelope::text;
   END IF;
   RAISE NOTICE 'PASS 9: rejected envelope correct';
-END $$;
+END $TESTBODY$;
 
 -- -----------------------------------------------------------------------------
 -- 10. Verify rejection side-effects:
@@ -350,7 +352,7 @@ END $$;
 --      compliance_events: +1 with event_type 'cs_replacement.auth.rejected'
 --      phase_submissions.cs_replacement: unchanged
 -- -----------------------------------------------------------------------------
-DO $$
+DO $TESTBODY$
 DECLARE
   v_sub_b uuid := current_setting('mi109.sub_b')::uuid;
   v_r_auth       int := current_setting('mi109.r_auth')::int;
@@ -408,7 +410,7 @@ BEGIN
     RAISE EXCEPTION 'FAIL 10i: rejected details.status=% (expected rejected)', v_reject_row.details->>'status';
   END IF;
   RAISE NOTICE 'PASS 10: rejected compliance_events row valid, no other side effects';
-END $$;
+END $TESTBODY$;
 
 -- -----------------------------------------------------------------------------
 -- 11. Duplicate path: re-call RPC on sub_a (already authorized in step 2)
@@ -418,7 +420,7 @@ END $$;
 --        audit_log: +0
 --        compliance_events: +1 with event_type 'cs_replacement.auth.duplicate'
 -- -----------------------------------------------------------------------------
-DO $$
+DO $TESTBODY$
 DECLARE
   v_user uuid := current_setting('mi109.user')::uuid;
   v_sub_a uuid := current_setting('mi109.sub_a')::uuid;
@@ -500,7 +502,7 @@ BEGIN
       v_dup_row.details->>'existing_authorization_id', v_envelope->>'authorization_id';
   END IF;
   RAISE NOTICE 'PASS 11: duplicate envelope + compliance_events row valid';
-END $$;
+END $TESTBODY$;
 
 -- =============================================================================
 -- Cleanup

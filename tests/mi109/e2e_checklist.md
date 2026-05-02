@@ -47,7 +47,7 @@ with `ERRCODE='insufficient_privilege'` and message prefix `'AUTH_DENIED:'`.
 **Side effects on each path:**
 | Status | cs_replacement_authorizations | audit_log | compliance_events |
 |---|---|---|---|
-| accepted | +1 | +1 (write_audit_log AFTER trigger; chain trigger writes prev_hash + row_hash) | +1 (`cs_replacement.auth.accepted`) |
+| accepted | +1 | +2 (write_audit_log AFTER trigger fires on cs_auth INSERT + phase_submissions UPDATE; chain trigger writes prev_hash + row_hash on each) | +1 (`cs_replacement.auth.accepted`) |
 | rejected | 0 | 0 | +1 (`cs_replacement.auth.rejected`) |
 | already_recorded | 0 | 0 | +1 (`cs_replacement.auth.duplicate`) |
 | AUTH_DENIED RAISE | 0 | 0 | 0 (RAISE rolls back compliance INSERT — accepted limitation per INV-1) |
@@ -61,8 +61,11 @@ error_code (if rejected/duplicate), existing_authorization_id (already_recorded 
 
 ## Pre-flight
 
-- [ ] Migration applied to staging (`supabase db push` from
-      `mi-109-rpc-rebuild` branch)
+- [ ] Migration applied to staging via Supabase dashboard SQL editor (NOT
+      `supabase db push`) — paste contents of
+      `supabase/migrations/20260502013854_mi109_cs_auth.sql` into
+      https://supabase.com/dashboard/project/wryitfoletwskkdqqwcw/sql/new
+      and Run
 - [ ] Frontend deployed to a Vercel preview from the branch
 - [ ] Two test inspector accounts ready in firm A
       (e.g. `inspector.a1@mi109.test`, `inspector.a2@mi109.test`) and one in
