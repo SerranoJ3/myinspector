@@ -68,3 +68,37 @@
 **Source:** Lead (Phase 1 verification work, 5/1 evening). Banked into CLAUDE.md principle #7 (`security_invoker = true` for views) + schema source-of-truth section.
 
 **Affects:** All future compliance-table work. MI-202, MI-203, future audit-chain reads.
+
+---
+
+## 2026-05-02 13:55 EDT — MI-108 architectural calls (NB1/NB2/NB3/NB4/NB5)
+
+**Decision:** MI-108 (No-Work Submission Workflow, CDM-Smith rule a) implemented as:
+- **NB1:** extend `phase` enum from 8 → 9 values (add `'no_work'`). NOT a boolean flag like `cs_replacement`.
+- **NB2:** TWO separate photo slots — `photo_house_url` (no whiteboard required, "standard documentation" per locked field convention) and `photo_no_work_whiteboard_url` (whiteboard required, detection enforced via `photo_no_work_whiteboard_detected` boolean set by existing `detect-whiteboard` Edge Function).
+- **NB3:** schema-level enforcement via CHECK constraint (`phase_submissions_no_work_invariant`); NO RPC gate. All writes go to `phase_submissions` (single table); existing `audit_phase_submissions_insert` trigger handles audit chaining automatically.
+- **NB4:** reason min length = 20 chars (mirrors MI-109 reason field).
+- **NB5:** ship without inspector "I confirm whiteboard" toggle for v1; whiteboard false-positive (laptop screen detected, observed once) stays parked under existing prompt-tuning queue.
+
+**Reasoning:**
+- NB1: each "type of work" is a phase value per locked UI convention (4/21 launch day — radio options for Test Pit, Assessment, Service Work, GIS Doc, Restoration, etc.). `cs_replacement` is a flag because it *modifies* a real phase (e.g., service_work + cs_replacement=true). No-work IS the phase, not a modifier — `phase='service_work' AND no_work=true` would be nonsensical.
+- NB2: per the locked NJAW/CDM-Smith field convention, house photo and whiteboard photo are DISTINCT artifacts. Whiteboard is the physical chain-of-custody object held by inspector showing address/date/foreman/inspector + (for no-work) reason. House photo is property exterior documentation. One photo cannot serve both.
+- NB3: BUDDY_STANDARD priority: bulletproof > accurate > efficient. Single-table writes with audit-fire-by-trigger is bulletproof. RPC was right for MI-109 because it wrote to a separate `cs_replacement_authorizations` table; MI-108 has no second-table need. Other 8 phase types already use direct INSERT — staying consistent.
+- NB4: symmetry with MI-109 reason field (same UX pattern across CDM-Smith gates).
+- NB5: false-positive is a known, parked issue. Adding a confirmation toggle would shift the UX away from "AI does execution" toward inspector-double-checks. Wrong direction. Fix the AI side (prompt tuning) when sample photos are available.
+
+**Source:** Buddy proposed via `conversation_search` past-context lookup (MI-108 + CDM-Smith rules + whiteboard convention pulls from chats 4bc876eb, 55b6155f, 1f71ca91); Jorge confirmed via "yup" 2026-05-02 13:50 EDT.
+
+**Affects:** MI-108 (active build). Pattern set for future CDM-Smith rule (b/d/e) implementations: schema constraints + audit triggers when single-table; RPC when multi-table.
+
+---
+
+## 2026-05-02 ~13:50 EDT — MI-108 backend migration applied via Supabase MCP
+
+**Decision:** Migration `mi108_no_work_submission_workflow` applied to prod via `Supabase:apply_migration` (SG-001 Node 3's first production migration). Adds 4 columns, extends phase enum to 9 values, adds `phase_submissions_no_work_invariant` CHECK constraint enforcing CDM-Smith rule (a). Verified post-write via schema introspection query.
+
+**Reasoning:** First migration applied via Supabase MCP rather than copy-paste into SQL Editor. Validates SG-001 Node 3 end-to-end pipeline: design → architectural calls via past-context → MCP `apply_migration` → verification query → confirmation. Roundtrip ~4 minutes; pre-MCP equivalent estimated 15-20 min (migration draft + paste to chat + Jorge runs it in editor + paste output back).
+
+**Source:** Jorge approved migration text 2026-05-02 13:50 EDT ("yup"); Buddy executed via `Supabase:apply_migration`.
+
+**Affects:** SG-001 Node 3 validation (now production-proven). Pattern locked: Buddy applies, Buddy verifies, Lead/Jorge no longer in the SQL paste loop. MI-108 backend = DONE; frontend handed off to Lead via `MI108_FRONTEND_BRIEF.md`.

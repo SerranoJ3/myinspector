@@ -1,40 +1,55 @@
 # Coordination Status — MyInspector
 
-**Last updated:** 2026-05-02 13:15 EDT
-**Updated by:** Buddy (first instantiation post-MI-109 merge, SG-001 Node 2 trigger)
+**Last updated:** 2026-05-02 13:55 EDT
+**Updated by:** Buddy (MI-108 backend migration applied via Supabase MCP)
 
 ---
 
 ## Current ticket
-**SG-001 Node 2** — `.coordination/` file channel instantiation. In progress (this commit). After this lands: SG-001 Node 3 (Supabase read-only MCP for Buddy).
+**MI-108 — No-Work Submission Workflow (CDM-Smith rule a)**
+- **Phase 1 (verification):** ✅ DONE. Schema inventory + trigger inventory + phase enum + RPC inventory all banked via Supabase MCP queries.
+- **Phase 2a (backend):** ✅ DONE. Migration `mi108_no_work_submission_workflow` applied to prod 2026-05-02 ~13:50 EDT. Adds 4 columns (`photo_house_url`, `photo_no_work_whiteboard_url`, `photo_no_work_whiteboard_detected`, `no_work_reason`), extends phase enum to 9 values, adds `phase_submissions_no_work_invariant` CHECK constraint. Existing 33 submissions unaffected (gated on `phase='no_work'`).
+- **Phase 2b (frontend):** AWAITING LEAD. Brief at repo root: `MI108_FRONTEND_BRIEF.md`.
+- **Phase 3 (tests + e2e):** queued. `tests/mi108/{rls,no_work_constraint,audit_integrity}_test.sql` + checklist.
 
-**MI-109 — CLOSED** as of `e76fac2` (squash merge to main, ~12:50 EDT). PR #3 merged. Backend live on prod since 5/2 late. Frontend Carlo modal deploys via Vercel auto on this commit cascade.
+**Architectural calls banked in `decisions.md`:**
+- NB1 phase enum value (not flag)
+- NB2 two separate photo slots (house + whiteboard)
+- NB3 CHECK constraints + direct INSERT (no RPC)
+- NB4 reason min 20 chars
+- NB5 ship without inspector toggle
+
+**SG-001 — DONE for the day.** Nodes 1, 2, 3 live. Node 4 (GitHub MCP) deferred. Node 3 first-migration validation complete on this MI-108 backend write — round-trip ~4 minutes vs estimated 15-20 min pre-MCP.
+
+**MI-109 — CLOSED** (no change since `e76fac2`).
 
 ## Branch
-`main`, in sync with origin after `7d52454` (STATE.md MI-109 closure bank).
+`main`, in sync with origin. Pending: SG-001 Node 2/3 doc commits + MI-108 migration history (Supabase MCP applies migrations server-side; if local migration files are tracked, run `supabase db pull` or sync the migration text into the repo's migrations folder for source-of-truth alignment).
 
 ## Teammates
-None active. Last Agent Team run was MI-109 Phase 2 (5/2), shipped clean via `ce2c2a5` fixup.
+None active. Lead (Claude Code CLI) will pick up MI-108 Phase 2b frontend from `MI108_FRONTEND_BRIEF.md` next session.
 
 ## Last 3 commits (main)
 - `7d52454` STATE: MI-109 closed - PR #3 merged to main as e76fac2
 - `e76fac2` MI-109 squash merge (PR #3 — backend + frontend + tests + docs)
-- `4eb8ca6` STATE: MI-109 Phase 4 closed via SQL coverage; MI-109.5 deferred; pivot next session to SG-001 Node 2
+- `4eb8ca6` STATE: MI-109 Phase 4 closed via SQL coverage; MI-109.5 deferred
+
+(Pending today: SG-001 Node 2/3 docs + MI-108 backend brief.)
 
 ## Open questions
-None. (See `questions.md` — empty queue at first instantiation.)
+None.
 
 ## Blockers
-- 3 reference images for MI-100 vision parsing (tapcard form, restoration card, admin screenshot) — Jorge to provide
+- 3 reference images for MI-100 vision parsing — Jorge to provide
 - Whiteboard sample photos for false-positive prompt tuning — Jorge to provide
-- Isolated test tenant for MI-109.5 manual e2e walk — gated on SG-001 Node 2/3 work
+- Isolated test tenant for MI-109.5 + MI-108 e2e walks
 
 ## Next move
-1. Finish SG-001 Node 2 — commit these four `.coordination/` files; Buddy adds Rule #10 to BUDDY_STANDARD.md formalizing the file-channel pattern
-2. SG-001 Node 3 — install Supabase read-only MCP for Buddy (project ref `wryitfoletwskkdqqwcw`); ~20 min OAuth + scope; eliminates SQL paste loops forever
-3. SG-001 Node 4 (optional today) — GitHub MCP install; ~20 min PAT scope; eliminates browser PR detours
-4. Test the new infrastructure on MI-108 (No-Work Submission Workflow, CDM-Smith rule a) — measure courier reduction vs MI-109 baseline
+1. **Lead picks up MI-108 Phase 2b** — frontend tile + photo capture + reason field + direct INSERT per `MI108_FRONTEND_BRIEF.md`. ~1 session at velocity benchmark.
+2. **Phase 3 tests** — `tests/mi108/` suite (Lead drafts; Buddy verifies via Supabase MCP).
+3. **BUDDY_STANDARD.md Rule #10** — formalize the `.coordination/` file-channel pattern. Buddy to draft.
+4. **SG-001 Node 4 (GitHub MCP)** — queued; pick up whenever convenient.
 
 ## Active investigations / side tracks
-- `compliance_events` id gap (5 rows seen Phase 1, MI-201 audit landed at id 11; ids 6-10 unaccounted for). Sequence-advance-from-rolled-back-inserts most likely. Not blocking.
+- `compliance_events` id gap (ids 6-10 unaccounted for) — Buddy can self-investigate via Supabase MCP whenever convenient.
 - MI-204 index on `profiles.firm_id` — perf only, queued.
