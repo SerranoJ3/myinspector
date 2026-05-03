@@ -266,3 +266,40 @@ Full report: `.coordination/SUNDAY_VERIFICATION_5-3-26.md`.
 
 **Source:** Buddy execution Sunday afternoon per Jorge directive ("get it all done buddy ... continue with intensity per Buddy Standard"). Verification queries via Supabase MCP. Brief drafts batch-announced under Rule #9 relaxation (low-risk markdown, batch trust granted).
 
+---
+
+## 2026-05-03 ~17:35 EDT — Sunday evening continuation: security fix + project seed + ratifications batch
+
+**Decision:** Six discrete decisions locked in one push after Jorge's "verify on github sql and powershell" reset cleared the verification gate. Rule #9 strict gate honored on the two SQL writes (visibility-via-chat); Rule #9 relaxation applied for the markdown ratifications under Jorge's "use that big ole brain ... apply the buddy standard and get it done" batch trust.
+
+**Shipped:**
+
+1. **MI-AUDIT-1 fix shipped** — migration `mi_audit_1_fix_get_pending_destruction` (version `20260503172732`) closes the cross-firm metadata leak found in Sunday's security audit. `get_pending_destruction(p_table_name, p_record_id)` now filters by `dn.firm_id = public.current_firm_id()`. Static verification: function body contains the firm_id filter, still SECURITY DEFINER. Behavioral cross-firm test deferred to Lead's e2e suite (needs two authed firm contexts).
+
+2. **CP Engineers default project seeded** — migration `seed_cp_engineers_default_project` (version `20260503173258`) inserted project `722f9db8-a484-46a1-8142-ea6cc4bc672c` ("NJAW LCRI Program 2026", client "NJ American Water", status active, module_key water_utility, start_date 2026-01-01). Closes the MI-302 frontend gate (contractor_assignments has NOT NULL FK to projects; CP had 0 projects before). Audit chain integrity verified: row_hash + prev_hash both populated on audit_log row 1388.
+
+**Q-7 — Materials Sheet autosave cadence:** Option **C (explicit Save Draft sub-action)** locked by Jorge. Phase 2c Restoration Card form unblocked. Implementation: third button in the materials_sheets modal alongside Close + Save Materials Sheet. ~1.1–1.3x baseline audit_log volume, lowest cognitive overhead in audit review.
+
+**Q-2c-c — homeowner_contact_log visibility:** **firm-visible** (any inspector in the firm sees all contacts for properties in the firm). Audit posture priority over per-inspector privacy on customer interactions. Aligns with the supervisor-dashboard pattern already shipped.
+
+**Q-302-b — Construction PM dashboard photo UX:** **inline 40×40 thumbnails + lightbox on click**. Photos are the proof; one-tap visibility keeps supervisor review honest.
+
+**Q-302-c — GPS "accuracy concern" anomaly threshold:** **50 m from property polygon**. Lead can tune after first 30 days of real contractor arrival data.
+
+**Q-110-b — Pre-Phase-4 tapcards (no diagram key):** **read-only mode with banner** ("No diagram on this submission. Submitted before Phase 4."). Reading old data is a different concern than editing it; conflating them risks audit-trail integrity.
+
+**Deferred (not blocking):**
+
+- **Q-2c-d (ShortHills demo property seeding):** parked until first real ShortHills property arrives via import. Lead can build Phase 2c with NJ6_NORMAL test data; ShortHills e2e is testable post-import without a code change. No placeholder data on prod.
+- **Q-2c-e (ShortHills parts catalog):** same parking principle. When first ShortHills property lands, Lead clones the 16 NJ6_NORMAL rows with sector flipped to NJAW_SHORT_HILLS as a 1-line INSERT...SELECT. Until then, no placeholders.
+
+**Still open (needs Jorge's field knowledge, not blocking near-term):**
+
+- **Q-110-a (asset type enum scope for Phase 4 v1):** brief default of 4 types (watermain_tap, valve, hydrant, other) is defensible. Buddy suggests expanding to 9 (watermain_tap, valve, hydrant, meter, blowoff, sleeve, reducer, b_box, other) based on standard NJ water-utility tapcard contents — but Jorge's call when Phase 4 is closer to build (likely week of 5/11+).
+
+**Reasoning for the batch:** Per Buddy Standard, when a confident recommendation is warranted, make the call. All 4 ratifications (Q-2c-c, Q-302-b, Q-302-c, Q-110-b) had explicit Buddy defaults in the brief drafts; Jorge's "apply the standard" instruction is functionally a ratification of those defaults absent override. Same with the two deferrals (Q-2c-d/e) — defaulting to "don't seed placeholder data; wait for real" matches the locked principle of not building features looking for a reason. Documented for Lead's pickup.
+
+**Affects:** Phase 2c (MI-101) is now fully buildable except for Q-2c-d/e blockers which only gate ShortHills e2e testing, not the build itself. Phase 4 (MI-110) ratified except Q-110-a (non-blocking near-term). Construction PM (MI-302) fully buildable + has a real project to attach against. Three of three Sunday afternoon spec briefs are unblocked for Lead.
+
+**Source:** Jorge directive "i need you to use that big ole brain of yours and apply the buddy standard and get it done" 2026-05-03 ~17:30 EDT. Buddy executed: SQL via Supabase MCP under strict Rule #9 visibility, markdown ratifications under Rule #9 relaxation.
+
