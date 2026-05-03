@@ -2057,7 +2057,7 @@ function renderDynamicFields(type){
       <div class="modal-row">
         <div class="modal-field"><label class="modal-label">Work Order Number</label>
           <input class="modal-input" id="f-wo-number" placeholder="WO-2026-XXXX"></div>
-        <div class="modal-field"><label class="modal-label">Work Description Code</label>
+        <div class="modal-field"><label class="modal-label">Work Description Code <span style="font-size:10px;color:var(--muted);text-transform:none;letter-spacing:0">CP Engineers</span></label>
           <select class="modal-select" id="f-wo-code">
             <option value="">Select code</option>
             <option value="LSL-R">LSL-R — Lead service line replacement</option>
@@ -2065,6 +2065,18 @@ function renderDynamicFields(type){
             <option value="GV-R">GV-R — Galvanized replacement</option>
             <option value="INS">INS — Inspection only</option>
           </select></div>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">NJAW Classification <span style="font-size:10px;color:var(--muted);text-transform:none;letter-spacing:0">utility-side code, optional</span></label>
+        <select class="modal-select" id="f-njaw-code">
+          <option value="">Not specified</option>
+          <option value="M2C">M2C — Main to Curb</option>
+          <option value="H2C">H2C — House to Curb</option>
+          <option value="FULL">FULL — Full replacement</option>
+          <option value="MP">MP — Meter Pit</option>
+          <option value="TP">TP — Test Pit</option>
+          <option value="KILL">KILL — Abandon</option>
+        </select>
       </div>
       <div class="modal-row">
         <div class="modal-field"><label class="modal-label">Pipe In (inches)</label>
@@ -2564,6 +2576,9 @@ async function submitPhase(){
   const wbMain = photoSlotState.watermain_corporation?.whiteboardVisible || false;
   const wbRest = photoSlotState.restoration?.whiteboardVisible || false;
   const woCode = document.getElementById('f-wo-code')?.value || null;
+  // MI-101 Phase 1e column-fix: NJAW utility-side classification (M2C/H2C/FULL/MP/TP/KILL).
+  // Optional — null when inspector doesn't pick. CHECK enum on server enforces enum values.
+  const njawCode = document.getElementById('f-njaw-code')?.value || null;
 
   const payload = {
     id: currentSubmissionUUID,
@@ -2572,6 +2587,7 @@ async function submitPhase(){
     firm_id: currentFirmId,
     phase: currentServiceType,
     work_order_code: woCode || null,
+    njaw_work_order_code: njawCode || null,
     notes,
     photo_curbstop_whiteboard: wbCurb,
     photo_watermain_whiteboard: wbMain,
