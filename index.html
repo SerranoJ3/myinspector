@@ -172,6 +172,61 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .sector-radio.selected .sector-radio-name{color:var(--blue-light)}
 .sector-radio-name{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:var(--white)}
 .sector-radio-sub{font-size:10px;color:var(--muted)}
+/* MI-101 Phase 2b — Tapcard pages (Normal sector) */
+.service-opt-tapcard{background:rgba(74,124,196,0.06);border-color:rgba(74,124,196,0.25)}
+.service-opt-tapcard:hover,.service-opt-tapcard.selected{background:rgba(74,124,196,0.18);border-color:var(--blue-light)}
+.service-opt-tapcard.selected .svc-name{color:var(--blue-light)}
+.tc-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1100;display:none;align-items:flex-start;justify-content:center;padding:0}
+.tc-modal-overlay.open{display:flex}
+.tc-modal{background:var(--surface);border:1px solid var(--border);width:100%;max-width:1200px;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.tc-topbar{height:56px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 18px;gap:14px;flex-shrink:0}
+.tc-topbar-title{font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--blue-light);white-space:nowrap}
+.tc-topbar-sub{font-size:11px;color:var(--muted)}
+.tc-tabs{display:flex;gap:4px;margin-left:auto}
+.tc-tab{padding:7px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);cursor:pointer;border:1px solid transparent;background:transparent;transition:all .15s}
+.tc-tab:hover{color:var(--white);border-color:var(--border)}
+.tc-tab.active{background:rgba(27,58,107,0.4);color:var(--blue-light);border-color:rgba(74,124,196,0.3)}
+.tc-topbar-right{display:flex;gap:8px;align-items:center;margin-left:8px}
+.tc-body{flex:1;overflow-y:auto;padding:18px 22px;background:var(--bg)}
+.tc-body::-webkit-scrollbar{width:6px}
+.tc-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.tc-page{display:none}
+.tc-page.active{display:block}
+.tc-section{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px}
+.tc-section-title{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--blue-light);margin-bottom:10px}
+.tc-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px}
+.tc-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:10px}
+.tc-row-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:10px}
+.tc-field{display:flex;flex-direction:column;gap:5px}
+.tc-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tc-input{background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;font-size:13px;color:var(--white);font-family:'Source Sans 3',sans-serif;outline:none;transition:border-color .15s}
+.tc-input:focus{border-color:var(--blue-light)}
+.tc-input:read-only,.tc-input[readonly]{background:rgba(94,122,154,0.08);color:rgba(237,242,248,0.65);cursor:default}
+.tc-readonly-pill{display:inline-flex;align-items:center;gap:5px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;font-size:12px;color:rgba(237,242,248,0.85)}
+.tc-readonly-pill .tc-readonly-meta{color:var(--muted);font-size:10px;margin-left:4px}
+.tc-summary-card{background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px}
+.tc-summary-empty{background:rgba(244,168,32,0.06);border:1px solid rgba(244,168,32,0.25);color:var(--orange);border-radius:var(--radius);padding:10px 14px;font-size:12px;margin-bottom:14px}
+.tc-mi-table{width:100%;border-collapse:collapse;background:var(--surface3);border-radius:var(--radius);overflow:hidden}
+.tc-mi-table th{background:rgba(74,124,196,0.1);padding:8px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)}
+.tc-mi-table td{padding:6px 8px;border-bottom:1px solid rgba(74,124,196,0.06);vertical-align:middle}
+.tc-mi-table tr:last-child td{border-bottom:none}
+.tc-mi-table .tc-input{padding:6px 8px;font-size:12px;width:100%}
+.tc-mi-remove{background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:5px;padding:4px 8px;font-size:11px;cursor:pointer}
+.tc-mi-remove:hover{color:var(--red);border-color:var(--red)}
+.tc-mi-add{background:transparent;color:var(--blue-light);border:1px dashed var(--border);border-radius:6px;padding:8px 12px;font-size:11px;font-weight:600;cursor:pointer;width:100%;margin-top:8px;letter-spacing:.04em}
+.tc-mi-add:hover{border-color:var(--blue-light);background:rgba(74,124,196,0.06)}
+.tc-diagram-placeholder{background:rgba(94,122,154,0.06);border:2px dashed var(--border);border-radius:var(--radius);padding:32px;text-align:center;color:var(--muted);font-size:12px;font-style:italic;margin:10px 0}
+.tc-diagram-placeholder strong{display:block;font-style:normal;font-weight:700;color:var(--blue-light);margin-bottom:4px;font-family:'Rajdhani',sans-serif;font-size:14px;letter-spacing:.06em;text-transform:uppercase}
+.tc-footer{height:48px;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 18px;gap:12px;flex-shrink:0;font-size:11px;color:var(--muted)}
+.tc-footer-status.saving{color:var(--orange)}
+.tc-footer-status.saved{color:var(--green)}
+.tc-footer-status.error{color:var(--red)}
+@media(max-width:768px){
+  .tc-row,.tc-row-3,.tc-row-4{grid-template-columns:1fr}
+  .tc-modal{max-width:100%}
+  .tc-topbar{flex-wrap:wrap;height:auto;padding:8px 12px;gap:8px}
+  .tc-tabs{margin-left:0;width:100%;justify-content:center}
+}
 .mat-lead{color:var(--red);font-weight:600}
 .mat-copper{color:var(--green);font-weight:600}
 .mat-unknown{color:var(--muted)}
@@ -766,6 +821,10 @@ html,body{overflow-x:hidden}
                 <span class="svc-name">No Work</span>
                 <span class="svc-sub">Showed up, no excavation</span>
               </div>
+              <div class="service-opt service-opt-tapcard" onclick="selectServiceType(this,'tapcard')">
+                <span class="svc-name">Tapcard</span>
+                <span class="svc-sub">3-page Normal mode form</span>
+              </div>
             </div>
           </div>
           <div id="dynamic-form-fields"></div>
@@ -1005,6 +1064,170 @@ html,body{overflow-x:hidden}
     <div class="pd-section-title">Phase Submissions <span id="pd-submission-count"></span></div>
     <div id="pd-submissions-list">
       <div class="loading"><div class="spinner"></div><br>Loading submissions...</div>
+    </div>
+  </div>
+</div>
+
+<!-- MI-101 PHASE 2B — TAPCARD MODAL (NORMAL MODE) -->
+<div class="tc-modal-overlay" id="modal-tapcard">
+  <div class="tc-modal">
+    <div class="tc-topbar">
+      <button class="modal-close" onclick="closeTapcardModal()" title="Close (saves draft)" style="position:static">&#10005;</button>
+      <div>
+        <div class="tc-topbar-title">Tapcard</div>
+        <div class="tc-topbar-sub" id="tc-topbar-sub">Normal mode — auto-pulls from Materials Sheet + property</div>
+      </div>
+      <div class="tc-tabs">
+        <div class="tc-tab active" data-page="materials" onclick="tcSwitchPage('materials')">1. Materials</div>
+        <div class="tc-tab" data-page="company" onclick="tcSwitchPage('company')">2. Company Side</div>
+        <div class="tc-tab" data-page="customer" onclick="tcSwitchPage('customer')">3. Customer Side</div>
+      </div>
+      <div class="tc-topbar-right">
+        <button class="btn-sm btn-orange" onclick="submitTapcard()">Submit Tapcard</button>
+      </div>
+    </div>
+    <div class="tc-body">
+
+      <!-- Page 1: Materials Sheet read-only summary -->
+      <div class="tc-page active" id="tc-page-materials">
+        <div class="tc-section">
+          <div class="tc-section-title">Materials Sheet (read-only summary)</div>
+          <div id="tc-materials-summary"><div class="tc-summary-empty">Loading materials sheet for property…</div></div>
+        </div>
+        <div class="tc-section">
+          <div class="tc-section-title">Property</div>
+          <div id="tc-property-summary" class="tc-row-3"></div>
+        </div>
+      </div>
+
+      <!-- Page 2: Service Line Renewal Company Side -->
+      <div class="tc-page" id="tc-page-company">
+        <div class="tc-section">
+          <div class="tc-section-title">Top Header</div>
+          <div class="tc-row-3">
+            <div class="tc-field"><label class="tc-label">Service Number</label>
+              <input class="tc-input" type="text" id="tc-co-service_number" placeholder="SVC-#####"></div>
+            <div class="tc-field"><label class="tc-label">Task Numbers</label>
+              <input class="tc-input" type="text" id="tc-co-task_numbers" placeholder="comma-separated OK"></div>
+            <div class="tc-field"><label class="tc-label">Date</label>
+              <input class="tc-input" type="date" id="tc-co-date"></div>
+          </div>
+        </div>
+
+        <div class="tc-section">
+          <div class="tc-section-title">Service / Old Service rows <span class="tc-readonly-meta">auto-pulled from Materials Sheet</span></div>
+          <div id="tc-co-service-rows" class="tc-row"></div>
+        </div>
+
+        <div class="tc-section">
+          <div class="tc-section-title">Owner / Location <span class="tc-readonly-meta">auto-pulled from property record</span></div>
+          <div id="tc-co-owner-block" class="tc-row-3"></div>
+        </div>
+
+        <div class="tc-section">
+          <div class="tc-section-title">Material Installed <span class="tc-readonly-meta">picks from sector parts catalog; free-text fallback</span></div>
+          <table class="tc-mi-table" id="tc-mi-table">
+            <thead>
+              <tr>
+                <th style="width:35%">Part (or free-text)</th>
+                <th style="width:20%">Size (in)</th>
+                <th style="width:20%">Material override</th>
+                <th style="width:15%">Qty</th>
+                <th style="width:10%"></th>
+              </tr>
+            </thead>
+            <tbody id="tc-mi-tbody"></tbody>
+          </table>
+          <button class="tc-mi-add" onclick="tcAddMaterialInstalledRow()">+ Add row</button>
+        </div>
+
+        <div class="tc-section">
+          <div class="tc-section-title">Location Data <span class="tc-readonly-meta">auto-pulled from Materials Sheet measurements</span></div>
+          <div id="tc-co-location-block" class="tc-row-4"></div>
+        </div>
+
+        <div class="tc-section">
+          <div class="tc-section-title">Diagram</div>
+          <div class="tc-diagram-placeholder">
+            <strong>Diagram pane — Phase 4</strong>
+            SVG-based interactive diagram with snap-to-rule deferred per TAPCARD_CLUSTER_SPEC §5 (~6 sessions, highest-risk piece of the cluster). Tracked separately.
+          </div>
+        </div>
+
+        <div class="tc-section">
+          <div class="tc-section-title">Footer</div>
+          <div class="tc-row-4">
+            <div class="tc-field"><label class="tc-label">Tied In</label>
+              <input class="tc-input" type="text" id="tc-co-tied_in" placeholder="Y / N / details"></div>
+            <div class="tc-field"><label class="tc-label">Plug Lock</label>
+              <input class="tc-input" type="text" id="tc-co-plug_lock" placeholder=""></div>
+            <div class="tc-field"><label class="tc-label">Cust. Mat.</label>
+              <input class="tc-input" type="text" id="tc-co-cust_mat" placeholder="Copper / Lead / ..."></div>
+            <div class="tc-field"><label class="tc-label">Size</label>
+              <input class="tc-input" type="number" step="0.25" min="0" id="tc-co-size" placeholder="0.75"></div>
+          </div>
+          <div class="tc-row-3">
+            <div class="tc-field"><label class="tc-label">Completed Diagram By</label>
+              <input class="tc-input" type="text" id="tc-co-completed_by" placeholder="Name"></div>
+            <div class="tc-field"><label class="tc-label">Date Installed</label>
+              <input class="tc-input" type="date" id="tc-co-date_installed"></div>
+            <div class="tc-field"><label class="tc-label">By</label>
+              <input class="tc-input" type="text" id="tc-co-installed_by" placeholder="Crew lead / inspector"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Page 3: Service Line Renewal Customer Side -->
+      <div class="tc-page" id="tc-page-customer">
+        <div class="tc-section">
+          <div class="tc-section-title">Customer Side Header</div>
+          <div class="tc-row-3">
+            <div class="tc-field"><label class="tc-label">Service Number <span class="tc-readonly-meta">auto from Company Side</span></label>
+              <input class="tc-input" type="text" id="tc-cu-service_number" readonly></div>
+            <div class="tc-field"><label class="tc-label">Date</label>
+              <input class="tc-input" type="date" id="tc-cu-date"></div>
+            <div class="tc-field"><label class="tc-label">Owner <span class="tc-readonly-meta">auto from property</span></label>
+              <input class="tc-input" type="text" id="tc-cu-owner" readonly></div>
+          </div>
+        </div>
+
+        <div class="tc-section">
+          <div class="tc-section-title">Customer Service Detail</div>
+          <div class="tc-row">
+            <div class="tc-field"><label class="tc-label">Material at meter</label>
+              <input class="tc-input" type="text" id="tc-cu-material_at_meter" placeholder="Copper / Lead / ..."></div>
+            <div class="tc-field"><label class="tc-label">Distance to meter (ft)</label>
+              <input class="tc-input" type="number" step="0.5" min="0" id="tc-cu-distance_to_meter" placeholder="ft"></div>
+          </div>
+          <div class="tc-row">
+            <div class="tc-field"><label class="tc-label">Notes</label>
+              <textarea class="tc-input" rows="3" id="tc-cu-notes" style="resize:vertical" placeholder="Anything customer-side specific..."></textarea></div>
+          </div>
+        </div>
+
+        <div class="tc-section">
+          <div class="tc-section-title">Diagram</div>
+          <div class="tc-diagram-placeholder">
+            <strong>Diagram pane — Phase 4</strong>
+            Customer-side simpler layout deferred per TAPCARD_CLUSTER_SPEC §5.
+          </div>
+        </div>
+
+        <div class="tc-section">
+          <div class="tc-section-title">Footer</div>
+          <div class="tc-row">
+            <div class="tc-field"><label class="tc-label">Company Service Material</label>
+              <input class="tc-input" type="text" id="tc-cu-company_service_material" placeholder="Copper / Lead / ..."></div>
+            <div class="tc-field"><label class="tc-label">Size (in)</label>
+              <input class="tc-input" type="number" step="0.25" min="0" id="tc-cu-size" placeholder="0.75"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="tc-footer">
+      <span class="tc-footer-status" id="tc-footer-status">Ready</span>
+      <span style="color:var(--muted)">Submit Tapcard creates a phase_submission with phase='tapcard' + tapcard_data jsonb + materials_sheet_id reference.</span>
     </div>
   </div>
 </div>
@@ -1755,6 +1978,21 @@ async function saveProperty(){
 
 // ── SUBMIT PHASE ──────────────────────────────────────
 function selectServiceType(el, type){
+  // MI-101 Phase 2b: Tapcard tile bypasses the inline form and opens the
+  // full-screen 3-page Tapcard modal directly (Materials / Company / Customer).
+  // Submit Tapcard inside the modal owns persistence to phase_submissions
+  // (phase='tapcard' + tapcard_data jsonb + materials_sheet_id ref).
+  if(type === 'tapcard'){
+    const propId = document.getElementById('submit-property-select')?.value;
+    if(!propId){ showToast('Please select a property first', 'error'); return; }
+    document.querySelectorAll('.service-opt').forEach(o=>o.classList.remove('selected'));
+    el.classList.add('selected');
+    openTapcardForProperty(propId).catch(err => {
+      console.error('openTapcardForProperty error:', err);
+      showToast('Could not open tapcard: ' + (err.message || 'unknown error'), 'error');
+    });
+    return;
+  }
   document.querySelectorAll('.service-opt').forEach(o=>o.classList.remove('selected'));
   el.classList.add('selected');
   currentServiceType = type;
@@ -2993,6 +3231,391 @@ async function confirmSectorEdit(){
 
 // ── UTILS ─────────────────────────────────────────────
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+// ── MI-101 PHASE 2B — TAPCARD (NORMAL MODE) ──────────
+// State holds the in-progress tapcard. property_id + sector are required;
+// materials_sheet_id is optional (warns if missing). All form values flow into
+// tapcard_data jsonb on submit; minimal field surface for v1, diagram = Phase 4.
+let currentTapcard = null;
+let currentTapcardPartsCatalog = []; // cached parts list for the open property's sector
+
+async function openTapcardForProperty(propertyId){
+  const overlay = document.getElementById('modal-tapcard');
+  if(!overlay) return;
+  // Reset state and form
+  currentTapcard = { property_id: propertyId, materials_sheet_id: null, sector: 'NJ6_NORMAL' };
+  currentTapcardPartsCatalog = [];
+  tcSwitchPage('materials');
+  tcSetFooterStatus('saving', 'Loading property + materials sheet…');
+
+  // Load property + most-recent active materials_sheet in parallel
+  const [propResult, sheetResult] = await Promise.all([
+    sb.from('properties').select('*').eq('id', propertyId).maybeSingle(),
+    sb.from('materials_sheets').select('*').eq('property_id', propertyId).is('deleted_at', null).order('created_at', { ascending: false }).limit(1),
+  ]);
+
+  if(propResult.error || !propResult.data){
+    tcSetFooterStatus('error', 'Could not load property');
+    showToast('Property load failed: ' + (propResult.error?.message || 'not found'), 'error');
+    return;
+  }
+  const prop = propResult.data;
+  currentTapcard.sector = prop.sector || 'NJ6_NORMAL';
+
+  const sheets = sheetResult.data || [];
+  const sheet = sheets.length ? sheets[0] : null;
+  if(sheet){
+    currentTapcard.materials_sheet_id = sheet.id;
+  }
+
+  tcRenderMaterialsSummary(sheet);
+  tcRenderPropertySummary(prop);
+  tcAutoPopulateCompanySide(prop, sheet);
+  tcAutoPopulateCustomerSide(prop, sheet);
+
+  // Reset Material Installed table to a single empty row
+  document.getElementById('tc-mi-tbody').innerHTML = '';
+  tcAddMaterialInstalledRow();
+
+  // Load parts catalog for this property's sector (RLS read-authenticated when active=true)
+  try {
+    const { data: parts, error } = await sb.from('parts_catalogs')
+      .select('id, category, display_label, size_inches, material, sort_order')
+      .eq('sector', currentTapcard.sector)
+      .eq('active', true)
+      .order('sort_order', { ascending: true });
+    if(error) throw error;
+    currentTapcardPartsCatalog = parts || [];
+    tcRefreshAllPartsDropdowns();
+  } catch(err) {
+    console.warn('parts_catalogs load error:', err);
+    tcSetFooterStatus('error', 'Parts catalog unavailable — free-text fallback only');
+  }
+
+  overlay.classList.add('open');
+  if(sheet){
+    tcSetFooterStatus('ready', `Materials Sheet attached (${sheet.sheet_date || new Date(sheet.created_at).toLocaleDateString()}). Sector ${currentTapcard.sector}.`);
+  } else {
+    tcSetFooterStatus('ready', `No Materials Sheet attached. Tapcard will save without materials_sheet_id.`);
+  }
+}
+
+function closeTapcardModal(){
+  document.getElementById('modal-tapcard').classList.remove('open');
+  currentTapcard = null;
+  currentTapcardPartsCatalog = [];
+}
+
+function tcSwitchPage(page){
+  document.querySelectorAll('.tc-tab').forEach(el => el.classList.toggle('active', el.dataset.page === page));
+  document.querySelectorAll('.tc-page').forEach(el => el.classList.toggle('active', el.id === 'tc-page-' + page));
+}
+
+function tcSetFooterStatus(kind, message){
+  const el = document.getElementById('tc-footer-status');
+  if(!el) return;
+  el.classList.remove('saving','saved','error');
+  if(kind === 'saving') el.classList.add('saving');
+  else if(kind === 'saved') el.classList.add('saved');
+  else if(kind === 'error') el.classList.add('error');
+  el.textContent = message || '';
+}
+
+function tcRenderMaterialsSummary(sheet){
+  const container = document.getElementById('tc-materials-summary');
+  if(!container) return;
+  if(!sheet){
+    container.innerHTML = '<div class="tc-summary-empty">No active Materials Sheet attached. Submit one via Property Detail (Phase 2a UI) before this Tapcard can auto-pull header/measurements/materials.</div>';
+    return;
+  }
+  const dt = sheet.sheet_date || (sheet.created_at ? new Date(sheet.created_at).toLocaleDateString() : '—');
+  const who = sheet.foreman_name || sheet.contractor_name || 'unsigned';
+  const measureCount = ['corp_depth_inches','cs_depth_inches','cs_house_inches','cs_rs_inches','cs_ls_inches','cs_near_curb_inches','cs_far_curb_inches','cs_corp_inches','cs_mp_inches']
+    .filter(k => sheet[k] !== null && sheet[k] !== undefined).length;
+  const materialsCount = ['njaw_old_material','njaw_new_material','customer_old_material','customer_new_material']
+    .filter(k => sheet[k]).length;
+  container.innerHTML = `
+    <div class="tc-summary-card">
+      <div style="font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;color:var(--white);margin-bottom:6px">Materials Sheet from ${dt} — ${who}</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.6">
+        ${measureCount} of 9 measurements captured · ${materialsCount} of 4 material rows filled · ${sheet.test_pit ? 'Test Pit Y' : 'Test Pit N'} · ${sheet.sky_condition || 'sky n/a'}
+      </div>
+      <div style="font-size:11px;color:var(--blue-light);margin-top:8px">Auto-pulled values flow into Company Side service rows + Location Data block.</div>
+    </div>`;
+}
+
+function tcRenderPropertySummary(prop){
+  const container = document.getElementById('tc-property-summary');
+  if(!container) return;
+  const fields = [
+    ['Address', prop.address || '—'],
+    ['City / State / Zip', [prop.city, prop.state, prop.zip].filter(Boolean).join(', ') || '—'],
+    ['Lot / Block', prop.lot_block || '—'],
+    ['MapCall ID', prop.mapcall_id || '—'],
+    ['Sector', prop.sector || 'NJ6_NORMAL'],
+    ['Current Phase', (prop.current_phase || 'pending').replace(/_/g,' ')],
+  ];
+  container.innerHTML = fields.map(([label, val]) =>
+    `<div class="tc-readonly-pill"><span style="color:var(--muted);font-size:10px">${label}:</span> <span>${val}</span></div>`
+  ).join('');
+}
+
+function tcAutoPopulateCompanySide(prop, sheet){
+  // Service / Old Service rows from materials_sheet.service_materials grid (NJAW row)
+  const sr = document.getElementById('tc-co-service-rows');
+  if(sr){
+    if(sheet){
+      sr.innerHTML = `
+        <div class="tc-readonly-pill"><span style="color:var(--muted);font-size:10px">Old Size:</span> ${sheet.njaw_old_size_inches ?? '—'} in · <span style="color:var(--muted)">Old Mat:</span> ${sheet.njaw_old_material || '—'}</div>
+        <div class="tc-readonly-pill"><span style="color:var(--muted);font-size:10px">New Size:</span> ${sheet.njaw_new_size_inches ?? '—'} in · <span style="color:var(--muted)">New Mat:</span> ${sheet.njaw_new_material || '—'} · <span style="color:var(--muted)">Amt:</span> ${sheet.njaw_new_amount_feet ?? '—'} ft</div>`;
+    } else {
+      sr.innerHTML = '<div class="tc-summary-empty">No Materials Sheet — Service rows unpopulated.</div>';
+    }
+  }
+
+  // Owner / Location block from property
+  const ob = document.getElementById('tc-co-owner-block');
+  if(ob){
+    const fields = [
+      ['Owner', prop.owner_name || '—'],
+      ['Location', prop.address || '—'],
+      ['Lot / Block', prop.lot_block || '—'],
+      ['Municipality', prop.municipality || prop.city || '—'],
+      ['Cross Street', prop.cross_street || '—'],
+      ['MapCall ID', prop.mapcall_id || '—'],
+    ];
+    ob.innerHTML = fields.map(([label, val]) =>
+      `<div class="tc-readonly-pill"><span style="color:var(--muted);font-size:10px">${label}:</span> <span>${val}</span></div>`
+    ).join('');
+  }
+
+  // Location Data from materials_sheet measurements
+  const lb = document.getElementById('tc-co-location-block');
+  if(lb){
+    if(sheet){
+      const measures = [
+        ['Corp Depth', sheet.corp_depth_inches],
+        ['CS Depth', sheet.cs_depth_inches],
+        ['CS-House', sheet.cs_house_inches],
+        ['CS-RS', sheet.cs_rs_inches],
+        ['CS-LS', sheet.cs_ls_inches],
+        ['CS-Near Curb', sheet.cs_near_curb_inches],
+        ['CS-Far Curb', sheet.cs_far_curb_inches],
+        ['CS-Corp', sheet.cs_corp_inches],
+        ['CS-MP', sheet.cs_mp_inches],
+        ['MP Horn Copper', sheet.mp_horn_copper_inches],
+        ['Size of Main', sheet.size_of_main_inches ? sheet.size_of_main_inches + ' in' : null],
+        ['Service Side', sheet.service_side],
+      ];
+      lb.innerHTML = measures.map(([label, val]) =>
+        `<div class="tc-readonly-pill"><span style="color:var(--muted);font-size:10px">${label}:</span> <span>${val === null || val === undefined ? '—' : val}</span></div>`
+      ).join('');
+    } else {
+      lb.innerHTML = '<div class="tc-summary-empty">No Materials Sheet — Location Data unpopulated.</div>';
+    }
+  }
+}
+
+function tcAutoPopulateCustomerSide(prop, sheet){
+  const svcEl = document.getElementById('tc-cu-service_number');
+  if(svcEl) svcEl.value = ''; // mirrored from Company Side at submit time
+  const ownerEl = document.getElementById('tc-cu-owner');
+  if(ownerEl) ownerEl.value = prop.owner_name || prop.address || '—';
+  // Customer-side material/distance left blank for inspector to fill
+  ['tc-cu-date','tc-cu-material_at_meter','tc-cu-distance_to_meter','tc-cu-notes','tc-cu-company_service_material','tc-cu-size'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+  if(sheet){
+    const cmEl = document.getElementById('tc-cu-company_service_material');
+    if(cmEl) cmEl.value = sheet.njaw_new_material || '';
+  }
+}
+
+// Material Installed table (Section §4.5 Page 1) — multi-row, parts_catalogs picks
+// with free-text fallback per row (per spec). Supports any number of rows.
+let tcMiRowCounter = 0;
+function tcAddMaterialInstalledRow(seed){
+  const tbody = document.getElementById('tc-mi-tbody');
+  if(!tbody) return;
+  const idx = ++tcMiRowCounter;
+  const row = document.createElement('tr');
+  row.id = 'tc-mi-row-' + idx;
+  row.innerHTML = `
+    <td>
+      <select class="tc-input tc-mi-part" id="tc-mi-${idx}-part_id" onchange="tcOnPartSelect(${idx})">
+        <option value="">— pick from catalog —</option>
+      </select>
+      <input class="tc-input" type="text" id="tc-mi-${idx}-free_text" placeholder="...or free-text fallback" style="margin-top:4px">
+    </td>
+    <td><input class="tc-input" type="number" step="0.25" min="0" id="tc-mi-${idx}-size_inches" placeholder="0.75"></td>
+    <td><input class="tc-input" type="text" id="tc-mi-${idx}-material" placeholder="Copper / Lead / ..."></td>
+    <td><input class="tc-input" type="number" min="0" id="tc-mi-${idx}-qty" placeholder="1"></td>
+    <td><button class="tc-mi-remove" onclick="tcRemoveMaterialInstalledRow(${idx})">remove</button></td>
+  `;
+  tbody.appendChild(row);
+  tcRefreshPartsDropdownForRow(idx);
+  if(seed){
+    if(seed.part_id) document.getElementById(`tc-mi-${idx}-part_id`).value = seed.part_id;
+    if(seed.free_text) document.getElementById(`tc-mi-${idx}-free_text`).value = seed.free_text;
+    if(seed.size_inches !== undefined && seed.size_inches !== null) document.getElementById(`tc-mi-${idx}-size_inches`).value = seed.size_inches;
+    if(seed.material) document.getElementById(`tc-mi-${idx}-material`).value = seed.material;
+    if(seed.qty !== undefined && seed.qty !== null) document.getElementById(`tc-mi-${idx}-qty`).value = seed.qty;
+  }
+}
+
+function tcRemoveMaterialInstalledRow(idx){
+  const row = document.getElementById('tc-mi-row-' + idx);
+  if(row) row.remove();
+  // Always keep at least one row in the table
+  const tbody = document.getElementById('tc-mi-tbody');
+  if(tbody && !tbody.children.length) tcAddMaterialInstalledRow();
+}
+
+function tcRefreshAllPartsDropdowns(){
+  const tbody = document.getElementById('tc-mi-tbody');
+  if(!tbody) return;
+  Array.from(tbody.children).forEach(row => {
+    const m = row.id.match(/^tc-mi-row-(\d+)$/);
+    if(m) tcRefreshPartsDropdownForRow(parseInt(m[1], 10));
+  });
+}
+
+function tcRefreshPartsDropdownForRow(idx){
+  const sel = document.getElementById(`tc-mi-${idx}-part_id`);
+  if(!sel) return;
+  const current = sel.value;
+  // Group options by category
+  const groups = {};
+  currentTapcardPartsCatalog.forEach(p => {
+    if(!groups[p.category]) groups[p.category] = [];
+    groups[p.category].push(p);
+  });
+  const groupOrder = ['service_line','main','fitting','material','other'];
+  let html = '<option value="">— pick from catalog —</option>';
+  groupOrder.concat(Object.keys(groups).filter(c => !groupOrder.includes(c))).forEach(cat => {
+    if(!groups[cat] || !groups[cat].length) return;
+    html += `<optgroup label="${cat.replace(/_/g,' ')}">`;
+    groups[cat].forEach(p => {
+      const sel = current === p.id ? ' selected' : '';
+      html += `<option value="${p.id}"${sel}>${p.display_label}${p.size_inches ? ` (${p.size_inches}")` : ''}${p.material ? ` — ${p.material}` : ''}</option>`;
+    });
+    html += '</optgroup>';
+  });
+  sel.innerHTML = html;
+}
+
+function tcOnPartSelect(idx){
+  // When a catalog part is picked, auto-populate the size + material columns from the catalog row
+  // (inspector can still override). Free-text stays separate.
+  const partId = document.getElementById(`tc-mi-${idx}-part_id`)?.value;
+  if(!partId) return;
+  const part = currentTapcardPartsCatalog.find(p => p.id === partId);
+  if(!part) return;
+  if(part.size_inches !== null && part.size_inches !== undefined){
+    const sizeEl = document.getElementById(`tc-mi-${idx}-size_inches`);
+    if(sizeEl && !sizeEl.value) sizeEl.value = part.size_inches;
+  }
+  if(part.material){
+    const matEl = document.getElementById(`tc-mi-${idx}-material`);
+    if(matEl && !matEl.value) matEl.value = part.material;
+  }
+}
+
+function tcReadMaterialInstalledRows(){
+  const tbody = document.getElementById('tc-mi-tbody');
+  if(!tbody) return [];
+  const rows = [];
+  Array.from(tbody.children).forEach(row => {
+    const m = row.id.match(/^tc-mi-row-(\d+)$/);
+    if(!m) return;
+    const idx = parseInt(m[1], 10);
+    const part_id = document.getElementById(`tc-mi-${idx}-part_id`)?.value || null;
+    const free_text = document.getElementById(`tc-mi-${idx}-free_text`)?.value?.trim() || null;
+    const sizeRaw = document.getElementById(`tc-mi-${idx}-size_inches`)?.value;
+    const size_inches = sizeRaw === '' || sizeRaw === undefined ? null : Number(sizeRaw);
+    const material = document.getElementById(`tc-mi-${idx}-material`)?.value?.trim() || null;
+    const qtyRaw = document.getElementById(`tc-mi-${idx}-qty`)?.value;
+    const qty = qtyRaw === '' || qtyRaw === undefined ? null : Number(qtyRaw);
+    // Skip totally-empty rows
+    if(!part_id && !free_text && size_inches === null && !material && qty === null) return;
+    rows.push({ part_id: part_id || null, free_text, size_inches, material, qty });
+  });
+  return rows;
+}
+
+function tcReadForm(){
+  const text = id => { const el = document.getElementById(id); const v = el?.value; return (v === '' || v === null || v === undefined) ? null : String(v).trim() || null; };
+  const num  = id => { const el = document.getElementById(id); const v = el?.value; if(v === '' || v === null || v === undefined) return null; const n = Number(v); return Number.isFinite(n) ? n : null; };
+  return {
+    company_side: {
+      service_number: text('tc-co-service_number'),
+      task_numbers: text('tc-co-task_numbers'),
+      date: text('tc-co-date'),
+      material_installed: tcReadMaterialInstalledRows(),
+      footer: {
+        tied_in: text('tc-co-tied_in'),
+        plug_lock: text('tc-co-plug_lock'),
+        cust_mat: text('tc-co-cust_mat'),
+        size_inches: num('tc-co-size'),
+        completed_diagram_by: text('tc-co-completed_by'),
+        date_installed: text('tc-co-date_installed'),
+        installed_by: text('tc-co-installed_by'),
+      },
+      // diagram: deferred to Phase 4 per TAPCARD_CLUSTER_SPEC §5.1
+    },
+    customer_side: {
+      service_number: text('tc-cu-service_number'),
+      date: text('tc-cu-date'),
+      material_at_meter: text('tc-cu-material_at_meter'),
+      distance_to_meter_feet: num('tc-cu-distance_to_meter'),
+      notes: text('tc-cu-notes'),
+      company_service_material: text('tc-cu-company_service_material'),
+      size_inches: num('tc-cu-size'),
+    },
+    sector: currentTapcard?.sector || 'NJ6_NORMAL',
+    materials_sheet_id_at_submit: currentTapcard?.materials_sheet_id || null,
+  };
+}
+
+async function submitTapcard(){
+  if(!currentTapcard || !currentTapcard.property_id){
+    showToast('No tapcard context — close and reopen.', 'error');
+    return;
+  }
+  const tapcard_data = tcReadForm();
+  // Mirror Company Side service_number into Customer Side at submit time (per §4.5)
+  if(tapcard_data.customer_side && tapcard_data.company_side?.service_number){
+    tapcard_data.customer_side.service_number = tapcard_data.company_side.service_number;
+  }
+
+  const payload = {
+    id: crypto.randomUUID(),
+    property_id: currentTapcard.property_id,
+    submitted_by: currentUser?.id || null,
+    firm_id: currentFirmId,
+    phase: 'tapcard',
+    materials_sheet_id: currentTapcard.materials_sheet_id || null,
+    tapcard_data,
+    last_client_sync_at: new Date().toISOString(),
+  };
+
+  tcSetFooterStatus('saving', 'Submitting tapcard…');
+  const { error } = await sb.from('phase_submissions').insert(payload);
+  if(error){
+    console.error('Tapcard submit error:', error);
+    tcSetFooterStatus('error', 'Submit failed: ' + (error.message || 'unknown'));
+    showToast('Tapcard submit failed: ' + (error.message || 'unknown'), 'error');
+    return;
+  }
+  tcSetFooterStatus('saved', 'Tapcard submitted ' + new Date().toLocaleTimeString());
+  showToast('Tapcard submitted.', 'success');
+  // Reflect new submission on dashboard + close modal
+  await loadDashboard().catch(() => {});
+  closeTapcardModal();
+  // Reset Submit Phase tile selection so next tile click works cleanly
+  document.querySelectorAll('.service-opt').forEach(o => o.classList.remove('selected'));
+}
 
 function showToast(msg,type='success'){
   const t=document.getElementById('toast');
