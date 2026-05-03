@@ -303,3 +303,48 @@ Full report: `.coordination/SUNDAY_VERIFICATION_5-3-26.md`.
 
 **Source:** Jorge directive "i need you to use that big ole brain of yours and apply the buddy standard and get it done" 2026-05-03 ~17:30 EDT. Buddy executed: SQL via Supabase MCP under strict Rule #9 visibility, markdown ratifications under Rule #9 relaxation.
 
+---
+
+## 2026-05-03 ~17:50 EDT — Phase 2b real-shape verification GREEN + MI-AUDIT-3 filed
+
+**Decision:** Phase 2b refactor real-shape verification gate closed via Jorge's live tapcard submission. Found one new audit-noise bug in passing; filed as MI-AUDIT-3 for Lead's queue (does NOT ship today — requires audit trigger design work).
+
+**Verification subject:** Tapcard submission `1b37d77c-1ab1-43d0-a006-0a1cbe0510bf` on property `7d87c698-942c-42f3-abc5-47a4dfcbb206` (123 Oak Street, sector NJ6_NORMAL), submitted by `jorge.serrano@cpengineers.com` at 2026-05-03 17:43:28 UTC.
+
+**🟢 GREEN findings:**
+
+1. **`tapcard_data` jsonb shape correct** — all 3 expected keys present: `sector` (`NJ6_NORMAL`, matches joined property sector), `company_side` (fully populated with date, footer, material_installed[]), `materials_sheet_id_at_submit` (null — correct fallback when no Materials Sheet exists at submit time, confirmed by Jorge that he didn't fill out a Materials Sheet first).
+2. **CHECK constraints satisfied** — phase = 'tapcard' (valid in the 9-value enum), no compound invariants violated.
+3. **Multi-tenant isolation honored** — firm_id = CP Engineers throughout: phase_submissions row, all 3 audit_log rows, joined property.
+4. **Hash chain integrity holding** — all 3 audit_log rows have row_hash + prev_hash populated. INSERT (id 1389) → UPDATE (1390) → UPDATE (1391) chain intact.
+5. **Tapcard submitted without photos accepted** — confirms the locked whiteboard rule (whiteboard required ONLY for open-excavation phases like service_work/restoration/no_work, NOT for tapcard).
+
+**🟡 MI-AUDIT-3 — filed:** the 3 audit_log rows for one user submission revealed that 2 of the 3 are heartbeat sync pings, not real state changes. Diff analysis:
+
+| audit_log id | action | timestamp | actual_change |
+|---|---|---|---|
+| 1389 | INSERT | 17:43:28 | full row creation (40+ fields) |
+| 1390 | UPDATE | 17:43:32 (+4s) | ONLY `last_client_sync_at` (sync ping) |
+| 1391 | UPDATE | 17:43:52 (+24s) | ONLY `last_client_sync_at` (sync ping) |
+
+**Severity: P2 (medium).** Costs:
+- **Audit log inflation.** ~20s sync interval × open modal time × 14 inspectors → estimated 50%+ of current 288/24h baseline is heartbeat noise, not deliberate action.
+- **Q-7 math affected.** Yesterday's volume comparisons assumed each audit row = meaningful state change. Real meaningful rate is probably ~140/24h, not 288. Q-7 = C (Save Draft) call still correct, but the volume tradeoffs in the analysis were inflated. Not re-litigating; C remains locked.
+- **Compliance review interpretability degraded.** A future auditor pulling the chain for any property sees 2-3x the rows, mostly noise.
+
+**Three fix approaches (Lead picks at build time, surfaces in `decisions.md`):**
+
+- **A.** Modify `write_audit_log` trigger to skip UPDATEs where the only delta is `last_client_sync_at` (or any whitelisted heartbeat field).
+- **B.** Move `last_client_sync_at` to a separate non-audited heartbeat table referenced by id.
+- **C.** Stop writing the field on every sync — only on real state changes (client-side fix in `index.html`).
+
+Buddy lean: **B** is cleanest long-term (clean audit chain, isolated heartbeat data, no special-case trigger logic) but requires migration + schema change + client-side update. **A** is fastest and the right call if Lead wants to ship in <30 min. **C** is least invasive on prod but moves the bug client-side without fixing the root behavior.
+
+**Why NOT shipping today:** unlike MI-AUDIT-1 (3-line WHERE filter, isolated function), this touches audit chain plumbing. The hot trigger fires on every owner-data write. Special-case logic risks introducing audit gaps. Wants design, not a quick patch.
+
+**Other open Q to flag for Lead during MI-AUDIT-3 design:** are there OTHER fields besides `last_client_sync_at` that fall in the same heartbeat-not-state bucket? Plausibly: `last_seen_at`, `client_session_id`, `device_metadata` if they exist. Lead surveys before writing the fix.
+
+**Affects:** Phase 2b refactor verified working in field conditions. Saturday's biggest merge moves from "probably works" to "verified." MI-AUDIT-3 queued ahead of Lead's next sprint but behind active Track 2 work + Phase 2c first build.
+
+**Source:** Jorge live tapcard submission via Vercel preview on phone at ~13:43 EDT. Buddy verification via Supabase MCP `audit_log` diff query (jsonb_each comparing old_data vs new_data per row). Finding surfaced from the diff; not visible in the simpler shape-check.
+
