@@ -1553,12 +1553,20 @@ async function signup(){
   const code  = document.getElementById('signup-firm-code').value.trim().toUpperCase();
   if(!name||!email||!pass||!code){ showAuthError('Please fill all fields including firm code'); return; }
 
-  // Validate firm code BEFORE creating account
-  const {data:firm,error:firmError} = await sb.from('firms').select('id,name').eq('firm_code',code).maybeSingle();
-  if(firmError||!firm){
+  // MI-203 step 2: validate firm code via SECURITY DEFINER RPC instead of direct
+  // anon SELECT on firms. The RPC returns TABLE(firm_id, firm_name) so the result
+  // is an array; on no-match it's empty (no info-leak between "wrong" and "not found").
+  // Step 3 (Buddy) drops the firms_read_anon policy after this ships.
+  const {data:firms,error:firmError} = await sb.rpc('lookup_firm_by_code', { p_firm_code: code });
+  if(firmError){
+    showAuthError('Lookup failed; please try again.');
+    return;
+  }
+  if(!firms || firms.length === 0){
     showAuthError('Invalid firm code. Check with your supervisor.');
     return;
   }
+  const firm = firms[0]; // { firm_id, firm_name } — note column rename vs prior id/name
 
   const {data,error} = await sb.auth.signUp({
     email, password:pass,
@@ -1573,7 +1581,7 @@ async function signup(){
     const {error:profileError} = await sb.from('profiles').insert({
       id: data.user.id,
       full_name: name,
-      firm_id: firm.id,
+      firm_id: firm.firm_id,
       role: 'inspector'
     });
     if(profileError){
@@ -1583,7 +1591,7 @@ async function signup(){
     await sb.auth.signOut();
   }
 
-  showToast('Account created! Welcome to '+firm.name+'. Check your email to confirm.','success');
+  showToast('Account created! Welcome to '+firm.firm_name+'. Check your email to confirm.','success');
   showLogin();
 }
 
