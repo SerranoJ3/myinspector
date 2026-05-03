@@ -64,7 +64,7 @@ body{display:flex;flex-direction:column}
   padding:0 20px;flex-shrink:0;
 }
 /* Demo-mode banner: shown only when current firm has firm_safe_to_display=true.
-   Hidden by default so production firms (CP Engineers, Serrano Group) never see it. */
+   Hidden by default so production firms never see it. */
 .demo-banner{
   display:none;flex-shrink:0;background:linear-gradient(90deg,rgba(244,168,32,0.18),rgba(200,74,74,0.12));
   border-bottom:1px solid rgba(244,168,32,0.4);padding:8px 18px;
@@ -627,6 +627,15 @@ html,body{overflow-x:hidden}
 </head>
 <body>
 
+<!-- DEMO MODE BANNER — body-level so it renders on every route (auth screen,
+     post-login app, SPA fallback for /404 etc.). Demo branch ships with the
+     `visible` class baked in; production branch toggles via currentFirmIsDemo. -->
+<div class="demo-banner visible" id="demo-banner">
+  <span class="demo-banner-tag">Demo Mode</span>
+  <span class="demo-banner-text">Sample tenant data — illustrative records only.</span>
+  <span class="demo-banner-meta">No real customer firms or live compliance writes affected.</span>
+</div>
+
 <!-- AUTH SCREEN -->
 <div id="auth-screen">
   <div class="auth-card">
@@ -647,6 +656,12 @@ html,body{overflow-x:hidden}
       <div class="field-label">Password</div>
       <input class="field-input" type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')login()">
       <button class="btn-primary" onclick="login()">Sign In</button>
+      <button class="btn-primary" onclick="loginAsDemo()" style="margin-top:10px;background:transparent;border:1px solid var(--orange);color:var(--orange)">
+        Demo login (auto-fill super_admin)
+      </button>
+      <div class="auth-toggle" style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center">
+        Demo mode — sample tenant data only. No real customer firms.
+      </div>
       <div class="auth-toggle">No account? <a onclick="showSignup()">Create one</a></div>
     </div>
    <div id="signup-form" style="display:none">
@@ -666,12 +681,6 @@ html,body{overflow-x:hidden}
 
 <!-- MAIN APP -->
 <div id="app">
-  <!-- DEMO MODE BANNER — visible only when current firm has firm_safe_to_display=true -->
-  <div class="demo-banner" id="demo-banner">
-    <span class="demo-banner-tag">Demo Mode</span>
-    <span class="demo-banner-text">Sample tenant data — illustrative records only.</span>
-    <span class="demo-banner-meta">No real customer firms or live compliance writes affected.</span>
-  </div>
   <!-- TOP NAV -->
   <div class="topnav">
     <div class="nav-brand">
@@ -717,7 +726,7 @@ html,body{overflow-x:hidden}
           <div class="user-avatar" id="sidebar-avatar">?</div>
           <div>
             <div class="user-name" id="sidebar-name">Loading...</div>
-            <div class="user-role">Montana Construction</div>
+            <div class="user-role">Demo Tenant</div>
           </div>
         </div>
       </div>
@@ -966,7 +975,7 @@ html,body{overflow-x:hidden}
     </div>
     <div class="modal-field">
       <label class="modal-label">MapCall ID (optional)</label>
-      <input class="modal-input" type="text" id="prop-mapcall" placeholder="NJAW-XXXX">
+      <input class="modal-input" type="text" id="prop-mapcall" placeholder="UTIL-XXXX">
     </div>
     <div class="modal-field">
       <label class="modal-label">Sector</label>
@@ -976,7 +985,7 @@ html,body{overflow-x:hidden}
           <span class="sector-radio-sub">Default — CP / Essex County</span>
         </label>
         <label class="sector-radio" data-value="NJAW_SHORT_HILLS" onclick="selectPropSector('NJAW_SHORT_HILLS')">
-          <span class="sector-radio-name">NJAW Short Hills</span>
+          <span class="sector-radio-name">Service Area B</span>
           <span class="sector-radio-sub">Millburn / SH role-inversion</span>
         </label>
       </div>
@@ -1014,7 +1023,7 @@ html,body{overflow-x:hidden}
           <span class="sector-radio-sub">CP / Essex County</span>
         </label>
         <label class="sector-radio" data-value="NJAW_SHORT_HILLS" onclick="selectSectorEditTarget('NJAW_SHORT_HILLS')">
-          <span class="sector-radio-name">NJAW Short Hills</span>
+          <span class="sector-radio-name">Service Area B</span>
           <span class="sector-radio-sub">Millburn / SH role-inversion</span>
         </label>
       </div>
@@ -1254,13 +1263,13 @@ html,body{overflow-x:hidden}
   </div>
 </div>
 
-<!-- MI-109 CARLO AUTHORIZATION MODAL -->
+<!-- MI-109 SUPERVISOR AUTHORIZATION MODAL -->
 <div class="modal-overlay" id="modal-cs-auth">
   <div class="modal">
     <div class="modal-header">
       <div>
         <div class="modal-title">CS Replacement Authorization</div>
-        <div class="modal-sub">Carlo authorization required — CDM-Smith compliance, no exception</div>
+        <div class="modal-sub">Supervisor authorization required — compliance gate, no exception</div>
       </div>
       <button class="modal-close" onclick="cancelCsAuth()">✕</button>
     </div>
@@ -1279,7 +1288,7 @@ html,body{overflow-x:hidden}
     </div>
     <div class="modal-field">
       <label class="modal-label">Supervisor Name</label>
-      <input class="modal-input" type="text" id="cs-auth-supervisor" value="Carlo Domenick" oninput="validateCsAuth()">
+      <input class="modal-input" type="text" id="cs-auth-supervisor" value="Demo Supervisor" oninput="validateCsAuth()">
     </div>
     <div class="modal-field">
       <label class="modal-label">Reason <span id="cs-auth-reason-counter" style="font-size:10px;color:var(--muted);margin-left:6px">0 / 20 min</span></label>
@@ -1303,7 +1312,11 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 window.sb = sb;
 
 let currentUser = null;
-let currentFirmIsDemo = false; // set in initApp from profiles.firms.firm_safe_to_display — drives the demo-mode banner above topnav
+// Demo branch override: defaulted to TRUE so the banner is visible on /auth,
+// /404, and any pre-login route (banner sits at body level, visibility is
+// driven by `.demo-banner.visible` class which initApp / applyDemoBannerVisibility
+// preserves). Production-main branch starts this at false.
+let currentFirmIsDemo = true;
 let currentServiceType = null;
 let wbCurbstop = false;
 let wbWatermain = false;
@@ -1322,7 +1335,7 @@ let pendingCsAuth = null;
 // (PK conflict + audit-chain immutability prohibit deleting + reinserting).
 let phaseSubmissionInserted = false;
 
-// --- MI-108 No-Work submission state (CDM-Smith rule a) ---
+// --- MI-108 No-Work submission state (compliance rule a) ---
 let noWorkHousePhotoUrl = null;
 let noWorkWhiteboardPhotoUrl = null;
 let noWorkWhiteboardDetected = false;
@@ -1374,7 +1387,7 @@ function renderPhotoSlot(label, title, opts = {}) {
           <span style="font-size:10px;color:var(--muted)">
             ${label === 'restoration'
               ? 'Chain-of-custody — inspector on-site on this date'
-              : 'DEP/EPA/NJAW — open excavation compliance'}
+              : 'Regulatory — open excavation compliance'}
           </span>
         </div>
       </div>` : ''}
@@ -1422,7 +1435,7 @@ async function handlePhotoCapture(event, label, source) {
         photoSlotState[label].photos = photoSlotState[label].photos.filter(p => p !== localRecord);
         renderPhotoSlotThumbs(label);
         URL.revokeObjectURL(tempUrl);
-        showToast('No whiteboard detected in photo. Retake with whiteboard visible (DEP/EPA/NJAW compliance).', 'error');
+        showToast('No whiteboard detected in photo. Retake with whiteboard visible (regulatory compliance).', 'error');
         return;
       }
       // Auto-check the whiteboard box since AI verified it
@@ -1569,6 +1582,18 @@ async function login(){
   initApp(data.user);
 }
 
+// Demo branch only: one-click sign-in as the public super_admin demo account.
+// Credentials are documented in docs/demo-environment.md and rotated by the
+// demo-tenant maintenance cron. Do NOT promote this function to production
+// main — demo branch stays separate forever per the demo-tenant policy.
+function loginAsDemo(){
+  const emailEl = document.getElementById('login-email');
+  const passEl = document.getElementById('login-password');
+  if(emailEl) emailEl.value = 'demo-jorge@myinspector.io';
+  if(passEl) passEl.value = 'Demo2026!';
+  login();
+}
+
 async function signup(){
   const name  = document.getElementById('signup-name').value.trim();
   const email = document.getElementById('signup-email').value.trim();
@@ -1629,7 +1654,7 @@ async function logout(){
 
 // Toggles the demo-mode banner above the topnav. Driven by currentFirmIsDemo,
 // which is set in initApp from profiles.firms.firm_safe_to_display. Production
-// firms (CP Engineers, Serrano Group) keep firm_safe_to_display=false and
+// firms keep firm_safe_to_display=false and
 // never see the banner.
 function applyDemoBannerVisibility(){
   const banner = document.getElementById('demo-banner');
@@ -1676,7 +1701,7 @@ async function initApp(user){
       firmName = profile.firms?.name || null;
       isSuperAdmin = profile.role === 'super_admin';
       // firm_safe_to_display TRUE = this firm is the demo tenant; drives the demo-mode banner above topnav.
-      // Production firms (CP Engineers, Serrano Group) keep firm_safe_to_display=false and never see it.
+      // Production firms keep firm_safe_to_display=false and never see it.
       currentFirmIsDemo = profile.firms?.firm_safe_to_display === true;
     }
   } catch(e) {
@@ -2003,7 +2028,7 @@ async function saveProperty(){
   if(error){
     // CHECK guard — controlled UI shouldn't trigger this, but surface cleanly if it does
     if((error.message || '').includes('properties_sector_enum')){
-      showToast('Invalid sector value — pick NJ6 Normal or NJAW Short Hills.', 'error');
+      showToast('Invalid sector value — pick NJ6 Normal or Service Area B.', 'error');
     } else {
       showToast('Error: ' + error.message, 'error');
     }
@@ -2096,7 +2121,7 @@ function renderDynamicFields(type){
       <div class="modal-row">
         <div class="modal-field"><label class="modal-label">Work Order Number</label>
           <input class="modal-input" id="f-wo-number" placeholder="WO-2026-XXXX"></div>
-        <div class="modal-field"><label class="modal-label">Work Description Code <span style="font-size:10px;color:var(--muted);text-transform:none;letter-spacing:0">CP Engineers</span></label>
+        <div class="modal-field"><label class="modal-label">Work Description Code <span style="font-size:10px;color:var(--muted);text-transform:none;letter-spacing:0">Internal classification</span></label>
           <select class="modal-select" id="f-wo-code">
             <option value="">Select code</option>
             <option value="LSL-R">LSL-R — Lead service line replacement</option>
@@ -2106,7 +2131,7 @@ function renderDynamicFields(type){
           </select></div>
       </div>
       <div class="modal-field">
-        <label class="modal-label">NJAW Classification <span style="font-size:10px;color:var(--muted);text-transform:none;letter-spacing:0">utility-side code, optional</span></label>
+        <label class="modal-label">Utility Classification <span style="font-size:10px;color:var(--muted);text-transform:none;letter-spacing:0">utility-side code, optional</span></label>
         <select class="modal-select" id="f-njaw-code">
           <option value="">Not specified</option>
           <option value="M2C">M2C — Main to Curb</option>
@@ -2198,13 +2223,13 @@ function renderDynamicFields(type){
     </div>`;
   }
 
-  // MI-108: No-Work submission (CDM-Smith rule a) — house + whiteboard photo + reason; no CS toggle
+  // MI-108: No-Work submission (compliance rule a) — house + whiteboard photo + reason; no CS toggle
   if(type==='no_work'){
     const reasonLen = (noWorkReason || '').trim().length;
     const housePending = !!noWorkHousePhotoUrl;
     const wbPending = !!noWorkWhiteboardPhotoUrl;
     html+=`<div class="form-section">
-      <div class="form-section-title">No-Work Submission — CDM-Smith Rule (a)</div>
+      <div class="form-section-title">No-Work Submission — Compliance Rule (a)</div>
       <div class="alert alert-orange" style="margin-bottom:12px">
         <div><span class="alert-title">House photo + whiteboard photo + reason required</span>Inspector showed up, no excavation took place. All four fields enforced server-side.</div>
       </div>
@@ -2255,7 +2280,7 @@ function renderDynamicFields(type){
         <div class="wb-checkbox" id="cs-replacement-box"></div>
         <div class="wb-check-label">
           CS replacement performed<br>
-          <span style="font-size:10px;color:var(--muted)">Carlo authorization required — CDM-Smith compliance</span>
+          <span style="font-size:10px;color:var(--muted)">Supervisor authorization required — compliance gate</span>
         </div>
       </div>
       <div id="cs-auth-summary" style="display:none;font-size:11px;color:var(--green);padding:6px 14px"></div>
@@ -2326,12 +2351,12 @@ function openCsAuthModal(){
   if(pendingCsAuth){
     dateEl.value = pendingCsAuth.authorization_date || '';
     timeEl.value = pendingCsAuth.authorization_time || '';
-    supEl.value = pendingCsAuth.supervisor_name || 'Carlo Domenick';
+    supEl.value = pendingCsAuth.supervisor_name || 'Demo Supervisor';
     reasonEl.value = pendingCsAuth.reason || '';
   } else {
     dateEl.value = '';
     timeEl.value = '';
-    supEl.value = 'Carlo Domenick';
+    supEl.value = 'Demo Supervisor';
     reasonEl.value = '';
   }
   if(errEl){ errEl.style.display = 'none'; errEl.textContent = ''; }
@@ -2386,7 +2411,7 @@ function showCsAuthModalError(message){
   }
 }
 
-// ── MI-108 NO-WORK SUBMISSION (CDM-Smith rule a) ──────
+// ── MI-108 NO-WORK SUBMISSION (compliance rule a) ──────
 function resetNoWorkState(){
   noWorkHousePhotoUrl = null;
   noWorkWhiteboardPhotoUrl = null;
@@ -2505,7 +2530,7 @@ async function handleNoWorkWhiteboardPhoto(event){
         statusEl.innerHTML = '&#10003; Uploaded — whiteboard verified';
         statusEl.className = 'nw-photo-status ok';
       } else {
-        statusEl.innerHTML = '&#9888; Uploaded, but no whiteboard detected. Retake with whiteboard visible (CDM-Smith rule a).';
+        statusEl.innerHTML = '&#9888; Uploaded, but no whiteboard detected. Retake with whiteboard visible (compliance rule a).';
         statusEl.className = 'nw-photo-status err';
       }
     }
@@ -2548,7 +2573,7 @@ async function submitNoWorkPhase(propId){
     return;
   }
   if(!noWorkWhiteboardDetected){
-    showToast('Whiteboard not detected in photo — retake with whiteboard visible (CDM-Smith rule a).', 'error');
+    showToast('Whiteboard not detected in photo — retake with whiteboard visible (compliance rule a).', 'error');
     return;
   }
   if(reasonLen < 20){
@@ -2605,7 +2630,7 @@ async function submitPhase(){
   for (const label of wbRequiredLabels) {
     const state = photoSlotState[label];
     if (state && state.photos.length > 0 && !state.whiteboardVisible) {
-      showToast(label.replace(/_/g,' ') + ' photos require whiteboard confirmation — DEP/EPA/NJAW mandate', 'error');
+      showToast(label.replace(/_/g,' ') + ' photos require whiteboard confirmation — regulatory mandate', 'error');
       return;
     }
   }
@@ -2639,7 +2664,7 @@ async function submitPhase(){
 
   // MI-109: if CS replacement toggle is ON, auth must be captured before submit
   if(csReplacementToggle && !pendingCsAuth){
-    showToast('CS replacement requires Carlo authorization — open the form to complete.', 'error');
+    showToast('CS replacement requires supervisor authorization — open the form to complete.', 'error');
     return;
   }
 
@@ -2652,7 +2677,7 @@ async function submitPhase(){
     phaseSubmissionInserted = true;
   }
 
-  // MI-109: If CS replacement performed, call the RPC to record Carlo authorization.
+  // MI-109: If CS replacement performed, call the RPC to record supervisor authorization.
   // The RPC is the only path that sets cs_replacement=true on phase_submissions and
   // inserts the cs_replacement_authorizations row. Inspector cannot bypass.
   if(csReplacementToggle && pendingCsAuth){
@@ -3073,7 +3098,7 @@ async function openPropertyDetail(propertyId){
 
   const sectorVal = prop.sector || 'NJ6_NORMAL';
   const sectorClass = sectorVal === 'NJAW_SHORT_HILLS' ? 'sector-short-hills' : 'sector-nj6';
-  const sectorLabel = sectorVal === 'NJAW_SHORT_HILLS' ? 'NJAW Short Hills' : 'NJ6 Normal';
+  const sectorLabel = sectorVal === 'NJAW_SHORT_HILLS' ? 'Service Area B' : 'NJ6 Normal';
 
   document.getElementById('pd-header-grid').innerHTML = `
     <div class="pd-stat"><div class="pd-stat-label">Current Phase</div>
@@ -3223,7 +3248,7 @@ let pendingSectorEdit = null;
 function openSectorEditModal(propId, currentSector){
   pendingSectorEdit = { propId, currentSector, target: null };
   const fromEl = document.getElementById('sector-edit-from');
-  const fromLabel = currentSector === 'NJAW_SHORT_HILLS' ? 'NJAW Short Hills' : 'NJ6 Normal';
+  const fromLabel = currentSector === 'NJAW_SHORT_HILLS' ? 'Service Area B' : 'NJ6 Normal';
   if(fromEl) fromEl.textContent = fromLabel + ' (' + currentSector + ')';
 
   // Reset target selection — pre-select the OPPOSITE sector since the user
@@ -3273,7 +3298,7 @@ async function confirmSectorEdit(){
     const msg = error.message || '';
     let userMsg;
     if(msg.includes('properties_sector_enum')){
-      userMsg = 'Invalid sector value — only NJ6 Normal and NJAW Short Hills are accepted.';
+      userMsg = 'Invalid sector value — only NJ6 Normal and Service Area B are accepted.';
     } else {
       userMsg = 'Sector update failed: ' + msg;
     }
@@ -3283,7 +3308,7 @@ async function confirmSectorEdit(){
     return;
   }
 
-  showToast('Sector updated to ' + (target === 'NJAW_SHORT_HILLS' ? 'NJAW Short Hills' : 'NJ6 Normal') + '.', 'success');
+  showToast('Sector updated to ' + (target === 'NJAW_SHORT_HILLS' ? 'Service Area B' : 'NJ6 Normal') + '.', 'success');
   pendingSectorEdit = null;
   document.getElementById('modal-sector-edit').classList.remove('open');
 
@@ -3758,7 +3783,7 @@ You help inspectors and PMs with:
 - MapCall data entry requirements
 - ADA: max ramp slope 1:12 (8.33%), truncated domes required, min 36in curb cut width
 - Roadway: asphalt ratings, Belgian block pointing, pavement distress
-- DEP, EPA, NJAW regulatory requirements
+- Regulatory requirements (DEP, EPA, utility-side)
 - Construction PM: daily reports, RFIs, billable hour documentation
 
 Be concise and direct. Inspectors are in the field. Use bullet points for lists.`;
