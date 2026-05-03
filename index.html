@@ -1716,10 +1716,13 @@ async function loadDashboard(){
     const phaseClass = 'ph-'+(s.phase||'pending').replace(/_/g,'');
     const dt = new Date(s.submitted_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
     const wb = (s.photo_curbstop_whiteboard||s.photo_watermain_whiteboard||s.photo_restoration_whiteboard)?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--muted)">—</span>';
+    // MI-column-fix v2: combined Work Code cell shows CP code + NJAW code when present
+    // (Jorge's save/reload/confirm-value-persists loop now has UI signal, not just DB query)
+    const codeCell = (s.work_order_code || '—') + (s.njaw_work_order_code ? ` <span style="color:var(--blue-light)">/ ${s.njaw_work_order_code}</span>` : '');
     html+=`<tr>
       <td><div style="font-weight:600;color:var(--white)">${addr}</div><div style="font-size:11px;color:var(--muted)">${city}</div></td>
       <td><span class="phase-badge ${phaseClass}">${(s.phase||'pending').replace(/_/g,' ')}</span></td>
-      <td style="font-size:12px;color:var(--muted)">${s.work_order_code||'—'}</td>
+      <td style="font-size:12px;color:var(--muted)">${codeCell}</td>
       <td style="font-size:12px;color:var(--muted)">${dt}</td>
       <td>${wb}</td>
     </tr>`;
@@ -2763,10 +2766,12 @@ function renderAllSubmissions(data){
     const wb=(s.photo_curbstop_whiteboard||s.photo_watermain_whiteboard||s.photo_restoration_whiteboard)?
       '<span style="color:var(--green);font-weight:600">✓ Yes</span>':'<span style="color:var(--muted)">N/A</span>';
     const oos=s.out_of_sequence?'<span style="color:var(--orange);font-size:11px">Flagged</span>':'<span style="color:var(--muted)">—</span>';
+    // MI-column-fix v2: combined Work Code cell shows CP + NJAW when both present
+    const codeCell = (s.work_order_code || '—') + (s.njaw_work_order_code ? ` <span style="color:var(--blue-light)">/ ${s.njaw_work_order_code}</span>` : '');
     html+=`<tr onclick="openPropertyDetail('${s.property_id}')">
       <td><div style="font-weight:600;color:var(--white)">${addr}</div><div style="font-size:11px;color:var(--muted)">${city}</div></td>
       <td><span class="phase-badge ${phClass}">${(s.phase||'—').replace(/_/g,' ')}</span></td>
-      <td style="font-size:12px;color:var(--muted)">${s.work_order_code||'—'}</td>
+      <td style="font-size:12px;color:var(--muted)">${codeCell}</td>
       <td>${wb}</td><td>${oos}</td>
       <td style="font-size:12px;color:var(--muted)">${dt}</td>
     </tr>`;
@@ -3098,6 +3103,8 @@ async function openPropertyDetail(propertyId){
       : '<span class="pd-sub-wb no">No WB</span>';
     const oosPill = s.out_of_sequence ? '<span class="pd-sub-oos">⚠ Out of Sequence</span>' : '';
     const woCodePill = s.work_order_code ? `<span style="font-size:10px;background:rgba(244,168,32,0.15);color:var(--orange);padding:2px 8px;border-radius:99px;font-weight:700">${s.work_order_code}</span>` : '';
+    // MI-column-fix v2: NJAW classification pill, separate color from CP code so they read as parallel axes
+    const njawCodePill = s.njaw_work_order_code ? `<span style="font-size:10px;background:rgba(74,124,196,0.15);color:var(--blue-light);padding:2px 8px;border-radius:99px;font-weight:700;margin-left:4px">NJAW: ${s.njaw_work_order_code}</span>` : '';
 
     // Combine new-style JSONB photos + legacy single-URL columns
     let photos = Array.isArray(s.photos) ? [...s.photos] : [];
@@ -3137,6 +3144,7 @@ async function openPropertyDetail(propertyId){
             <span class="pd-caret">▶</span>
             <span class="phase-badge ${phClass}">${(s.phase||'pending').replace(/_/g,' ')}</span>
             ${woCodePill}
+            ${njawCodePill}
             ${wbPill}
             ${oosPill}
           </div>
