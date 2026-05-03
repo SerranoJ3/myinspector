@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyInspector v1.0 — Progress Pie (2026-05-02)</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: #0f1117;
+    color: #e6e8eb;
+    margin: 0;
+    padding: 32px 16px 64px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+  .container { max-width: 880px; width: 100%; }
+  header { text-align: center; margin-bottom: 8px; }
+  h1 { font-size: 24px; margin: 0 0 8px; font-weight: 600; }
+  .subtitle { font-size: 13px; color: #98a2b3; margin: 0; }
+  .chart-wrapper {
+    display: flex;
+    justify-content: center;
+    margin: 24px 0 8px;
+  }
+  svg { display: block; }
+  .center-pct {
+    text-anchor: middle;
+    dominant-baseline: middle;
+    fill: #e6e8eb;
+    font-size: 60px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .center-label {
+    text-anchor: middle;
+    dominant-baseline: middle;
+    fill: #98a2b3;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  .legend {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 32px;
+    margin-top: 24px;
+    font-size: 13px;
+  }
+  .legend-section {
+    grid-column: span 2;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-top: 16px;
+    margin-bottom: 4px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #2a2f3a;
+    display: flex;
+    justify-content: space-between;
+  }
+  .legend-section.done { color: #5cb95c; }
+  .legend-section.remaining { color: #e76f51; }
+  .legend-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid #1a1d27;
+  }
+  .swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .row-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .row-label { color: #e6e8eb; }
+  .row-note {
+    font-size: 11px;
+    color: #6b7280;
+    line-height: 1.4;
+  }
+  .pct {
+    color: #98a2b3;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+  .summary {
+    margin-top: 32px;
+    font-size: 13px;
+    color: #98a2b3;
+    line-height: 1.7;
+    border-top: 1px solid #2a2f3a;
+    padding-top: 20px;
+  }
+  .summary strong { color: #e6e8eb; font-weight: 600; }
+  .summary p { margin: 0 0 14px; }
+  .summary p:last-child { margin: 0; }
+  .meta {
+    margin-top: 24px;
+    font-size: 11px;
+    color: #6b7280;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  @media (max-width: 600px) {
+    .legend { grid-template-columns: 1fr; gap: 4px 0; }
+    .legend-section { grid-column: span 1; }
+    svg { max-width: 100%; height: auto; }
+    h1 { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>MyInspector v1.0 — Progress Pie</h1>
+    <p class="subtitle">As of 2026-05-02 PM EDT • full operational app scope (7 modules + BidGrid enterprise + residential + integrations + billing)</p>
+  </header>
+
+  <div class="chart-wrapper">
+    <svg viewBox="0 0 400 400" width="380" height="380" id="pie"></svg>
+  </div>
+
+  <div class="legend" id="legend"></div>
+
+  <div class="summary">
+    <p><strong>~30% of full v1.0 scope is complete.</strong> The compliance foundation, multi-tenant auth, dashboard layer, and Water Utility LCRI workflow are bulletproof and production-verified. Construction PM Oversight backend (the patent-claim GPS module) is shipped but its frontend has not started. The other five modules (Wastewater/Sewer, Roadway/Pavement, ADA Compliance, Electrical Engineering, Structural Engineering) have only the shared foundation infrastructure beneath them — zero module-specific forms, workflows, or UIs yet.</p>
+    <p>Largest remaining buckets: <strong>BidGrid enterprise tier integration</strong> (10% — the AI proposal/RFP engine that justifies $1k–$2k/mo enterprise pricing), the <strong>five non-water-utility modules</strong> (25% combined), and <strong>billing infrastructure</strong> (7% — Stripe subscriptions, plan tiers, customer billing portal). Integrations (Procore, Bluebeam, Jobber) sit at 5%.</p>
+    <p>Cross-checked against STATE.md velocity benchmark (~4 min/milestone, 57–78 sessions to v1.0): 30% complete maps to roughly 17–23 sessions of the projected total. Tracks with founding-day estimate of aggressive target mid-June 2026, realistic mid-July 2026.</p>
+    <p style="font-size: 12px; color: #6b7280;">Slice weights are Buddy's estimate based on locked PLATFORM SCOPE in CLAUDE.md/memory. Push back on any weight that doesn't match field reality — these are inputs to a pie, not a contract.</p>
+  </div>
+
+  <div class="meta">Generated by Buddy • 2026-05-02 • Hover slices for detail</div>
+</div>
+
+<script>
+  const slices = [
+    // DONE — 30%
+    { label: "Foundation / Infrastructure", pct: 16, color: "#1a7f3e", group: "done",
+      note: "auth + signup, RLS forced on 24 tables, 5-layer audit chain (1,063+ entries, 0 broken hashes), photo pipeline w/ compression, dashboard layer + 5 reporting RPCs, demo tenant, soft-delete views, Luis AI proxy, .coordination/ channel" },
+    { label: "Water Utility — LCRI workflow", pct: 10, color: "#2e9c52", group: "done",
+      note: "MI-100 sector toggle CLOSED, MI-108 No-Work workflow CLOSED, MI-109 CS Auth Gate CLOSED, materials_sheets backend Phases 1a-1e shipped (48 cols, 19 CHECK constraints), 79/79 schema tests passing" },
+    { label: "Construction PM — backend (patent-claim)", pct: 4, color: "#5cb95c", group: "done",
+      note: "4 tables (projects, contractor_assignments, contractor_arrival_log, contractor_departure_log), compute_contractor_billable_hours engine, legal_holds workflow first-time-verified end-to-end" },
+
+    // REMAINING — 70%
+    { label: "Foundation gaps", pct: 4, color: "#fbbf24", group: "remaining",
+      note: "super_admin user/firm management UI, transactional email, error monitoring (Sentry), audit export UX, system-table audit chain hardening (banked)" },
+    { label: "MI-101 Phase 2a UI + tapcard cluster", pct: 8, color: "#f4a261", group: "remaining",
+      note: "Materials Sheet UI (Lead's queue), MI-101.5 dual-mode entry, MI-102 ShortHills UI w/ role inversion, MI-104 admin override, MI-107 KILL subtypes + tiered rule engine" },
+    { label: "Construction PM — frontend", pct: 6, color: "#e76f51", group: "remaining",
+      note: "PM dashboard, contractor assignment UI, GPS arrival/departure capture flow, billable-hours review/approval, project lifecycle UX" },
+    { label: "Wastewater / Sewer module", pct: 5, color: "#dc2626", group: "remaining",
+      note: "0% — only shared foundation underneath; needs domain-specific forms, inspection types, regulatory rules" },
+    { label: "Roadway / Pavement module", pct: 5, color: "#c52a2a", group: "remaining",
+      note: "0% — pavement condition surveys, pothole tracking, line painting, signage" },
+    { label: "ADA Compliance module", pct: 5, color: "#b22222", group: "remaining",
+      note: "0% — ramp slopes, curb cuts, accessible parking, restroom audits" },
+    { label: "Electrical Engineering module", pct: 5, color: "#9b1c1c", group: "remaining",
+      note: "0% — panel inspections, grounding checks, circuit testing" },
+    { label: "Structural Engineering module", pct: 5, color: "#7f1d1d", group: "remaining",
+      note: "0% — bridge/building inspection workflows, load assessments, deficiency tracking" },
+    { label: "BidGrid enterprise tier integration", pct: 10, color: "#7c3aed", group: "remaining",
+      note: "AI RFP→scope→price→PDF, CRM hooks (Procore, Bluebeam) — justifies enterprise pricing $1k–$2k/mo" },
+    { label: "Residential inspection module", pct: 5, color: "#6d28d9", group: "remaining",
+      note: "AI aerial measurement + scoping for pre/post-sale; Tyler as potential domain lead per memory" },
+    { label: "Integrations (Procore, Bluebeam, Jobber)", pct: 5, color: "#5b21b6", group: "remaining",
+      note: "External CRM/data pipeline plumbing; both BidGrid and MyInspector benefit" },
+    { label: "Billing (Stripe subscriptions, plan tiers)", pct: 7, color: "#4c1d95", group: "remaining",
+      note: "tier management ($99/$299/$599 etc.), subscription lifecycle, payment flow, customer-facing billing portal, dunning" }
+  ];
+
+  const total = slices.reduce((sum, s) => sum + s.pct, 0);
+  const doneTotal = slices.filter(s => s.group === "done").reduce((sum, s) => sum + s.pct, 0);
+  const remainingTotal = slices.filter(s => s.group === "remaining").reduce((sum, s) => sum + s.pct, 0);
+
+  const cx = 200, cy = 200, R_outer = 180, R_inner = 90;
+  const svg = document.getElementById("pie");
+  const NS = "http://www.w3.org/2000/svg";
+
+  let angle = -Math.PI / 2; // 12 o'clock
+
+  slices.forEach(slice => {
+    const sliceAngle = (slice.pct / 100) * 2 * Math.PI;
+    const endAngle = angle + sliceAngle;
+
+    const x1 = cx + R_outer * Math.cos(angle);
+    const y1 = cy + R_outer * Math.sin(angle);
+    const x2 = cx + R_outer * Math.cos(endAngle);
+    const y2 = cy + R_outer * Math.sin(endAngle);
+    const x3 = cx + R_inner * Math.cos(endAngle);
+    const y3 = cy + R_inner * Math.sin(endAngle);
+    const x4 = cx + R_inner * Math.cos(angle);
+    const y4 = cy + R_inner * Math.sin(angle);
+    const largeArc = sliceAngle > Math.PI ? 1 : 0;
+
+    const d = [
+      `M ${x1.toFixed(2)} ${y1.toFixed(2)}`,
+      `A ${R_outer} ${R_outer} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`,
+      `L ${x3.toFixed(2)} ${y3.toFixed(2)}`,
+      `A ${R_inner} ${R_inner} 0 ${largeArc} 0 ${x4.toFixed(2)} ${y4.toFixed(2)}`,
+      `Z`
+    ].join(" ");
+
+    const path = document.createElementNS(NS, "path");
+    path.setAttribute("d", d);
+    path.setAttribute("fill", slice.color);
+    path.setAttribute("stroke", "#0f1117");
+    path.setAttribute("stroke-width", "1.5");
+
+    const title = document.createElementNS(NS, "title");
+    title.textContent = `${slice.label}: ${slice.pct}% — ${slice.note}`;
+    path.appendChild(title);
+
+    svg.appendChild(path);
+    angle = endAngle;
+  });
+
+  const centerPct = document.createElementNS(NS, "text");
+  centerPct.setAttribute("x", cx);
+  centerPct.setAttribute("y", cy - 6);
+  centerPct.setAttribute("class", "center-pct");
+  centerPct.textContent = doneTotal + "%";
+  svg.appendChild(centerPct);
+
+  const centerLabel = document.createElementNS(NS, "text");
+  centerLabel.setAttribute("x", cx);
+  centerLabel.setAttribute("y", cy + 28);
+  centerLabel.setAttribute("class", "center-label");
+  centerLabel.textContent = "complete";
+  svg.appendChild(centerLabel);
+
+  const legendEl = document.getElementById("legend");
+
+  const doneHeader = document.createElement("div");
+  doneHeader.className = "legend-section done";
+  doneHeader.innerHTML = `<span>Done</span><span>${doneTotal}%</span>`;
+  legendEl.appendChild(doneHeader);
+
+  slices.filter(s => s.group === "done").forEach(slice => {
+    const row = document.createElement("div");
+    row.className = "legend-row";
+    row.innerHTML = `
+      <div class="swatch" style="background:${slice.color}"></div>
+      <div class="row-content">
+        <div class="row-label">${slice.label}</div>
+        <div class="row-note">${slice.note}</div>
+      </div>
+      <div class="pct">${slice.pct}%</div>
+    `;
+    legendEl.appendChild(row);
+  });
+
+  const remainingHeader = document.createElement("div");
+  remainingHeader.className = "legend-section remaining";
+  remainingHeader.innerHTML = `<span>Remaining</span><span>${remainingTotal}%</span>`;
+  legendEl.appendChild(remainingHeader);
+
+  slices.filter(s => s.group === "remaining").forEach(slice => {
+    const row = document.createElement("div");
+    row.className = "legend-row";
+    row.innerHTML = `
+      <div class="swatch" style="background:${slice.color}"></div>
+      <div class="row-content">
+        <div class="row-label">${slice.label}</div>
+        <div class="row-note">${slice.note}</div>
+      </div>
+      <div class="pct">${slice.pct}%</div>
+    `;
+    legendEl.appendChild(row);
+  });
+</script>
+</body>
+</html>

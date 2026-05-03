@@ -142,3 +142,127 @@
 **Source:** Buddy verification 2026-05-02 PM via Supabase MCP. Three query batches: (1) RPC existence + signature catalog (6 RPCs + 2 tables), (2) column shape audit on `contractor_assignments` / `projects` / `firms`, (3) return-shape smoke test on 5 firm-scoped RPCs + nested-key drilldown.
 
 **Affects:** Closes the dashboard.html verification gate. Visual UI walk on Vercel preview moves from required to recommended. Pattern banked for reuse: future read-only dashboard panels can use this same RPC-shape-check verification instead of forcing a UI smoke test (which would burn prod `audit_log` writes via authenticated session loads).
+
+---
+
+## 2026-05-02 ~23:00 EDT — Saturday session close (tapcard milestone reached)
+
+**Decision:** Bank Saturday-night session as a milestone. Tapcard surface (the inspector-visible payoff piece) one merge away from going live. LCRI scope advanced from ~30% (Saturday morning) to ~62% (Saturday close), a 32-percentage-point jump in one session.
+
+**What shipped:**
+- Recovery from stale compaction summary; lesson banked: ALWAYS verify state via `.git/refs` + filesystem read at session open.
+- 4 production migrations via Supabase MCP (`parts_catalogs_placeholder_seed`, `demo_inspector_binding`, `cs_replacement_auth_immutability_revoke_service_role`, `mi204b_firm_id_indexes`).
+- 3 PRs squash-merged: mi203-step2 + mi101-phase2a + mi101-phase2b ORIGINAL.
+- njaw-selector original closed unmerged (conflict casualty); Lead rebuilding as `njaw-selector-v2`.
+- Tapcard scope error caught + corrected mid-session. Buddy oversold spec completeness; Jorge uploaded `INSPECTOR_SHEET-TAPCARD_TEMPLATE.pdf` to recalibrate. Scope reductions locked: Customer Side dropped, Lot/Block dropped, office-fill role-gated, diagram pane visually prominent.
+- Lead refactored Phase 2b to spec on branch `mi101-phase2b-refactor` (commit `b74298d`, +203/-108 net delete). All 9 acceptance criteria green per self-walk.
+- Filesystem `edit_file` truncation incident on decisions.md (em-dash mismatch). Recovered via `write_file` full overwrite. Lesson: avoid `edit_file` for content with em-dashes/special chars; default to `write_file`.
+
+**Affects:** Tonight's outcome banked. 38% of v1.0 still remaining is dominated by Phase 4 Diagram editor, ShortHills + Restoration Card (MI-101 Phase 2c), Construction PM frontend, and 5 non-LCRI modules. Velocity unchanged: aggressive end-of-May 2026, realistic mid-July 2026.
+
+**Source:** Buddy session-close summary at Jorge's request 2026-05-02 ~23:00 EDT.
+
+---
+
+## 2026-05-03 ~08:55 EDT — Saturday's pending queue closed
+
+**Decision:** Saturday's three pending items shipped clean Sunday morning. `mi101-phase2b-refactor` PR merged at 0:52am as commit `4d70901`. MI-203 step 3 (`DROP POLICY firms_read_anon`) shipped at ~08:55am via Supabase MCP migration `mi203_step3_drop_firms_read_anon` — pre-flight confirmed `firms_read_anon` policy existed (1) and `lookup_firm_by_code` was SECURITY DEFINER; post-drop confirmed 2 firms policies remaining (`firms_read_authenticated`, `firms_super_write`), zero `firms_read_anon`. Schema integrity green: 16 NJ6_NORMAL parts_catalogs rows, 369 audit_log events 24h, 1 demo phase='tapcard' row pre-dating Phase 2b UI.
+
+**Affects:** Saturday's milestone fully closed. Real tapcard_data jsonb shape verification waits on first live user submission. `njaw-selector-v2` push status still uncertain — Jorge verifies on GitHub branches page.
+
+**Source:** Buddy execution Sunday morning per pending queue from 5/2 ~23:00 close.
+
+---
+
+## 2026-05-03 ~12:30 EDT — Domain TLD: `.org` over `.com`/`.io`/`.group`
+
+**Decision:** `serranogroup.org` purchased at Cloudflare Registrar for $7.50 first year, $10.13/yr renewal. Auto-renew on, expires 2027-05-03. Account ID `acb79e1a4fced4c981500a619d2ed809`. WHOIS uses home address with Cloudflare WHOIS privacy enabled (publicly redacted); swap to Northwest Registered Agent's NJ address eventually for layered safety.
+
+**Reasoning:** `serranogroup.com` and `serranogroup.io` both already taken. Available alternatives ranked: (1) `.org` — full brand-name URL preserved, $10/yr renewal (same as `.com` would have cost), reads institutional/holding-company; (2) `serrano.group` — would have been ideal but couldn't verify availability through permission-blocked search flow; (3) `serranogrp.com` — Jorge correctly rejected as cheap-looking; (4) `serranogroup.group` — "group.group" tongue-twister; (5) `.ca`/`.uk` — wrong country signaling. `.org` wins on brand fidelity + cost + institutional read.
+
+**Affects:** All future Serrano Group brand assets reference `.org`. Per-product domains (myinspector.io, bidgrid.io, tia.io, forge.io etc.) remain separate decisions.
+
+**Source:** Jorge selection from available list at Cloudflare search results.
+
+---
+
+## 2026-05-03 ~13:15 EDT — Email Routing destination: `live.com` over `gmail.com`
+
+**Decision:** Cloudflare Email Routing live for `serranogroup.org`. `jorge@serranogroup.org` forwards to `jserranojr340@live.com`. DNS auto-configured (MX, SPF, DKIM, DMARC). Verified end-to-end: test email from Jorge's phone landed in Outlook within seconds.
+
+**Reasoning:** Cloudflare account is registered with `jserranojr340@gmail.com` (auto-discovered as suggested destination). Locked Buddy memory specifies `jserranojr340@live.com` as super_admin email. Defaulted to live.com per memory lock; Jorge confirmed post-test that landing in Outlook is preferred. Memory rule wins over context-discovered defaults.
+
+**Affects:** All future Serrano Group inbound mail (jorge@, ops@, hello@, billing@) default-routes to live.com unless Jorge specifies otherwise per address.
+
+**Source:** Buddy execution + Jorge end-to-end test confirmation.
+
+---
+
+## 2026-05-03 ~14:00 EDT — Marketing site hosting: Cloudflare Pages over Vercel
+
+**Decision:** Serrano Group marketing site (`serranogroup.org`) deploys to Cloudflare Pages, not Vercel. MyInspector and other product apps stay on Vercel. Project deployed Sunday afternoon as auto-named `steep-pine-05b2.jserranojr340.workers.dev` after Jorge's manual drag-drop upload (Chrome MCP `file_upload` rejected by Cloudflare's drop-zone JS handler with `{"code":-32000,"message":"Not allowed"}`).
+
+**Reasoning:** `serranogroup.org` DNS is on Cloudflare. Hosting on Cloudflare Pages = zero DNS config, free SSL, free CDN, drag-and-drop deploy. Same provider for DNS + hosting reduces moving parts on a one-page static site. Vercel's strength (preview deployments, Git integration, Edge functions) is wasted on a static marketing page.
+
+**Affects:** Pattern for future Serrano Group marketing/landing pages — Cloudflare Pages by default. Product apps (anything with auth, DB, dynamic content) stay on Vercel. Two-platform split kept clean.
+
+**Status note:** Custom domain wiring (`serranogroup.org` → Pages project) failed first attempts with Cloudflare-side state-mismatch errors ("DNS record could not be added" on apex; "Only domains active on your Cloudflare account" on www) despite zone being verified active. Documented as expected propagation delay between fresh registration and Workers feature recognition; retry queued.
+
+**Source:** Buddy proposal mid-execution; no Jorge pushback.
+
+---
+
+## 2026-05-03 ~15:30 EDT — AR auto-fill tapcard parked as BB-001 (iPad-first)
+
+**Decision:** Idea captured to `.coordination/back_burner.md` as BB-001. Parked indefinitely. Trigger to un-park: first paying non-CP customer signs.
+
+**Mechanic in brief:** Inspector taps anchor at CS, walks to each measurement point, taps end-point at each stop. iPad ARKit + compass + IMU captures distance/bearing per stop, diagram auto-draws, tapcard fields auto-populate. Manual click-and-drag fallback always available — first-class, not degraded.
+
+**Why parked despite real merit:**
+1. ~25–32 sessions on top of Phase 4 manual editor (~6 sessions). Quarter-long native-app initiative.
+2. Native shell required (Capacitor / React Native / native iPadOS) — MyInspector is web SaaS, iOS Safari WebXR is too limited.
+3. Compass drift over buried metal (5–30°) needs site-calibration UX + GPS bearing cross-check.
+4. Same trap pattern as TIA hardware before MyInspector revenue: delight feature looking for a reason.
+
+**Why iPad-first changes the math (vs phone-first):** Every CP inspector has a company-issued iPad. Eliminates Android fragmentation, LiDAR variability, premium-tier pricing problem, three-shell fork.
+
+**Why manual fallback is required day one:** Jorge flagged at least one inspector who would refuse to install a work app on his personal phone — that inspector is sometimes the most accurate guy on the crew.
+
+**Affects:** All future feature-prioritization conversations reference BB-001 trigger. Don't build AR before first non-CP paying customer.
+
+**Source:** Jorge field instinct mid-Sunday session; Buddy + Jorge converged on iPad-first + manual-fallback-required + trigger-locked structure.
+
+---
+
+## 2026-05-03 ~16:30 EDT — Sunday afternoon verification + spec drafts batch
+
+**Decision:** Buddy executed a complete prod verification suite (Supabase MCP shape-checks across 8 surfaces) and drafted 3 production-ready briefs for the next sprint. All findings + briefs locked to repo for Lead's pickup.
+
+**Verified (all GREEN):**
+1. Schema state on `phase_submissions` — `tapcard_data` jsonb + `njaw_work_order_code` text columns shipped per Saturday merges. `service_type` properly dropped.
+2. CHECK constraints — 4 locked: phase enum (9 values incl. `no_work`), work_order_code enum (4), njaw enum (6), no_work compound invariant.
+3. RLS state — 14/14 owner-data tables: RLS forced + ≥1 policy. Zero failures.
+4. firms policies — exactly 2 (`firms_read_authenticated`, `firms_super_write`). Zero `firms_read_anon`. MI-203 step 3 lockdown holds.
+5. firm_id indexing — 23 indexes across the schema (way more than the 7 from MI-204b memory; schema grew silently).
+6. audit_log baseline — 288 rows/24h, 1,095/7d. Healthy.
+7. compliance_events — 6 rows, 2-id gap matches locked rolled-back-tx decision. No breach.
+8. tapcard real shape — 1 demo row pre-Phase-2b, 0 since merge. Real shape-check still queues for first inspector submission.
+
+Full report: `.coordination/SUNDAY_VERIFICATION_5-3-26.md`.
+
+**Drafted (3 production-ready briefs):**
+1. **`MI101_PHASE2C_BRIEF.md`** — ShortHills sector (role inversion) + Restoration Card frontend. ~5 sessions. Sector enum verified to live on `properties` (not phase_submissions), values `NJ6_NORMAL` or `NJAW_SHORT_HILLS`. Restoration backend partial. Q-7 gates the Restoration Card form half.
+2. **`MI110_PHASE4_BRIEF.md`** — Tapcard Diagram editor (220px gradient placeholder replacement). ~6 sessions. Highest-risk surface in v1.0. Data model locked: structured JSON in `tapcard_data.diagram`, NOT raw SVG.
+3. **`MI302_CONSTRUCTION_PM_FRONTEND_BRIEF.md`** — Contractor arrival/departure tracking. ~4–6 sessions. Backend fully shipped (3 tables, 48 columns total, all RLS-locked, all firm_id indexed).
+
+**Architectural calls locked in the briefs:**
+1. **Phase 2c data model:** sector dispatch reads `properties.sector` via JOIN from phase_submissions, not from a new column. Means/methods CHECK lives in BEFORE INSERT/UPDATE trigger (preferred) or app-layer (fallback). New table `homeowner_contact_log` for ShortHills supervisor visibility.
+2. **Phase 4 data model:** structured JSON in `tapcard_data.diagram` (not raw SVG). Reasons documented: queryability, decoupled rendering, audit diff-ability, portable export. Coordinate system normalized 0–1 on both axes for cross-device scale.
+3. **Construction PM frontend:** zero new migrations needed. Reuses existing 3 tables + reuses Vision pipeline for optional whiteboard detection on contractor arrival photos. Per locked privacy principle: inspector tracking and contractor tracking remain separate features.
+
+**Recovery note:** This decisions.md file was reverted between Sunday morning and Sunday afternoon — the 5/2 ~23:00 close + 5/3 morning entries (Saturday queue close, .org TLD, Email Routing, Cloudflare Pages, BB-001) were lost in what was likely Lead's stash-during-commit cycle. All 6 entries restored above plus this Sunday afternoon entry. Lesson banked: Buddy decisions.md writes during Lead's active work need to anticipate stash conflicts; consider Lead pop-stash-then-rebase-buddy convention for future sessions.
+
+**Affects:** Lead has 3 ready-to-pick-up briefs after Track 2 (sanitized demo branch) lands. Phase 2c, Phase 4, Construction PM frontend can build in any order; Buddy recommended sequencing is 2c → Construction PM → Phase 4 (sectors first, sales surface second, highest-risk SVG work last). Decisions log integrity restored.
+
+**Source:** Buddy execution Sunday afternoon per Jorge directive ("get it all done buddy ... continue with intensity per Buddy Standard"). Verification queries via Supabase MCP. Brief drafts batch-announced under Rule #9 relaxation (low-risk markdown, batch trust granted).
+

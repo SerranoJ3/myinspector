@@ -34,7 +34,8 @@ Bugs #1/#2/#4 from the column-fix queue were already fixed in MI-109 — verifie
 1. Jorge: spin Vercel preview for both PRs, run the per-ticket verification checks (signup with `QUIET-RIVER-58` succeeds + bad code fails + firm name displays after login; NJAW selector visible on service_work tile + value persists).
 2. Once green: Buddy to ship MI-203 step 3 (single-line migration dropping `firms_read_anon` policy + verification queries that anon can no longer SELECT firms directly).
 
-**Status:** open
+**Status:** answered
+**Resolved:** 2026-05-03 ~12:30 EDT — all three downstream merges shipped clean. `mi203-step2` PR merged Saturday (commit captured in 5/2 close decisions.md entry). `njaw-selector` original was conflict-cased after main moved; `njaw-selector-v2` rebuild status uncertain at this writing (Jorge to verify GitHub branches page). MI-203 step 3 (`DROP POLICY firms_read_anon`) shipped Sunday ~08:55 EDT via Supabase MCP migration `mi203_step3_drop_firms_read_anon`. Verified Sunday afternoon via VERIFY-3 in `.coordination/SUNDAY_VERIFICATION_5-3-26.md` — firms table now holds exactly 2 policies (`firms_read_authenticated`, `firms_super_write`), zero `firms_read_anon`. Anonymous firm-read attack surface fully closed.
 
 ---
 
@@ -42,14 +43,43 @@ Bugs #1/#2/#4 from the column-fix queue were already fixed in MI-109 — verifie
 
 **Asked by:** Lead (Claude Code CLI)
 **Awaiting:** Jorge
-**Context:** `MI101_PHASE2_FRONTEND_BRIEF.md` invited autosave ("every ~10s OR on field blur — Lead's UI judgment") for the Materials Sheet form. Deliberately held back from `mi101-phase2a` PR (commits `04fd6b1` main feature + `a542d5a` polish stack) because audit_log volume math is meaningful: ~36 fields × ~14 inspectors × ~2-3 sheets/day = roughly 25-30x the current daily `audit_log` write rate even with dirty-tracking guards on field-blur. Hash-chain integrity scales fine, but storage + S3 Object Lock export size scales with row count, so this is a deliberate cost-vs-UX call — not a default-on UX choice.
+**Context (refreshed 2026-05-03 PM with real audit_log baseline):** `MI101_PHASE2_FRONTEND_BRIEF.md` invited autosave for the Materials Sheet form. Deliberately held back from `mi101-phase2a` PR because audit_log volume math is meaningful. Sunday's verification pulled the actual baseline:
 
-**Three reasonable cadences with different volume tradeoffs:**
+- **Current audit_log write rate:** 288 rows / 24h = ~12 rows/hour (mixed dev + demo + early-beta activity).
+- **Current audit_log total:** 1,095 rows ever written. Storage: trivial.
+- **Hash chain integrity:** scales O(1) per row (BEFORE INSERT trigger overwrites prev_hash). Zero perf concern at any cadence.
 
-1. **Every-blur with dirty-tracking** — most responsive UX, highest volume. Each blur where the field's value actually changed = 1 UPDATE = 1 audit_log row. Estimated ~5-10 audit rows per sheet edit session.
-2. **10s debounced timer** — moderate volume, tolerates short backgrounding. ~6 saves per minute of active editing while modal is open.
-3. **Explicit "Save Draft" sub-action** — lowest volume (1 row per inspector intent). Adds a third button alongside Close + Save Materials Sheet. Better than the current state for forget-to-save scenarios; only fires when inspector explicitly opts in.
+**Refreshed volume estimates per cadence (based on actual baseline):**
 
-**Specific call needed:** pick 1 of the 3, OR ratify "no autosave, explicit Save only" (current state — ships fine for v0.1, zero extra audit volume). Phase 2c absorbs implementation once the answer lands.
+| Cadence | Per-sheet edit session | Per inspector / day | 14-inspector firm / day | Multiplier on current 24h rate |
+|---|---|---|---|---|
+| **A. Every-blur with dirty tracking** | 5–10 rows | 10–30 (2–3 sheets) | 140–420 | **1.5–2.5x** the current daily rate from this single feature |
+| **B. 10s debounced timer** | 4–8 rows | 8–24 | 112–336 | **1.4–2.2x** |
+| **C. Explicit "Save Draft" sub-action** | 1–2 rows | 2–6 | 28–84 | **1.1–1.3x** |
+| **D. No autosave (current state)** | 1 row | 2–3 | 28–42 | baseline |
+
+**What changed in the analysis since the brief was written:**
+
+1. **Volume ratio is much smaller than initially feared.** "25–30x" was an overestimate; real audit_log baseline (288/24h) makes A only 1.5–2.5x — still meaningful but not catastrophic.
+2. **Storage cost at A's rate:** ~150K rows/year per 14-inspector firm. At ~500 bytes/row average = ~75 MB/year. Postgres free-tier handles this with zero stress for ~10 years. Object Lock S3 export size grows similarly — still well within Cloudflare R2 / S3 free tiers for ~5 years.
+3. **Hash-chain integrity at A's rate:** unchanged (O(1) per row). No perf cliff.
+4. **What option A buys:** never-lose-a-keystroke UX. Inspector taps Close mid-edit → work survives.
+5. **What option C buys:** lowest cognitive overhead in the audit log (1 row = 1 inspector intent). Easier to reason about during compliance review.
+6. **What option D (current) costs:** mid-edit data loss if inspector navigates away or crashes. Real LCRI field condition risk.
+
+**Buddy recommendation (not a decision — Jorge calls):**
+
+**Option C (Explicit Save Draft sub-action).** Reasoning:
+- Volume is 1.1–1.3x of baseline — negligible.
+- Each row in audit_log corresponds to a deliberate inspector action, which makes audit review interpretable ("why does this sheet have 14 audit entries?" is harder to answer with A).
+- Inspector retains explicit control — matches the locked core principle: "Inspectors do NOT do extra work for the app." Save Draft is opt-in, not background magic.
+- v0.1 UX is preserved (close + save explicit final). v0.1.1 adds the third button.
+- Future: option C does NOT preclude option A later. If beta inspectors want background saves, can layer A on top of C without schema changes.
+
+**Option A is defensible if:** Jorge prioritizes never-lose-a-keystroke over audit interpretability. The 1.5–2.5x volume is genuinely fine on the current Supabase plan and far below any Postgres limit.
+
+**Option D (current) is defensible if:** Phase 2c is gated tighter than expected and you want zero new audit volume per save attempt. Trade-off: occasional inspector frustration on data loss.
+
+**Specific call needed:** A, B, C, or D. Phase 2c absorbs implementation once Jorge picks. Implementation cost difference between A/B/C/D is ~30 minutes — the call is purely about UX + audit posture, not engineering effort.
 
 **Status:** open

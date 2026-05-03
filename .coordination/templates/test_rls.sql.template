@@ -1,0 +1,262 @@
+-- =============================================================================
+-- TEMPLATE: RLS test suite (firm-isolated tables)
+-- =============================================================================
+-- Use this template for any migration that adds a column to a table that:
+--   - has RLS forced + enabled
+--   - has an `<table>_active_firm` policy (firm_id IN profiles)
+--   - has an `<table>_super_admin_all` policy (super_admin sees everything)
+--
+-- The new column is expected to INHERIT existing RLS — no new policy needed
+-- in the migration. This template verifies that inheritance holds for both
+-- read and write paths.
+--
+-- HOW TO USE:
+--   1. Copy this file to tests/<ticket>/rls_test.sql
+--   2. Replace ALL {{PLACEHOLDERS}} with concrete values
+--   3. Run as `postgres` in Supabase SQL editor
+--   4. Expect 4 PASS NOTICE lines + 1 fixtures-seeded NOTICE
+--
+-- PROVEN AGAINST: MI-100 (properties.sector), MI-108 (phase_submissions)
+--
+-- PLACEHOLDERS:
+--   {{TICKET}}           — e.g. mi110 (lowercase, used as session var prefix)
+--   {{TABLE}}            — e.g. properties
+--   {{COLUMN}}           — column to verify under RLS, e.g. sector
+--   {{VALUE_A}}          — value used for firm A's row, e.g. NJ6_NORMAL
+--   {{VALUE_B}}          — value used for firm B's row, e.g. NJAW_SHORT_HILLS
+--   {{REQUIRED_FIELDS}}  — comma-separated NOT NULL fields beyond
+--                          (id, firm_id, {{COLUMN}}), e.g. address
+--                          (NO outer parens — they're added inline below)
+-- =============================================================================
+-- {{TICKET}} — RLS test suite
+-- =============================================================================
+-- Verifies new {{COLUMN}} column inherits existing {{TABLE}} RLS policies:
+--   - {{TABLE}}_active_firm  (cmd=ALL, qual: firm_id IN profiles)
+--   - {{TABLE}}_super_admin_all  (cmd=ALL, role super_admin)
+--
+-- Run as: postgres
+-- Tagged dollar-quotes ($TESTBODY$) per project convention.
+-- =============================================================================
+
+BEGIN;
+
+SET LOCAL client_min_messages = NOTICE;
+
+-- -----------------------------------------------------------------------------
+-- 0. Fixtures: 2 firms, 1 inspector each + super_admin in auth.users +
+--    profiles, 1 row per firm with explicit {{COLUMN}} values.
+-- -----------------------------------------------------------------------------
+DO $TESTBODY$
+DECLARE
+  v_firm_a uuid := extensions.gen_random_uuid();
+  v_firm_b uuid := extensions.gen_random_uuid();
+  v_user_a uuid := extensions.gen_random_uuid();
+  v_user_b uuid := extensions.gen_random_uuid();
+  v_super  uuid := extensions.gen_random_uuid();
+  v_row_a  uuid := extensions.gen_random_uuid();
+  v_row_b  uuid := extensions.gen_random_uuid();
+BEGIN
+  PERFORM set_config('{{TICKET}}.firm_a', v_firm_a::text, true);
+  PERFORM set_config('{{TICKET}}.firm_b', v_firm_b::text, true);
+  PERFORM set_config('{{TICKET}}.user_a', v_user_a::text, true);
+  PERFORM set_config('{{TICKET}}.user_b', v_user_b::text, true);
+  PERFORM set_config('{{TICKET}}.super',  v_super::text,  true);
+  PERFORM set_config('{{TICKET}}.row_a',  v_row_a::text,  true);
+  PERFORM set_config('{{TICKET}}.row_b',  v_row_b::text,  true);
+
+  INSERT INTO public.firms (id, name, firm_code) VALUES
+    (v_firm_a, 'TEST-FIRM-A-{{TICKET}}', 'TEST-A-{{TICKET}}'),
+    (v_firm_b, 'TEST-FIRM-B-{{TICKET}}', 'TEST-B-{{TICKET}}');
+
+  INSERT INTO auth.users (id, email, instance_id, aud, role) VALUES
+    (v_user_a, 'a@{{TICKET}}.test', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated'),
+    (v_user_b, 'b@{{TICKET}}.test', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated'),
+    (v_super,  'admin@{{TICKET}}.test', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated');
+
+  INSERT INTO public.profiles (id, firm_id, role, full_name) VALUES
+    (v_user_a, v_firm_a, 'inspector',   'Test Inspector A {{TICKET}}'),
+    (v_user_b, v_firm_b, 'inspector',   'Test Inspector B {{TICKET}}'),
+    (v_super,  NULL,     'super_admin', 'Test Super Admin {{TICKET}}');
+
+  -- Seed one row per firm with the new column populated
+  -- ADJUST the column list below to match your TABLE's NOT NULL fields
+  INSERT INTO public.{{TABLE}} (id, firm_id, {{REQUIRED_FIELDS}}, {{COLUMN}}) VALUES
+    (v_row_a, v_firm_a, {{REQUIRED_VALUES_A}}, '{{VALUE_A}}'),
+    (v_row_b, v_firm_b, {{REQUIRED_VALUES_B}}, '{{VALUE_B}}');
+
+  RAISE NOTICE 'fixtures seeded - firm_a=%, firm_b=%, row_a=%, row_b=%',
+    v_firm_a, v_firm_b, v_row_a, v_row_b;
+END;
+$TESTBODY$;
+
+
+-- -----------------------------------------------------------------------------
+-- 1. Inspector A sees own firm's row + {{COLUMN}}, NOT firm B's
+-- -----------------------------------------------------------------------------
+DO $TESTBODY$
+DECLARE
+  v_user_a uuid := current_setting('{{TICKET}}.user_a')::uuid;
+  v_row_a  uuid := current_setting('{{TICKET}}.row_a')::uuid;
+  v_row_b  uuid := current_setting('{{TICKET}}.row_b')::uuid;
+  v_own_visible int;
+  v_other_visible int;
+  v_own_value text;
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', v_user_a::text, true);
+  EXECUTE 'SET LOCAL ROLE authenticated';
+
+  SELECT count(*) INTO v_own_visible
+    FROM public.{{TABLE}} WHERE id = v_row_a;
+  SELECT count(*) INTO v_other_visible
+    FROM public.{{TABLE}} WHERE id = v_row_b;
+  SELECT {{COLUMN}}::text INTO v_own_value
+    FROM public.{{TABLE}} WHERE id = v_row_a;
+
+  RESET ROLE;
+
+  IF v_own_visible <> 1 THEN
+    RAISE EXCEPTION 'FAIL 1a: inspector A blind to own firm row (count=%)', v_own_visible;
+  END IF;
+  IF v_other_visible <> 0 THEN
+    RAISE EXCEPTION 'FAIL 1b: inspector A leaked firm B row (count=%)', v_other_visible;
+  END IF;
+  IF v_own_value <> '{{VALUE_A}}' THEN
+    RAISE EXCEPTION 'FAIL 1c: inspector A {{COLUMN}} read mismatch (got %)', v_own_value;
+  END IF;
+  RAISE NOTICE 'PASS 1: inspector A sees own firm row + {{COLUMN}}, blind to firm B';
+END;
+$TESTBODY$;
+
+
+-- -----------------------------------------------------------------------------
+-- 2. Inspector B sees own firm's row + {{COLUMN}}, NOT firm A's
+-- -----------------------------------------------------------------------------
+DO $TESTBODY$
+DECLARE
+  v_user_b uuid := current_setting('{{TICKET}}.user_b')::uuid;
+  v_row_a  uuid := current_setting('{{TICKET}}.row_a')::uuid;
+  v_row_b  uuid := current_setting('{{TICKET}}.row_b')::uuid;
+  v_own_visible int;
+  v_other_visible int;
+  v_own_value text;
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', v_user_b::text, true);
+  EXECUTE 'SET LOCAL ROLE authenticated';
+
+  SELECT count(*) INTO v_own_visible
+    FROM public.{{TABLE}} WHERE id = v_row_b;
+  SELECT count(*) INTO v_other_visible
+    FROM public.{{TABLE}} WHERE id = v_row_a;
+  SELECT {{COLUMN}}::text INTO v_own_value
+    FROM public.{{TABLE}} WHERE id = v_row_b;
+
+  RESET ROLE;
+
+  IF v_own_visible <> 1 THEN
+    RAISE EXCEPTION 'FAIL 2a: inspector B blind to own firm row (count=%)', v_own_visible;
+  END IF;
+  IF v_other_visible <> 0 THEN
+    RAISE EXCEPTION 'FAIL 2b: inspector B leaked firm A row (count=%)', v_other_visible;
+  END IF;
+  IF v_own_value <> '{{VALUE_B}}' THEN
+    RAISE EXCEPTION 'FAIL 2c: inspector B {{COLUMN}} read mismatch (got %)', v_own_value;
+  END IF;
+  RAISE NOTICE 'PASS 2: inspector B sees own firm row + {{COLUMN}}, blind to firm A';
+END;
+$TESTBODY$;
+
+
+-- -----------------------------------------------------------------------------
+-- 3. super_admin sees BOTH firms' rows + their {{COLUMN}} values
+-- -----------------------------------------------------------------------------
+DO $TESTBODY$
+DECLARE
+  v_super uuid := current_setting('{{TICKET}}.super')::uuid;
+  v_row_a uuid := current_setting('{{TICKET}}.row_a')::uuid;
+  v_row_b uuid := current_setting('{{TICKET}}.row_b')::uuid;
+  v_a_visible int;
+  v_b_visible int;
+  v_a_value text;
+  v_b_value text;
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', v_super::text, true);
+  EXECUTE 'SET LOCAL ROLE authenticated';
+
+  SELECT count(*), max({{COLUMN}}::text) INTO v_a_visible, v_a_value
+    FROM public.{{TABLE}} WHERE id = v_row_a;
+  SELECT count(*), max({{COLUMN}}::text) INTO v_b_visible, v_b_value
+    FROM public.{{TABLE}} WHERE id = v_row_b;
+
+  RESET ROLE;
+
+  IF v_a_visible <> 1 OR v_a_value <> '{{VALUE_A}}' THEN
+    RAISE EXCEPTION 'FAIL 3a: super_admin firm A read mismatch (visible=%, value=%)', v_a_visible, v_a_value;
+  END IF;
+  IF v_b_visible <> 1 OR v_b_value <> '{{VALUE_B}}' THEN
+    RAISE EXCEPTION 'FAIL 3b: super_admin firm B read mismatch (visible=%, value=%)', v_b_visible, v_b_value;
+  END IF;
+  RAISE NOTICE 'PASS 3: super_admin sees both firms rows + {{COLUMN}}';
+END;
+$TESTBODY$;
+
+
+-- -----------------------------------------------------------------------------
+-- 4. Anonymous (role=anon) blocked from all rows
+-- -----------------------------------------------------------------------------
+DO $TESTBODY$
+DECLARE
+  v_row_a uuid := current_setting('{{TICKET}}.row_a')::uuid;
+  v_row_b uuid := current_setting('{{TICKET}}.row_b')::uuid;
+  v_a_visible int;
+  v_b_visible int;
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', NULL, true);
+  EXECUTE 'SET LOCAL ROLE anon';
+
+  SELECT count(*) INTO v_a_visible
+    FROM public.{{TABLE}} WHERE id = v_row_a;
+  SELECT count(*) INTO v_b_visible
+    FROM public.{{TABLE}} WHERE id = v_row_b;
+
+  RESET ROLE;
+
+  IF v_a_visible <> 0 THEN
+    RAISE EXCEPTION 'FAIL 4a: anon read firm A row (count=%)', v_a_visible;
+  END IF;
+  IF v_b_visible <> 0 THEN
+    RAISE EXCEPTION 'FAIL 4b: anon read firm B row (count=%)', v_b_visible;
+  END IF;
+  RAISE NOTICE 'PASS 4: anon blocked from both firm rows';
+END;
+$TESTBODY$;
+
+ROLLBACK;
+
+-- =============================================================================
+-- Expected: 4 PASS NOTICE lines (1, 2, 3, 4) + 1 fixtures-seeded NOTICE.
+-- ROLLBACK removes all fixtures so no test data persists.
+-- =============================================================================
+
+-- =============================================================================
+-- NOTES ON FILLING THE TEMPLATE:
+--
+-- {{REQUIRED_FIELDS}} is a comma-separated list of NOT NULL columns beyond
+-- (id, firm_id, {{COLUMN}}). For properties: address. For phase_submissions:
+-- property_id, submitted_by, phase, photos.
+--
+-- {{REQUIRED_VALUES_A}} and {{REQUIRED_VALUES_B}} are matching value lists.
+-- For properties:        ('Test Property A - {{TICKET}}')
+-- For phase_submissions: (gen_random_uuid(), v_user_a, 'test_pit', '[]'::jsonb)
+--
+-- If REQUIRED_FIELDS includes columns with FK constraints to OTHER firm-scoped
+-- tables (e.g. phase_submissions.property_id → properties.id), those FK targets
+-- need to be seeded in firm A or firm B respectively to avoid FK violations.
+-- Add the seed inserts above the {{TABLE}} insert in section 0.
+--
+-- If your TABLE has separate read vs write policies, this template only tests
+-- READ. Add UPDATE / INSERT / DELETE assertions per your case.
+--
+-- The `_active_firm` policy assumes a deleted_at NULL gate. If your table
+-- doesn't have soft-delete, the inherited check still works because nothing
+-- is filtered out — but be aware of the assumption.
+-- =============================================================================
