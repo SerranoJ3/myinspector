@@ -1,0 +1,176 @@
+-- =============================================================================
+-- TEMPLATE: Constraint test suite
+-- =============================================================================
+-- Use this template for any migration that adds a CHECK constraint, NOT NULL +
+-- DEFAULT pattern, or enum-style validation on a column.
+--
+-- HOW TO USE:
+--   1. Copy this file to tests/<ticket>/<column>_constraint_test.sql
+--   2. Replace ALL {{PLACEHOLDERS}} with concrete values
+--   3. Run as `postgres` in Supabase SQL editor
+--   4. Expect 4 PASS NOTICE lines, no errors
+--
+-- PROVEN AGAINST: MI-100 (properties.sector), MI-108 (phase_submissions.no_work)
+--
+-- PLACEHOLDERS:
+--   {{TICKET}}           — e.g. MI-110
+--   {{MIGRATION_NAME}}   — e.g. mi110_widget_status (matches apply_migration name)
+--   {{TABLE}}            — e.g. properties (or schema.table if non-public)
+--   {{CONSTRAINT_NAME}}  — e.g. properties_sector_enum
+--   {{COLUMN}}           — e.g. sector
+--   {{DEFAULT_VALUE}}    — e.g. NJ6_NORMAL  (the column DEFAULT)
+--   {{OTHER_VALUE}}      — e.g. NJAW_SHORT_HILLS  (another valid enum value)
+--   {{INVALID_VALUE}}    — e.g. BOGUS_SECTOR  (a value the CHECK should reject)
+--   {{REQUIRED_FIELDS}}  — comma-separated NOT NULL fields beyond {{COLUMN}},
+--                          e.g. (address) for properties, leave blank if none
+--   {{REQUIRED_VALUES}}  — comma-separated values matching REQUIRED_FIELDS,
+--                          e.g. ('123 Test Street')
+-- =============================================================================
+-- {{TICKET}} — Constraint test suite
+-- =============================================================================
+-- Verifies the `{{CONSTRAINT_NAME}}` CHECK constraint added in
+-- migration `{{MIGRATION_NAME}}`.
+--
+-- Each test wraps in BEGIN/ROLLBACK so no test data persists.
+-- Tagged dollar-quotes ($TESTBODY$) per project convention.
+--
+-- Expected output: 4 PASS NOTICE lines, no errors.
+-- Run as: postgres (bypasses RLS).
+-- =============================================================================
+
+
+-- ============================================================
+-- TEST 1: INSERT with default value succeeds (column DEFAULT applied)
+-- ============================================================
+BEGIN;
+DO $TESTBODY$
+DECLARE
+  v_inserted_id uuid;
+  v_value text;
+BEGIN
+  INSERT INTO public.{{TABLE}} {{REQUIRED_FIELDS}}
+  VALUES {{REQUIRED_VALUES}}
+  RETURNING id, {{COLUMN}}::text INTO v_inserted_id, v_value;
+
+  IF v_inserted_id IS NULL THEN
+    RAISE EXCEPTION 'TEST 1 FAIL: insert returned no id';
+  END IF;
+
+  IF v_value <> '{{DEFAULT_VALUE}}' THEN
+    RAISE EXCEPTION 'TEST 1 FAIL: expected default {{DEFAULT_VALUE}}, got %', v_value;
+  END IF;
+
+  RAISE NOTICE 'PASS test 1: default {{DEFAULT_VALUE}} applied (id=%)', v_inserted_id;
+END;
+$TESTBODY$;
+ROLLBACK;
+
+
+-- ============================================================
+-- TEST 2: INSERT with explicit other valid value succeeds
+-- ============================================================
+BEGIN;
+DO $TESTBODY$
+DECLARE
+  v_inserted_id uuid;
+  v_value text;
+BEGIN
+  INSERT INTO public.{{TABLE}} ({{REQUIRED_FIELDS_INNER}}, {{COLUMN}})
+  VALUES ({{REQUIRED_VALUES_INNER}}, '{{OTHER_VALUE}}')
+  RETURNING id, {{COLUMN}}::text INTO v_inserted_id, v_value;
+
+  IF v_value <> '{{OTHER_VALUE}}' THEN
+    RAISE EXCEPTION 'TEST 2 FAIL: expected {{OTHER_VALUE}}, got %', v_value;
+  END IF;
+
+  RAISE NOTICE 'PASS test 2: explicit value {{OTHER_VALUE}} accepted (id=%)', v_inserted_id;
+END;
+$TESTBODY$;
+ROLLBACK;
+
+
+-- ============================================================
+-- TEST 3: INSERT with invalid value — CHECK rejects
+-- ============================================================
+BEGIN;
+DO $TESTBODY$
+DECLARE
+  v_caught boolean := false;
+BEGIN
+  BEGIN
+    INSERT INTO public.{{TABLE}} ({{REQUIRED_FIELDS_INNER}}, {{COLUMN}})
+    VALUES ({{REQUIRED_VALUES_INNER}}, '{{INVALID_VALUE}}');
+  EXCEPTION
+    WHEN check_violation THEN v_caught := true;
+  END;
+
+  IF NOT v_caught THEN
+    RAISE EXCEPTION 'TEST 3 FAIL: invalid value should raise check_violation';
+  END IF;
+
+  RAISE NOTICE 'PASS test 3: invalid value rejected by CHECK';
+END;
+$TESTBODY$;
+ROLLBACK;
+
+
+-- ============================================================
+-- TEST 4: UPDATE existing row to invalid value — CHECK rejects
+-- ============================================================
+BEGIN;
+DO $TESTBODY$
+DECLARE
+  v_inserted_id uuid;
+  v_caught boolean := false;
+BEGIN
+  -- Seed a valid row first
+  INSERT INTO public.{{TABLE}} {{REQUIRED_FIELDS}}
+  VALUES {{REQUIRED_VALUES}}
+  RETURNING id INTO v_inserted_id;
+
+  -- Try to update to invalid value
+  BEGIN
+    UPDATE public.{{TABLE}}
+       SET {{COLUMN}} = '{{INVALID_VALUE}}'
+     WHERE id = v_inserted_id;
+  EXCEPTION
+    WHEN check_violation THEN v_caught := true;
+  END;
+
+  IF NOT v_caught THEN
+    RAISE EXCEPTION 'TEST 4 FAIL: UPDATE to invalid value should raise check_violation';
+  END IF;
+
+  RAISE NOTICE 'PASS test 4: UPDATE to invalid value rejected by CHECK';
+END;
+$TESTBODY$;
+ROLLBACK;
+
+
+-- ============================================================
+-- Run all 4 tests above. Expected: 4 PASS NOTICE lines, no errors.
+-- ============================================================
+
+-- =============================================================================
+-- NOTES ON FILLING THE TEMPLATE:
+--
+-- {{REQUIRED_FIELDS}} should be the (col1, col2) wrapper INCLUDING parens,
+-- e.g. for properties:        (address)
+--      for phase_submissions: (property_id, submitted_by, phase, photos)
+--
+-- {{REQUIRED_FIELDS_INNER}} is the same WITHOUT outer parens (used when
+-- adding {{COLUMN}} alongside), e.g. for properties: address
+--
+-- {{REQUIRED_VALUES}} should be the VALUES (...) wrapper INCLUDING parens,
+-- e.g. for properties:        ('123 Test St')
+--      for phase_submissions: (gen_random_uuid(), gen_random_uuid(), 'test_pit', '[]'::jsonb)
+--
+-- {{REQUIRED_VALUES_INNER}} is the same WITHOUT outer parens.
+--
+-- If TABLE has FK constraints on REQUIRED_FIELDS that need real rows, seed
+-- those rows in the test body before the INSERT under test (or use NULL where
+-- the FK column allows it — properties.firm_id is nullable, for example).
+--
+-- If TABLE has BEFORE INSERT triggers that mutate input, the value reads
+-- in TEST 1 / TEST 2 may not match what was passed in. Adjust expectations.
+-- =============================================================================

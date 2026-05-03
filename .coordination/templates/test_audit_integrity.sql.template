@@ -1,0 +1,246 @@
+-- =============================================================================
+-- TEMPLATE: Audit integrity test suite
+-- =============================================================================
+-- Use this template for any migration on a table that has audit triggers
+-- (audit_<table>_insert/update/delete → write_audit_log()) AND adds or
+-- modifies a column whose changes should produce audit_log entries.
+--
+-- HOW TO USE:
+--   1. VERIFY the table has audit triggers FIRST. Query:
+--      SELECT tgname FROM pg_trigger WHERE tgrelid = 'public.{{TABLE}}'::regclass
+--        AND NOT tgisinternal AND tgname LIKE 'audit_%';
+--      If no audit triggers exist, do NOT use this template — audit assertions
+--      will fail. Either skip audit testing or extend audit triggers first.
+--   2. Copy this file to tests/<ticket>/audit_integrity_test.sql
+--   3. Replace ALL {{PLACEHOLDERS}} with concrete values
+--   4. Run as `postgres` in Supabase SQL editor
+--   5. Expect 4 PASS NOTICE lines, no errors
+--
+-- PROVEN AGAINST: MI-100 (properties.sector), MI-108 (phase_submissions)
+--
+-- PLACEHOLDERS:
+--   {{TICKET}}           — e.g. MI-110
+--   {{TABLE}}            — e.g. properties
+--   {{COLUMN}}           — column being changed, e.g. sector
+--   {{OLD_VALUE}}        — value that the row will have AFTER insert
+--                          (typically the column DEFAULT, e.g. NJ6_NORMAL)
+--   {{NEW_VALUE}}        — valid value to update TO (different from OLD_VALUE)
+--                          e.g. NJAW_SHORT_HILLS
+--   {{INVALID_VALUE}}    — value that triggers a CHECK violation, e.g. BOGUS_X
+--   {{REQUIRED_FIELDS}}  — comma-separated NOT NULL fields (with outer parens)
+--                          e.g. (address)
+--   {{REQUIRED_VALUES}}  — comma-separated values (with outer parens)
+--                          e.g. ('123 Test St')
+-- =============================================================================
+-- {{TICKET}} — Audit integrity test suite
+-- =============================================================================
+-- Verifies that {{TABLE}}.{{COLUMN}} changes produce expected audit_log
+-- behavior via the existing audit_{{TABLE}}_insert / audit_{{TABLE}}_update
+-- AFTER triggers + the audit_log_chain BEFORE INSERT trigger on audit_log.
+--
+-- Expected delta on successful UPDATE: +1 (single Owner Data write).
+-- Run as: postgres
+-- Tagged dollar-quotes ($TESTBODY$) per project convention.
+-- =============================================================================
+
+
+-- ============================================================
+-- TEST 1: UPDATE {{TABLE}}.{{COLUMN}} produces audit_log delta = +1
+-- ============================================================
+BEGIN;
+DO $TESTBODY$
+DECLARE
+  v_inserted_id uuid;
+  v_before bigint;
+  v_after bigint;
+  v_delta bigint;
+BEGIN
+  -- Seed row (this will produce its own audit row — measure AFTER)
+  INSERT INTO public.{{TABLE}} {{REQUIRED_FIELDS}}
+  VALUES {{REQUIRED_VALUES}}
+  RETURNING id INTO v_inserted_id;
+
+  SELECT count(*) INTO v_before FROM public.audit_log;
+
+  UPDATE public.{{TABLE}}
+     SET {{COLUMN}} = '{{NEW_VALUE}}'
+   WHERE id = v_inserted_id;
+
+  SELECT count(*) INTO v_after FROM public.audit_log;
+  v_delta := v_after - v_before;
+
+  IF v_delta <> 1 THEN
+    RAISE EXCEPTION 'TEST 1 FAIL: expected audit_log delta=+1, got +%', v_delta;
+  END IF;
+
+  RAISE NOTICE 'PASS test 1: {{COLUMN}} UPDATE produced audit_log delta=+1 (id=%)', v_inserted_id;
+END;
+$TESTBODY$;
+ROLLBACK;
+
+
+-- ============================================================
+-- TEST 2: Failed UPDATE (CHECK violation) produces delta = 0
+-- ============================================================
+-- Verifies audit_log is not written when an UPDATE rolls back due to
+-- constraint violation. AFTER triggers fire only on successful row-mutation.
+BEGIN;
+DO $TESTBODY$
+DECLARE
+  v_inserted_id uuid;
+  v_before bigint;
+  v_after bigint;
+  v_delta bigint;
+  v_caught boolean := false;
+BEGIN
+  INSERT INTO public.{{TABLE}} {{REQUIRED_FIELDS}}
+  VALUES {{REQUIRED_VALUES}}
+  RETURNING id INTO v_inserted_id;
+
+  SELECT count(*) INTO v_before FROM public.audit_log;
+
+  BEGIN
+    UPDATE public.{{TABLE}}
+       SET {{COLUMN}} = '{{INVALID_VALUE}}'
+     WHERE id = v_inserted_id;
+  EXCEPTION
+    WHEN check_violation THEN v_caught := true;
+  END;
+
+  IF NOT v_caught THEN
+    RAISE EXCEPTION 'TEST 2 SETUP FAIL: expected check_violation, none raised';
+  END IF;
+
+  SELECT count(*) INTO v_after FROM public.audit_log;
+  v_delta := v_after - v_before;
+
+  IF v_delta <> 0 THEN
+    RAISE EXCEPTION 'TEST 2 FAIL: failed UPDATE should leave audit_log unchanged, got delta=+%', v_delta;
+  END IF;
+
+  RAISE NOTICE 'PASS test 2: failed {{COLUMN}} UPDATE produced audit_log delta=0';
+END;
+$TESTBODY$;
+ROLLBACK;
+
+
+-- ============================================================
+-- TEST 3: audit_log entry shape correct on UPDATE
+-- ============================================================
+-- Verifies action='UPDATE', table_name='{{TABLE}}', new_data contains the
+-- new {{COLUMN}} value, old_data contains the previous {{COLUMN}} value.
+BEGIN;
+DO $TESTBODY$
+DECLARE
+  v_inserted_id uuid;
+  v_audit_action text;
+  v_audit_old jsonb;
+  v_audit_new jsonb;
+BEGIN
+  INSERT INTO public.{{TABLE}} {{REQUIRED_FIELDS}}
+  VALUES {{REQUIRED_VALUES}}
+  RETURNING id INTO v_inserted_id;
+
+  UPDATE public.{{TABLE}}
+     SET {{COLUMN}} = '{{NEW_VALUE}}'
+   WHERE id = v_inserted_id;
+
+  SELECT action, old_data, new_data
+    INTO v_audit_action, v_audit_old, v_audit_new
+    FROM public.audit_log
+   WHERE table_name = '{{TABLE}}'
+     AND record_id = v_inserted_id::text
+   ORDER BY id DESC
+   LIMIT 1;
+
+  IF v_audit_action IS NULL THEN
+    RAISE EXCEPTION 'TEST 3 FAIL: no audit_log row found for record_id=%', v_inserted_id;
+  END IF;
+
+  IF v_audit_action <> 'UPDATE' THEN
+    RAISE EXCEPTION 'TEST 3 FAIL: expected action=UPDATE, got %', v_audit_action;
+  END IF;
+
+  IF v_audit_new->>'{{COLUMN}}' <> '{{NEW_VALUE}}' THEN
+    RAISE EXCEPTION 'TEST 3 FAIL: new_data.{{COLUMN}} mismatch, got %', v_audit_new->>'{{COLUMN}}';
+  END IF;
+
+  IF v_audit_old->>'{{COLUMN}}' <> '{{OLD_VALUE}}' THEN
+    RAISE EXCEPTION 'TEST 3 FAIL: old_data.{{COLUMN}} should be {{OLD_VALUE}}, got %', v_audit_old->>'{{COLUMN}}';
+  END IF;
+
+  RAISE NOTICE 'PASS test 3: audit_log shape correct (UPDATE, old={{OLD_VALUE}}, new={{NEW_VALUE}})';
+END;
+$TESTBODY$;
+ROLLBACK;
+
+
+-- ============================================================
+-- TEST 4: Hash chain populated on UPDATE audit row
+-- ============================================================
+-- Verifies the audit_log_chain BEFORE INSERT trigger overwrote PENDING
+-- placeholders with real prev_hash and row_hash values (lowercase hex).
+BEGIN;
+DO $TESTBODY$
+DECLARE
+  v_inserted_id uuid;
+  v_prev text;
+  v_hash text;
+BEGIN
+  INSERT INTO public.{{TABLE}} {{REQUIRED_FIELDS}}
+  VALUES {{REQUIRED_VALUES}}
+  RETURNING id INTO v_inserted_id;
+
+  UPDATE public.{{TABLE}}
+     SET {{COLUMN}} = '{{NEW_VALUE}}'
+   WHERE id = v_inserted_id;
+
+  SELECT prev_hash, row_hash
+    INTO v_prev, v_hash
+    FROM public.audit_log
+   WHERE table_name = '{{TABLE}}' AND record_id = v_inserted_id::text
+   ORDER BY id DESC
+   LIMIT 1;
+
+  IF v_prev IS NULL OR v_hash IS NULL THEN
+    RAISE EXCEPTION 'TEST 4 FAIL: prev_hash or row_hash NULL';
+  END IF;
+
+  IF v_prev = 'PENDING' THEN
+    RAISE EXCEPTION 'TEST 4 FAIL: prev_hash still PENDING (chain trigger did not fire)';
+  END IF;
+
+  IF v_hash = 'PENDING' THEN
+    RAISE EXCEPTION 'TEST 4 FAIL: row_hash still PENDING (chain trigger did not fire)';
+  END IF;
+
+  IF v_hash !~ '^[0-9a-f]+$' THEN
+    RAISE EXCEPTION 'TEST 4 FAIL: row_hash not lowercase hex - %', v_hash;
+  END IF;
+
+  RAISE NOTICE 'PASS test 4: chain populated - prev=%..., hash=%...',
+    left(v_prev, 12), left(v_hash, 12);
+END;
+$TESTBODY$;
+ROLLBACK;
+
+
+-- ============================================================
+-- Run all 4 tests above. Expected: 4 PASS NOTICE lines, no errors.
+-- ============================================================
+
+-- =============================================================================
+-- NOTES ON FILLING THE TEMPLATE:
+--
+-- TEST 3 assumes {{COLUMN}} is a top-level field in old_data/new_data jsonb.
+-- If your column is nested (e.g. tapcard_data->'sector'), adjust the JSONB
+-- path operators accordingly: v_audit_new->'tapcard_data'->>'sector'.
+--
+-- TEST 3 OLD_VALUE assumes the row had the column DEFAULT before UPDATE.
+-- If you seeded a different value in the INSERT, set OLD_VALUE to match.
+--
+-- If your table has insert-time triggers that mutate the row, the seed
+-- INSERT may produce more than 1 audit_log row (e.g. INSERT row + a
+-- system-generated UPDATE row). Adjust the v_before/v_after measurement
+-- accordingly OR use the most-recent row by id DESC LIMIT 1 throughout.
+-- =============================================================================

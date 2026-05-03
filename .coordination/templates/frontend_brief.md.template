@@ -1,0 +1,114 @@
+# {{TICKET}} Frontend Brief — for Lead
+
+> **Template instructions (delete this block when filled):**
+> Copy this file to `<TICKET>_FRONTEND_BRIEF.md` at repo root.
+> Replace ALL `{{PLACEHOLDERS}}` with concrete values.
+> Delete sections that don't apply (the template is permissive — fork it).
+> See `.coordination/templates/README.md` for usage convention.
+
+**Ticket:** {{TICKET}} ({{FEATURE_SHORT}})
+**Source spec:** {{SPEC_REFERENCE}}
+**Backend status:** ✅ DONE — {{MIGRATION_NAME}} applied {{APPLIED_DATE}}
+**Frontend status:** awaiting Lead
+**Velocity estimate:** ~{{N}} session(s) at benchmark
+
+---
+
+## What landed (backend, for context)
+
+**`{{TABLE}}` schema change:**
+
+| Column | Type | Notes |
+|---|---|---|
+| `{{COLUMN}}` | {{TYPE}} | added by `{{MIGRATION_NAME}}` migration |
+
+**Constraint** `{{CONSTRAINT_NAME}}`:
+```
+{{CONSTRAINT_DDL}}
+```
+
+**Backfill:** {{BACKFILL_NOTE}}
+
+**Related schema already in place** (if any): {{RELATED_SCHEMA}}
+
+---
+
+## What needs to be built (your work)
+
+### 1. {{UI_SECTION_1_TITLE}} (`{{FILE}}`)
+
+{{UI_SECTION_1_BODY}}
+
+UX rules:
+- Default to {{DEFAULT_BEHAVIOR}} so most submissions need zero extra clicks (per the locked MyInspector core principle: inspectors don't do extra work for the app)
+- Send the value as part of the INSERT/UPDATE
+- {{CONSTRAINT_NAME}} will block invalid values — surface the error cleanly if it fires (defense in depth)
+
+### 2. {{UI_SECTION_2_TITLE}}
+
+{{UI_SECTION_2_BODY}}
+
+### 3. {{UI_SECTION_3_TITLE}}
+
+{{UI_SECTION_3_BODY}}
+
+The UPDATE goes through existing `{{TABLE}}` RLS policies — firm isolation is already enforced.
+
+### 4. Optional: {{OPTIONAL_TITLE}}
+
+Nice-to-have, not blocking. If trivial to add, include it. If non-trivial, defer to a follow-up ticket — don't block {{TICKET}} ship on it.
+
+---
+
+## Tests (`tests/{{TICKET_LOWER}}/`)
+
+Buddy will draft starting points alongside this brief. Expected files:
+- `{{COLUMN}}_constraint_test.sql` — verify CHECK rejects values other than valid options
+- `rls_test.sql` — confirm {{COLUMN}} inherits existing `{{TABLE}}` RLS (firm isolation)
+- `audit_integrity_test.sql` — verify UPDATE on `{{TABLE}}.{{COLUMN}}` produces audit_log delta = +1 (only if `{{TABLE}}` has audit triggers — verify before drafting)
+
+Tagged dollar-quotes (`$TESTBODY$`) per `.coordination/decisions.md`. Each test in BEGIN/ROLLBACK so no test data persists.
+
+---
+
+## Acceptance criteria
+
+- [ ] {{ACCEPTANCE_1}}
+- [ ] {{ACCEPTANCE_2}}
+- [ ] {{ACCEPTANCE_3}}
+- [ ] CHECK constraint rejects any value other than valid options
+- [ ] RLS isolation holds — firm A inspector can't see/edit firm B rows
+
+---
+
+## Constraints / locked rules to honor
+
+- **BUDDY_STANDARD §7:** Code edits >3 lines = full-file replace, OR exact-match Edits in large files where changes are precisely string-bounded
+- **MyInspector core principle:** inspectors don't do extra work — default values, hide complexity behind toggles
+- **MyInspector privacy principle:** data is firm-scoped, RLS inherits existing policy
+- **No new RPCs needed** — direct INSERT/UPDATE per same pattern as MI-100 / MI-108
+- {{TICKET_SPECIFIC_CONSTRAINTS}}
+
+---
+
+## Open questions for Buddy/Jorge
+
+If anything ambiguous surfaces during build, write to `.coordination/questions.md` with `**Awaiting:** Jorge` (or `**Awaiting:** Buddy`).
+
+Locked at brief-write time:
+- {{LOCKED_DECISION_1}}
+- {{LOCKED_DECISION_2}}
+
+Lead's UI judgment owns:
+- {{LEAD_OWNS_1}}
+- {{LEAD_OWNS_2}}
+
+---
+
+## Forward context (not in {{TICKET}} scope, but worth knowing)
+
+{{FORWARD_CONTEXT}}
+
+---
+
+**Ready to pick up.** Backend verified post-migration. Buddy will verify your work post-merge via Supabase MCP — same pattern as MI-100 / MI-108.
