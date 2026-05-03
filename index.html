@@ -217,6 +217,21 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .tc-mi-add:hover{border-color:var(--blue-light);background:rgba(74,124,196,0.06)}
 .tc-diagram-placeholder{background:rgba(94,122,154,0.06);border:2px dashed var(--border);border-radius:var(--radius);padding:32px;text-align:center;color:var(--muted);font-size:12px;font-style:italic;margin:10px 0}
 .tc-diagram-placeholder strong{display:block;font-style:normal;font-weight:700;color:var(--blue-light);margin-bottom:4px;font-family:'Rajdhani',sans-serif;font-size:14px;letter-spacing:.06em;text-transform:uppercase}
+.tc-diagram-prominent{min-height:220px;padding:40px 24px;background:linear-gradient(180deg,rgba(74,124,196,0.08),rgba(74,124,196,0.03));border-color:rgba(74,124,196,0.4);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.tc-diagram-prominent strong{font-size:18px;color:var(--blue-light);text-transform:uppercase;letter-spacing:.08em;margin:0}
+.tc-diagram-icon{font-size:36px;color:var(--blue-light);opacity:0.55;margin-bottom:4px}
+.tc-diagram-phase{font-style:normal;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--orange);background:rgba(244,168,32,0.1);border:1px solid rgba(244,168,32,0.25);border-radius:99px;padding:4px 12px}
+.tc-diagram-detail{font-style:normal;font-size:11px;color:var(--muted);line-height:1.55;max-width:560px;margin-top:6px}
+.tc-ms-readout{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;font-size:12px}
+.tc-ms-readout > div{background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px}
+.tc-ms-readout-label{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px}
+.tc-ms-readout-value{color:var(--white);font-weight:600}
+.tc-ms-readout-value.empty{color:var(--muted);font-weight:400;font-style:italic}
+.tc-ms-grid-table{width:100%;border-collapse:collapse;background:var(--surface3);border-radius:var(--radius);overflow:hidden;font-size:12px}
+.tc-ms-grid-table th{background:rgba(74,124,196,0.1);padding:6px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)}
+.tc-ms-grid-table td{padding:6px 10px;border-bottom:1px solid rgba(74,124,196,0.06)}
+.tc-ms-grid-table tr:last-child td{border-bottom:none}
+.tc-ms-grid-table .row-label{font-family:'Rajdhani',sans-serif;font-weight:700;color:var(--white);text-transform:uppercase;font-size:11px;letter-spacing:.04em}
 .tc-footer{height:48px;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 18px;gap:12px;flex-shrink:0;font-size:11px;color:var(--muted)}
 .tc-footer-status.saving{color:var(--orange)}
 .tc-footer-status.saved{color:var(--green)}
@@ -1080,7 +1095,6 @@ html,body{overflow-x:hidden}
       <div class="tc-tabs">
         <div class="tc-tab active" data-page="materials" onclick="tcSwitchPage('materials')">1. Materials</div>
         <div class="tc-tab" data-page="company" onclick="tcSwitchPage('company')">2. Company Side</div>
-        <div class="tc-tab" data-page="customer" onclick="tcSwitchPage('customer')">3. Customer Side</div>
       </div>
       <div class="tc-topbar-right">
         <button class="btn-sm btn-orange" onclick="submitTapcard()">Submit Tapcard</button>
@@ -1088,15 +1102,39 @@ html,body{overflow-x:hidden}
     </div>
     <div class="tc-body">
 
-      <!-- Page 1: Materials Sheet read-only summary -->
+      <!-- Page 1: Materials Sheet — full scannable read of attached sheet -->
       <div class="tc-page active" id="tc-page-materials">
-        <div class="tc-section">
-          <div class="tc-section-title">Materials Sheet (read-only summary)</div>
-          <div id="tc-materials-summary"><div class="tc-summary-empty">Loading materials sheet for property…</div></div>
-        </div>
         <div class="tc-section">
           <div class="tc-section-title">Property</div>
           <div id="tc-property-summary" class="tc-row-3"></div>
+        </div>
+        <div class="tc-section">
+          <div class="tc-section-title">Materials Sheet — Header <span class="tc-readonly-meta">read-only mirror of attached sheet</span></div>
+          <div id="tc-ms-header" class="tc-row-3"></div>
+        </div>
+        <div class="tc-section">
+          <div class="tc-section-title">Test Pit Information</div>
+          <div id="tc-ms-testpit" class="tc-row-4"></div>
+        </div>
+        <div class="tc-section">
+          <div class="tc-section-title">Service Materials Grid</div>
+          <div id="tc-ms-materials-grid"></div>
+        </div>
+        <div class="tc-section">
+          <div class="tc-section-title">Measurements <span class="tc-readonly-meta">CDM-Smith rules d + e captured</span></div>
+          <div id="tc-ms-measurements" class="tc-row-3"></div>
+        </div>
+        <div class="tc-section">
+          <div class="tc-section-title">Multi-Tenant Housing</div>
+          <div id="tc-ms-multitenant" class="tc-row-3"></div>
+        </div>
+        <div class="tc-section">
+          <div class="tc-section-title">Downtime</div>
+          <div id="tc-ms-downtime" class="tc-row"></div>
+        </div>
+        <div class="tc-section">
+          <div class="tc-section-title">Notes</div>
+          <div id="tc-ms-notes" style="font-size:12px;line-height:1.6;color:rgba(237,242,248,0.85);background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;min-height:50px"></div>
         </div>
       </div>
 
@@ -1124,6 +1162,22 @@ html,body{overflow-x:hidden}
           <div id="tc-co-owner-block" class="tc-row-3"></div>
         </div>
 
+        <div class="tc-section" id="tc-co-office-fill-section" style="display:none">
+          <div class="tc-section-title" style="color:var(--orange)">Office Fill <span class="tc-readonly-meta" style="color:var(--orange)">visible only to office / super_admin role</span></div>
+          <div class="tc-row-3">
+            <div class="tc-field"><label class="tc-label">District ID</label>
+              <input class="tc-input" type="text" id="tc-co-of-district_id" placeholder="DIST-####"></div>
+            <div class="tc-field"><label class="tc-label">SAP</label>
+              <input class="tc-input" type="text" id="tc-co-of-sap" placeholder="SAP-####"></div>
+            <div class="tc-field"><label class="tc-label">Premise #</label>
+              <input class="tc-input" type="text" id="tc-co-of-premise" placeholder="PREM-####"></div>
+          </div>
+          <div class="tc-row">
+            <div class="tc-field"><label class="tc-label">Office Notes</label>
+              <textarea class="tc-input" rows="2" id="tc-co-of-notes" style="resize:vertical" placeholder="Office-only annotations..."></textarea></div>
+          </div>
+        </div>
+
         <div class="tc-section">
           <div class="tc-section-title">Material Installed <span class="tc-readonly-meta">picks from sector parts catalog; free-text fallback</span></div>
           <table class="tc-mi-table" id="tc-mi-table">
@@ -1148,9 +1202,11 @@ html,body{overflow-x:hidden}
 
         <div class="tc-section">
           <div class="tc-section-title">Diagram</div>
-          <div class="tc-diagram-placeholder">
-            <strong>Diagram pane — Phase 4</strong>
-            SVG-based interactive diagram with snap-to-rule deferred per TAPCARD_CLUSTER_SPEC §5 (~6 sessions, highest-risk piece of the cluster). Tracked separately.
+          <div class="tc-diagram-placeholder tc-diagram-prominent">
+            <div class="tc-diagram-icon">&#9999;</div>
+            <strong>Diagram pane</strong>
+            <div class="tc-diagram-phase">Phase 4 — separate subproject (~6 sessions)</div>
+            <div class="tc-diagram-detail">SVG-based interactive diagram with snap-to-rule mode is the highest-risk piece of the tapcard cluster (TAPCARD_CLUSTER_SPEC §5). Deferred to its own focused build window — not a missing field, not a render failure. The Tapcard ships and saves without it; diagram data attaches later via tapcard_data.diagram on existing rows.</div>
           </div>
         </div>
 
@@ -1173,53 +1229,6 @@ html,body{overflow-x:hidden}
               <input class="tc-input" type="date" id="tc-co-date_installed"></div>
             <div class="tc-field"><label class="tc-label">By</label>
               <input class="tc-input" type="text" id="tc-co-installed_by" placeholder="Crew lead / inspector"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Page 3: Service Line Renewal Customer Side -->
-      <div class="tc-page" id="tc-page-customer">
-        <div class="tc-section">
-          <div class="tc-section-title">Customer Side Header</div>
-          <div class="tc-row-3">
-            <div class="tc-field"><label class="tc-label">Service Number <span class="tc-readonly-meta">auto from Company Side</span></label>
-              <input class="tc-input" type="text" id="tc-cu-service_number" readonly></div>
-            <div class="tc-field"><label class="tc-label">Date</label>
-              <input class="tc-input" type="date" id="tc-cu-date"></div>
-            <div class="tc-field"><label class="tc-label">Owner <span class="tc-readonly-meta">auto from property</span></label>
-              <input class="tc-input" type="text" id="tc-cu-owner" readonly></div>
-          </div>
-        </div>
-
-        <div class="tc-section">
-          <div class="tc-section-title">Customer Service Detail</div>
-          <div class="tc-row">
-            <div class="tc-field"><label class="tc-label">Material at meter</label>
-              <input class="tc-input" type="text" id="tc-cu-material_at_meter" placeholder="Copper / Lead / ..."></div>
-            <div class="tc-field"><label class="tc-label">Distance to meter (ft)</label>
-              <input class="tc-input" type="number" step="0.5" min="0" id="tc-cu-distance_to_meter" placeholder="ft"></div>
-          </div>
-          <div class="tc-row">
-            <div class="tc-field"><label class="tc-label">Notes</label>
-              <textarea class="tc-input" rows="3" id="tc-cu-notes" style="resize:vertical" placeholder="Anything customer-side specific..."></textarea></div>
-          </div>
-        </div>
-
-        <div class="tc-section">
-          <div class="tc-section-title">Diagram</div>
-          <div class="tc-diagram-placeholder">
-            <strong>Diagram pane — Phase 4</strong>
-            Customer-side simpler layout deferred per TAPCARD_CLUSTER_SPEC §5.
-          </div>
-        </div>
-
-        <div class="tc-section">
-          <div class="tc-section-title">Footer</div>
-          <div class="tc-row">
-            <div class="tc-field"><label class="tc-label">Company Service Material</label>
-              <input class="tc-input" type="text" id="tc-cu-company_service_material" placeholder="Copper / Lead / ..."></div>
-            <div class="tc-field"><label class="tc-label">Size (in)</label>
-              <input class="tc-input" type="number" step="0.25" min="0" id="tc-cu-size" placeholder="0.75"></div>
           </div>
         </div>
       </div>
@@ -1281,6 +1290,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 window.sb = sb;
 
 let currentUser = null;
+let currentUserIsSuperAdmin = false; // promoted from initApp-local for role-gated UI (Phase 2b refactor: Office Fill on Tapcard)
 let currentServiceType = null;
 let wbCurbstop = false;
 let wbWatermain = false;
@@ -1640,6 +1650,7 @@ async function initApp(user){
       currentFirmId = profile.firm_id;
       firmName = profile.firms?.name || null;
       isSuperAdmin = profile.role === 'super_admin';
+      currentUserIsSuperAdmin = isSuperAdmin; // global mirror for role-gated UI (Tapcard Office Fill, etc.)
     }
   } catch(e) {
     console.warn('Profile load failed, continuing:', e);
@@ -3292,10 +3303,10 @@ async function openTapcardForProperty(propertyId){
     currentTapcard.materials_sheet_id = sheet.id;
   }
 
-  tcRenderMaterialsSummary(sheet);
+  tcRenderMaterialsFullView(sheet);
   tcRenderPropertySummary(prop);
   tcAutoPopulateCompanySide(prop, sheet);
-  tcAutoPopulateCustomerSide(prop, sheet);
+  tcApplyOfficeFillVisibility();
 
   // Reset Material Installed table to a single empty row
   document.getElementById('tc-mi-tbody').innerHTML = '';
@@ -3345,36 +3356,124 @@ function tcSetFooterStatus(kind, message){
   el.textContent = message || '';
 }
 
-function tcRenderMaterialsSummary(sheet){
-  const container = document.getElementById('tc-materials-summary');
-  if(!container) return;
+// Phase 2b refactor: Page 1 now shows every column from the attached materials_sheet
+// in scannable read-only sections matching the paper Tapcard layout. Inspector
+// verifies "is the right sheet attached?" by glance, no jumping to Property Detail.
+function tcRenderMaterialsFullView(sheet){
+  const sectionIds = ['tc-ms-header','tc-ms-testpit','tc-ms-materials-grid','tc-ms-measurements','tc-ms-multitenant','tc-ms-downtime','tc-ms-notes'];
   if(!sheet){
-    container.innerHTML = '<div class="tc-summary-empty">No active Materials Sheet attached. Submit one via Property Detail (Phase 2a UI) before this Tapcard can auto-pull header/measurements/materials.</div>';
+    sectionIds.forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.innerHTML = '<div class="tc-summary-empty">No Materials Sheet attached for this property. Submit one via Property Detail (Phase 2a UI) before this Tapcard can auto-pull values.</div>';
+    });
     return;
   }
-  const dt = sheet.sheet_date || (sheet.created_at ? new Date(sheet.created_at).toLocaleDateString() : '—');
-  const who = sheet.foreman_name || sheet.contractor_name || 'unsigned';
-  const measureCount = ['corp_depth_inches','cs_depth_inches','cs_house_inches','cs_rs_inches','cs_ls_inches','cs_near_curb_inches','cs_far_curb_inches','cs_corp_inches','cs_mp_inches']
-    .filter(k => sheet[k] !== null && sheet[k] !== undefined).length;
-  const materialsCount = ['njaw_old_material','njaw_new_material','customer_old_material','customer_new_material']
-    .filter(k => sheet[k]).length;
-  container.innerHTML = `
-    <div class="tc-summary-card">
-      <div style="font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;color:var(--white);margin-bottom:6px">Materials Sheet from ${dt} — ${who}</div>
-      <div style="font-size:11px;color:var(--muted);line-height:1.6">
-        ${measureCount} of 9 measurements captured · ${materialsCount} of 4 material rows filled · ${sheet.test_pit ? 'Test Pit Y' : 'Test Pit N'} · ${sheet.sky_condition || 'sky n/a'}
-      </div>
-      <div style="font-size:11px;color:var(--blue-light);margin-top:8px">Auto-pulled values flow into Company Side service rows + Location Data block.</div>
+  const pill = (label, val) => `
+    <div>
+      <div class="tc-ms-readout-label">${label}</div>
+      <div class="tc-ms-readout-value${val === null || val === undefined || val === '' ? ' empty' : ''}">${val === null || val === undefined || val === '' ? '—' : val}</div>
     </div>`;
+  const inOrNull = v => (v === null || v === undefined) ? null : (v + ' in');
+  const ynOrNull = v => v === true ? 'Yes' : (v === false ? 'No' : null);
+
+  // Header
+  const dt = sheet.sheet_date || (sheet.created_at ? new Date(sheet.created_at).toLocaleDateString() : null);
+  document.getElementById('tc-ms-header').innerHTML = `<div class="tc-ms-readout">
+    ${pill('Date', dt)}
+    ${pill('Contractor', sheet.contractor_name)}
+    ${pill('Foreman', sheet.foreman_name)}
+    ${pill('Service Type', sheet.service_type)}
+    ${pill('Kill Location', sheet.kill_location)}
+    ${pill('Sky Condition', sheet.sky_condition)}
+    ${pill('Temperature °F', sheet.temperature_f)}
+    ${pill('Test Pit', ynOrNull(sheet.test_pit))}
+  </div>`;
+
+  // Test Pit Information
+  document.getElementById('tc-ms-testpit').innerHTML = `<div class="tc-ms-readout">
+    ${pill('Curb Box Location', sheet.curb_box_location)}
+    ${pill('Curb Box Replaced', ynOrNull(sheet.curb_box_replaced))}
+    ${pill('# Excavations', sheet.num_excavations)}
+    ${pill('Existing MP Noted', ynOrNull(sheet.existing_mp_noted))}
+  </div>`;
+
+  // Service Materials Grid (NJAW + Customer rows × Old/New)
+  document.getElementById('tc-ms-materials-grid').innerHTML = `
+    <table class="tc-ms-grid-table">
+      <thead><tr><th></th><th>Old Size (in)</th><th>Old Material</th><th>New Size (in)</th><th>New Material</th><th>New Amt (ft)</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="row-label">NJAW</td>
+          <td>${sheet.njaw_old_size_inches ?? '—'}</td>
+          <td>${sheet.njaw_old_material || '—'}</td>
+          <td>${sheet.njaw_new_size_inches ?? '—'}</td>
+          <td>${sheet.njaw_new_material || '—'}</td>
+          <td>${sheet.njaw_new_amount_feet ?? '—'}</td>
+        </tr>
+        <tr>
+          <td class="row-label">Customer</td>
+          <td>${sheet.customer_old_size_inches ?? '—'}</td>
+          <td>${sheet.customer_old_material || '—'}</td>
+          <td>${sheet.customer_new_size_inches ?? '—'}</td>
+          <td>${sheet.customer_new_material || '—'}</td>
+          <td>${sheet.customer_new_amount_feet ?? '—'}</td>
+        </tr>
+      </tbody>
+    </table>`;
+
+  // Measurements — 9 cs_*/corp + mp_horn_copper + size_of_main + type_of_main + service_side
+  document.getElementById('tc-ms-measurements').innerHTML = `<div class="tc-ms-readout">
+    ${pill('Corp Depth', inOrNull(sheet.corp_depth_inches))}
+    ${pill('CS Depth', inOrNull(sheet.cs_depth_inches))}
+    ${pill('CS-House', inOrNull(sheet.cs_house_inches))}
+    ${pill('CS-RS', inOrNull(sheet.cs_rs_inches))}
+    ${pill('CS-LS', inOrNull(sheet.cs_ls_inches))}
+    ${pill('CS-Near Curb', inOrNull(sheet.cs_near_curb_inches))}
+    ${pill('CS-Far Curb', inOrNull(sheet.cs_far_curb_inches))}
+    ${pill('CS-Corp', inOrNull(sheet.cs_corp_inches))}
+    ${pill('CS-MP', inOrNull(sheet.cs_mp_inches))}
+    ${pill('MP Horn Copper', inOrNull(sheet.mp_horn_copper_inches))}
+    ${pill('Size of Main', inOrNull(sheet.size_of_main_inches))}
+    ${pill('Type of Main', sheet.type_of_main)}
+    ${pill('Service Side', sheet.service_side)}
+  </div>`;
+
+  // Multi-tenant
+  document.getElementById('tc-ms-multitenant').innerHTML = `<div class="tc-ms-readout">
+    ${pill('Multi-Tenant', ynOrNull(sheet.multi_tenant))}
+    ${pill('# Units', sheet.num_units)}
+    ${pill('Pitcher Delivered', ynOrNull(sheet.pitcher_delivered))}
+  </div>`;
+
+  // Downtime
+  document.getElementById('tc-ms-downtime').innerHTML = `<div class="tc-ms-readout">
+    ${pill('Downtime Hours', sheet.downtime_hours)}
+    ${pill('Notified', ynOrNull(sheet.downtime_notified))}
+  </div>`;
+
+  // Notes (free-text block — show or "no notes" placeholder)
+  const notesEl = document.getElementById('tc-ms-notes');
+  if(notesEl){
+    if(sheet.notes && sheet.notes.trim()){
+      notesEl.textContent = sheet.notes;
+      notesEl.style.fontStyle = 'normal';
+      notesEl.style.color = 'rgba(237,242,248,0.85)';
+    } else {
+      notesEl.textContent = '— no free-text notes captured on this sheet —';
+      notesEl.style.fontStyle = 'italic';
+      notesEl.style.color = 'var(--muted)';
+    }
+  }
 }
 
 function tcRenderPropertySummary(prop){
   const container = document.getElementById('tc-property-summary');
   if(!container) return;
+  // Phase 2b refactor: Lot/Block/Town section line dropped per acceptance — already
+  // captured in Property Detail header above; redundant in the Tapcard property block.
   const fields = [
     ['Address', prop.address || '—'],
     ['City / State / Zip', [prop.city, prop.state, prop.zip].filter(Boolean).join(', ') || '—'],
-    ['Lot / Block', prop.lot_block || '—'],
     ['MapCall ID', prop.mapcall_id || '—'],
     ['Sector', prop.sector || 'NJ6_NORMAL'],
     ['Current Phase', (prop.current_phase || 'pending').replace(/_/g,' ')],
@@ -3382,6 +3481,14 @@ function tcRenderPropertySummary(prop){
   container.innerHTML = fields.map(([label, val]) =>
     `<div class="tc-readonly-pill"><span style="color:var(--muted);font-size:10px">${label}:</span> <span>${val}</span></div>`
   ).join('');
+}
+
+// Phase 2b refactor: Office Fill section visible only to super_admin/office role.
+// currentUserIsSuperAdmin is set in initApp from profiles.role lookup.
+function tcApplyOfficeFillVisibility(){
+  const section = document.getElementById('tc-co-office-fill-section');
+  if(!section) return;
+  section.style.display = currentUserIsSuperAdmin ? 'block' : 'none';
 }
 
 function tcAutoPopulateCompanySide(prop, sheet){
@@ -3397,13 +3504,14 @@ function tcAutoPopulateCompanySide(prop, sheet){
     }
   }
 
-  // Owner / Location block from property
+  // Owner / Location block from property — Phase 2b refactor: Lot/Block dropped from
+  // this row (acceptance criterion: "LOT / BLOCK / TOWN SECTION line is gone"). Kept
+  // Owner, Location, Municipality, Cross Street, MapCall ID — the operationally useful set.
   const ob = document.getElementById('tc-co-owner-block');
   if(ob){
     const fields = [
       ['Owner', prop.owner_name || '—'],
       ['Location', prop.address || '—'],
-      ['Lot / Block', prop.lot_block || '—'],
       ['Municipality', prop.municipality || prop.city || '—'],
       ['Cross Street', prop.cross_street || '—'],
       ['MapCall ID', prop.mapcall_id || '—'],
@@ -3437,22 +3545,6 @@ function tcAutoPopulateCompanySide(prop, sheet){
     } else {
       lb.innerHTML = '<div class="tc-summary-empty">No Materials Sheet — Location Data unpopulated.</div>';
     }
-  }
-}
-
-function tcAutoPopulateCustomerSide(prop, sheet){
-  const svcEl = document.getElementById('tc-cu-service_number');
-  if(svcEl) svcEl.value = ''; // mirrored from Company Side at submit time
-  const ownerEl = document.getElementById('tc-cu-owner');
-  if(ownerEl) ownerEl.value = prop.owner_name || prop.address || '—';
-  // Customer-side material/distance left blank for inspector to fill
-  ['tc-cu-date','tc-cu-material_at_meter','tc-cu-distance_to_meter','tc-cu-notes','tc-cu-company_service_material','tc-cu-size'].forEach(id => {
-    const el = document.getElementById(id);
-    if(el) el.value = '';
-  });
-  if(sheet){
-    const cmEl = document.getElementById('tc-cu-company_service_material');
-    if(cmEl) cmEl.value = sheet.njaw_new_material || '';
   }
 }
 
@@ -3571,7 +3663,20 @@ function tcReadMaterialInstalledRows(){
 function tcReadForm(){
   const text = id => { const el = document.getElementById(id); const v = el?.value; return (v === '' || v === null || v === undefined) ? null : String(v).trim() || null; };
   const num  = id => { const el = document.getElementById(id); const v = el?.value; if(v === '' || v === null || v === undefined) return null; const n = Number(v); return Number.isFinite(n) ? n : null; };
-  return {
+  // Phase 2b refactor: customer_side dropped (Customer tab killed). Office Fill section
+  // is gathered into office_fill subobject — fields live on the form regardless of
+  // visibility, but UI only renders for super_admin/office role.
+  const office_fill = {
+    district_id: text('tc-co-of-district_id'),
+    sap: text('tc-co-of-sap'),
+    premise: text('tc-co-of-premise'),
+    notes: text('tc-co-of-notes'),
+  };
+  // If every office_fill field is null, omit the subobject from payload entirely so
+  // non-office submitters don't pollute jsonb with empty office shells.
+  const officeFillEmpty = !office_fill.district_id && !office_fill.sap && !office_fill.premise && !office_fill.notes;
+
+  const out = {
     company_side: {
       service_number: text('tc-co-service_number'),
       task_numbers: text('tc-co-task_numbers'),
@@ -3588,18 +3693,11 @@ function tcReadForm(){
       },
       // diagram: deferred to Phase 4 per TAPCARD_CLUSTER_SPEC §5.1
     },
-    customer_side: {
-      service_number: text('tc-cu-service_number'),
-      date: text('tc-cu-date'),
-      material_at_meter: text('tc-cu-material_at_meter'),
-      distance_to_meter_feet: num('tc-cu-distance_to_meter'),
-      notes: text('tc-cu-notes'),
-      company_service_material: text('tc-cu-company_service_material'),
-      size_inches: num('tc-cu-size'),
-    },
     sector: currentTapcard?.sector || 'NJ6_NORMAL',
     materials_sheet_id_at_submit: currentTapcard?.materials_sheet_id || null,
   };
+  if(!officeFillEmpty) out.company_side.office_fill = office_fill;
+  return out;
 }
 
 async function submitTapcard(){
@@ -3608,10 +3706,7 @@ async function submitTapcard(){
     return;
   }
   const tapcard_data = tcReadForm();
-  // Mirror Company Side service_number into Customer Side at submit time (per §4.5)
-  if(tapcard_data.customer_side && tapcard_data.company_side?.service_number){
-    tapcard_data.customer_side.service_number = tapcard_data.company_side.service_number;
-  }
+  // Phase 2b refactor: Customer Side tab killed; service_number mirror logic dropped.
 
   const payload = {
     id: crypto.randomUUID(),
