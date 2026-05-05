@@ -337,6 +337,17 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
   .pd-photos{grid-template-columns:repeat(3,1fr)}
 }
 
+/* PROPERTY DETAIL TABS — Phase 2c lean scaffold */
+.pd-tabs{display:flex;gap:4px;margin:16px 0 0;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.pd-tab{padding:7px 14px;border-radius:6px 6px 0 0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);cursor:pointer;border:1px solid transparent;background:transparent;transition:all .15s}
+.pd-tab:hover{color:var(--white);border-color:var(--border)}
+.pd-tab.active{background:rgba(27,58,107,0.4);color:var(--blue-light);border-color:rgba(74,124,196,0.3)}
+.pd-page{display:none;padding-top:18px}
+.pd-page.active{display:block}
+.pd-placeholder{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px;background:var(--surface2);border:1px dashed var(--border);border-radius:var(--radius);line-height:1.6}
+.pd-placeholder strong{display:block;margin-bottom:8px;color:var(--white);font-family:'Rajdhani',sans-serif;font-size:14px;letter-spacing:.06em;text-transform:uppercase}
+@media(max-width:768px){.pd-tabs{flex-wrap:wrap}}
+
 /* PHOTO LIGHTBOX */
 .pd-lightbox{position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:2000;
   display:none;align-items:center;justify-content:center;padding:20px;cursor:pointer}
@@ -1081,7 +1092,7 @@ html,body{overflow-x:hidden}
   </div>
 </div>
 
-<!-- PROPERTY DETAIL MODAL -->
+<!-- PROPERTY DETAIL MODAL (Phase 2c — tabbed: Overview / Restoration / ShortHills) -->
 <div class="modal-overlay" id="modal-property-detail">
   <div class="modal modal-lg">
     <div class="modal-header">
@@ -1091,10 +1102,29 @@ html,body{overflow-x:hidden}
       </div>
       <button class="modal-close" onclick="closeModal('modal-property-detail')">✕</button>
     </div>
-    <div class="pd-header-grid" id="pd-header-grid"></div>
-    <div class="pd-section-title">Phase Submissions <span id="pd-submission-count"></span></div>
-    <div id="pd-submissions-list">
-      <div class="loading"><div class="spinner"></div><br>Loading submissions...</div>
+    <div class="pd-tabs">
+      <div class="pd-tab active" data-page="overview" onclick="pdSwitchTab('overview')">Overview</div>
+      <div class="pd-tab" data-page="restoration" onclick="pdSwitchTab('restoration')">Restoration</div>
+      <div class="pd-tab" data-page="shorthills" onclick="pdSwitchTab('shorthills')">ShortHills</div>
+    </div>
+    <div class="pd-page active" id="pd-page-overview">
+      <div class="pd-header-grid" id="pd-header-grid"></div>
+      <div class="pd-section-title">Phase Submissions <span id="pd-submission-count"></span></div>
+      <div id="pd-submissions-list">
+        <div class="loading"><div class="spinner"></div><br>Loading submissions...</div>
+      </div>
+    </div>
+    <div class="pd-page" id="pd-page-restoration">
+      <div class="pd-placeholder">
+        <strong>Restoration</strong>
+        Tab structure scaffolded in MI-101 Phase 2c. Form ships next session as Phase 2c-form pickup — 5 acceptance criteria, photo upload, sector dispatch, whiteboard requirement.
+      </div>
+    </div>
+    <div class="pd-page" id="pd-page-shorthills">
+      <div class="pd-placeholder">
+        <strong>ShortHills</strong>
+        Coming soon — pending master parts list.
+      </div>
     </div>
   </div>
 </div>
@@ -1256,6 +1286,10 @@ html,body{overflow-x:hidden}
       </div>
 
     </div>
+
+    <!-- Phase 2c lean scaffold — empty container; Phase 2d wires layout + autopopulation -->
+    <div id="visual-tapcard-preview-container"></div>
+
     <div class="tc-footer">
       <span class="tc-footer-status" id="tc-footer-status">Ready</span>
       <span style="color:var(--muted)">Submit Tapcard creates a phase_submission with phase='tapcard' + tapcard_data jsonb + materials_sheet_id reference.</span>
@@ -3074,6 +3108,7 @@ async function confirmBulkImport(){
 async function openPropertyDetail(propertyId){
   const modal = document.getElementById('modal-property-detail');
   modal.classList.add('open');
+  pdSwitchTab('overview');
   document.getElementById('pd-submissions-list').innerHTML =
     '<div class="loading"><div class="spinner"></div><br>Loading submissions...</div>';
   document.getElementById('pd-header-grid').innerHTML = '';
@@ -3397,6 +3432,12 @@ function closeTapcardModal(){
 function tcSwitchPage(page){
   document.querySelectorAll('.tc-tab').forEach(el => el.classList.toggle('active', el.dataset.page === page));
   document.querySelectorAll('.tc-page').forEach(el => el.classList.toggle('active', el.id === 'tc-page-' + page));
+}
+
+// Phase 2c lean scaffold — Property Detail tab switcher (Overview / Restoration / ShortHills)
+function pdSwitchTab(tab){
+  document.querySelectorAll('.pd-tab').forEach(el => el.classList.toggle('active', el.dataset.page === tab));
+  document.querySelectorAll('.pd-page').forEach(el => el.classList.toggle('active', el.id === 'pd-page-' + tab));
 }
 
 function tcSetFooterStatus(kind, message){
