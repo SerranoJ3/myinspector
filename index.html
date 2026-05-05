@@ -237,6 +237,34 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .tc-footer-status.saving{color:var(--orange)}
 .tc-footer-status.saved{color:var(--green)}
 .tc-footer-status.error{color:var(--red)}
+
+/* PHASE 2D — VISUAL TAPCARD PREVIEW (NJ6_NORMAL only; sector dispatch in JS via vtcRender) */
+.tc-mid{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;background:var(--bg)}
+.tc-mid > .tc-body{flex:1 1 auto;min-height:0}
+#visual-tapcard-preview-container{display:none;background:var(--bg)}
+#visual-tapcard-preview-container.vtc-active{display:block;padding:18px 22px;overflow-y:auto}
+.vtc-svg{width:100%;height:auto;display:block;background:#ffffff;border:1px solid var(--border);border-radius:8px}
+.vtc-mobile-tabs{display:none;gap:4px;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.vtc-mobile-tab{flex:1;padding:7px 10px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);cursor:pointer;border:1px solid var(--border);background:transparent;text-align:center;transition:all .15s}
+.vtc-mobile-tab.active{background:rgba(27,58,107,0.4);color:var(--blue-light);border-color:rgba(74,124,196,0.3)}
+@media(min-width:768px){
+  .tc-mid{flex-direction:row}
+  .tc-mid > .tc-body{flex:1 1 55%;overflow-y:auto}
+  #visual-tapcard-preview-container.vtc-active{flex:1 1 45%;overflow-y:auto;border-left:1px solid var(--border)}
+}
+@media(min-width:1024px){
+  .tc-mid > .tc-body{flex:1 1 60%}
+  #visual-tapcard-preview-container.vtc-active{flex:1 1 40%}
+}
+@media(max-width:767px){
+  .vtc-mobile-tabs{display:flex}
+  .tc-modal[data-mobile-view="preview"] .tc-body{display:none}
+  .tc-modal[data-mobile-view="preview"] #visual-tapcard-preview-container.vtc-active{display:block;flex:1 1 100%}
+  .tc-modal[data-mobile-view="form"] #visual-tapcard-preview-container.vtc-active{display:none}
+}
+.tc-modal.vtc-disabled .vtc-mobile-tabs{display:none !important}
+.tc-modal.vtc-disabled #visual-tapcard-preview-container{display:none !important}
+
 @media(max-width:768px){
   .tc-row,.tc-row-3,.tc-row-4{grid-template-columns:1fr}
   .tc-modal{max-width:100%}
@@ -1147,6 +1175,15 @@ html,body{overflow-x:hidden}
         <button class="btn-sm btn-orange" onclick="submitTapcard()">Submit Tapcard</button>
       </div>
     </div>
+
+    <!-- Phase 2d — mobile sub-tab toggle (Form / Visual Preview); hidden on >=768px -->
+    <div class="vtc-mobile-tabs">
+      <div class="vtc-mobile-tab active" data-view="form" onclick="vtcMobileTab('form')">Form</div>
+      <div class="vtc-mobile-tab" data-view="preview" onclick="vtcMobileTab('preview')">Visual Preview</div>
+    </div>
+
+    <!-- Phase 2d — flex wrapper: form pane left, visual preview right on >=768px -->
+    <div class="tc-mid">
     <div class="tc-body">
 
       <!-- Page 1: Materials Sheet read-only summary -->
@@ -1287,8 +1324,9 @@ html,body{overflow-x:hidden}
 
     </div>
 
-    <!-- Phase 2c lean scaffold — empty container; Phase 2d wires layout + autopopulation -->
+    <!-- Phase 2d — visual tapcard SVG renders here for NJ6_NORMAL sector only -->
     <div id="visual-tapcard-preview-container"></div>
+    </div>
 
     <div class="tc-footer">
       <span class="tc-footer-status" id="tc-footer-status">Ready</span>
@@ -3384,6 +3422,7 @@ async function openTapcardForProperty(propertyId){
   }
   const prop = propResult.data;
   currentTapcard.sector = prop.sector || 'NJ6_NORMAL';
+  currentTapcard.property = prop; // Phase 2d — stash for vtcRender's address/lot_block reads
 
   const sheets = sheetResult.data || [];
   const sheet = sheets.length ? sheets[0] : null;
@@ -3421,10 +3460,12 @@ async function openTapcardForProperty(propertyId){
   } else {
     tcSetFooterStatus('ready', `No Materials Sheet attached. Tapcard will save without materials_sheet_id.`);
   }
+  vtcInitOnOpen(); // Phase 2d — visual tapcard preview (NJ6_NORMAL only; sector dispatch in vtcRender)
 }
 
 function closeTapcardModal(){
   document.getElementById('modal-tapcard').classList.remove('open');
+  vtcReset(); // Phase 2d — clear visual preview state for next open
   currentTapcard = null;
   currentTapcardPartsCatalog = [];
 }
@@ -3438,6 +3479,157 @@ function tcSwitchPage(page){
 function pdSwitchTab(tab){
   document.querySelectorAll('.pd-tab').forEach(el => el.classList.toggle('active', el.dataset.page === tab));
   document.querySelectorAll('.pd-page').forEach(el => el.classList.toggle('active', el.id === 'pd-page-' + tab));
+}
+
+// ── PHASE 2D — VISUAL TAPCARD PREVIEW ───────────────────────
+// Read-only SVG mirror of #modal-tapcard form state. Renders for NJ6_NORMAL sector only.
+// Field map tracks Phase 2b's actual tc-co-* / tc-cu-* IDs (not the brief's hypothetical
+// schema). Adjust VTC_FIELDS when Phase 2b form gains new inputs.
+const VTC_W = 800, VTC_H = 1000;
+const VTC_FIELDS = [
+  // Header band (y 0.02-0.10)
+  {x:0.5, y:0.055, get:()=>'NJAW Tapcard — Field Inspection Record', size:18, weight:700, anchor:'middle', static:true},
+  {x:0.5, y:0.085, get:()=>'MyInspector · NJ American Water', size:10, color:'muted', anchor:'middle', static:true},
+  // Identification row (y 0.11-0.18)
+  {x:0.06, y:0.135, label:'Address', get:()=>currentTapcard && currentTapcard.property ? currentTapcard.property.address : '', size:15, weight:700, underline:340},
+  {x:0.65, y:0.135, label:'Lot / Block', get:()=>currentTapcard && currentTapcard.property ? currentTapcard.property.lot_block : '', size:13, family:'mono', underline:200},
+  {x:0.06, y:0.17, label:'Inspector', get:()=>vtcVal('tc-co-completed_by') || vtcVal('tc-co-installed_by'), size:12, underline:280},
+  {x:0.65, y:0.17, label:'Date', get:()=>vtcVal('tc-co-date'), size:12, family:'mono', underline:160},
+  // Service codes (y 0.19-0.24)
+  {x:0.06, y:0.215, label:'Service #', get:()=>vtcVal('tc-co-service_number'), size:14, family:'mono', weight:700, underline:200},
+  {x:0.45, y:0.215, label:'Task #s', get:()=>vtcVal('tc-co-task_numbers'), size:13, family:'mono', underline:280},
+  // Company Side col 1 (y 0.27-0.45)
+  {x:0.06, y:0.285, label:'Tied In', get:()=>vtcVal('tc-co-tied_in'), size:14, underline:240},
+  {x:0.06, y:0.345, label:'Plug Lock', get:()=>vtcVal('tc-co-plug_lock'), size:14, underline:240},
+  {x:0.06, y:0.405, label:'Cust. Material', get:()=>vtcVal('tc-co-cust_mat'), size:14, underline:240},
+  // Company Side col 2 (y 0.27-0.45)
+  {x:0.55, y:0.285, label:'Size (in)', get:()=>vtcVal('tc-co-size'), suffix:'"', size:14, family:'mono', underline:200},
+  {x:0.55, y:0.345, label:'Date Installed', get:()=>vtcVal('tc-co-date_installed'), size:14, family:'mono', underline:200},
+  {x:0.55, y:0.405, label:'Installed By', get:()=>vtcVal('tc-co-installed_by'), size:14, underline:240},
+  // Customer Side header divider (y 0.49)
+  {x:0.06, y:0.49, get:()=>'— Customer Side —', size:11, color:'muted', weight:700, static:true},
+  // Customer Side row (y 0.53-0.65)
+  {x:0.06, y:0.55, label:'Material at Meter', get:()=>vtcVal('tc-cu-material_at_meter'), size:14, underline:240},
+  {x:0.55, y:0.55, label:'Dist. to Meter', get:()=>vtcVal('tc-cu-distance_to_meter'), suffix:' ft', size:14, family:'mono', underline:200},
+  {x:0.06, y:0.61, label:'Cust Service Material', get:()=>vtcVal('tc-cu-company_service_material'), size:14, underline:240},
+  {x:0.55, y:0.61, label:'Size (cu)', get:()=>vtcVal('tc-cu-size'), suffix:'"', size:14, family:'mono', underline:200},
+  // Notes block (y 0.70-0.86)
+  {x:0.06, y:0.71, get:()=>'Notes / Observations', size:11, color:'muted', weight:700, static:true},
+  {x:0.06, y:0.745, get:()=>vtcVal('tc-cu-notes'), size:11, multiline:true, wrap:78, maxLines:6, underline:680},
+  // Footer (y 0.88-0.98)
+  {x:0.06, y:0.91, get:()=>'Sector: ' + (currentTapcard && currentTapcard.sector ? currentTapcard.sector : '—'), size:9, family:'mono', color:'muted', static:true},
+  {x:0.06, y:0.935, get:()=>'Whiteboard: not required for tapcard phase', size:9, color:'muted', static:true},
+  {x:0.5, y:0.96, get:()=>'Signature: ___________________', size:10, family:'italic', color:'muted', static:true, anchor:'middle'},
+];
+
+function vtcVal(id){ const el = document.getElementById(id); return el ? el.value : ''; }
+function vtcEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function vtcWrap(text, n){
+  if(!text) return [];
+  const words = String(text).split(/\s+/).filter(Boolean);
+  const lines = []; let cur = '';
+  for(const w of words){
+    if((cur + (cur?' ':'') + w).length <= n){ cur = cur ? cur+' '+w : w; }
+    else { if(cur) lines.push(cur); cur = w; }
+  }
+  if(cur) lines.push(cur);
+  return lines;
+}
+
+function vtcRender(){
+  const container = document.getElementById('visual-tapcard-preview-container');
+  const modal = document.getElementById('modal-tapcard');
+  if(!container || !modal) return;
+  // Sector dispatch — Q-2c locked: visual tapcard is NJ6_NORMAL only.
+  if(!currentTapcard || currentTapcard.sector !== 'NJ6_NORMAL'){
+    container.innerHTML = '';
+    container.classList.remove('vtc-active');
+    modal.classList.add('vtc-disabled');
+    return;
+  }
+  modal.classList.remove('vtc-disabled');
+  container.classList.add('vtc-active');
+  const W = VTC_W, H = VTC_H;
+  const out = [];
+  out.push(`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" class="vtc-svg" preserveAspectRatio="xMidYMin meet" role="img" aria-label="Visual Tapcard Preview">`);
+  out.push(`<rect x="2" y="2" width="${W-4}" height="${H-4}" fill="#ffffff" stroke="#cfd6df" stroke-width="1" rx="6"/>`);
+  out.push(`<line x1="40" y1="${H*0.105}" x2="${W-40}" y2="${H*0.105}" stroke="#cfd6df" stroke-width="1"/>`);
+  out.push(`<line x1="40" y1="${H*0.475}" x2="${W-40}" y2="${H*0.475}" stroke="#e6ebf1" stroke-width="1"/>`);
+  out.push(`<line x1="40" y1="${H*0.88}" x2="${W-40}" y2="${H*0.88}" stroke="#e6ebf1" stroke-width="1"/>`);
+  for(const f of VTC_FIELDS){
+    const cx = f.x * W, cy = f.y * H;
+    let v = '';
+    try { v = (f.get() || '').toString(); } catch(e) { v = ''; }
+    const family = f.family === 'mono' ? `'JetBrains Mono', ui-monospace, Consolas, monospace`
+      : f.family === 'italic' ? `'Source Sans 3', sans-serif`
+      : `'JetBrains Mono', ui-monospace, Consolas, monospace`; // Q-2d-a: mono default
+    const fStyle = f.family === 'italic' ? 'italic' : 'normal';
+    const size = f.size || 12;
+    const weight = f.weight || 400;
+    const color = f.color === 'muted' ? '#7d8a9c' : '#1a2434';
+    const anchor = f.anchor || 'start';
+    if(f.label){
+      out.push(`<text x="${cx}" y="${cy - 14}" font-family="'Source Sans 3', sans-serif" font-size="9" font-weight="700" fill="#7d8a9c" letter-spacing="1.2" text-anchor="${anchor}">${vtcEsc(f.label.toUpperCase())}</text>`);
+    }
+    if(v || f.static){
+      const display = (f.prefix || '') + v + (f.suffix || '');
+      if(f.multiline){
+        const lines = vtcWrap(v, f.wrap || 60).slice(0, f.maxLines || 5);
+        if(lines.length === 0 && f.underline){
+          // Q-2d-c: thin gray underline for empty multiline
+          out.push(`<line x1="${cx}" y1="${cy + 4}" x2="${cx + f.underline}" y2="${cy + 4}" stroke="#cfd6df" stroke-width="1"/>`);
+        } else {
+          lines.forEach((line, i) => {
+            out.push(`<text x="${cx}" y="${cy + i * (size + 5)}" font-family="${family}" font-size="${size}" font-weight="${weight}" font-style="${fStyle}" fill="${color}" text-anchor="${anchor}">${vtcEsc(line)}</text>`);
+          });
+        }
+      } else {
+        out.push(`<text x="${cx}" y="${cy}" font-family="${family}" font-size="${size}" font-weight="${weight}" font-style="${fStyle}" fill="${color}" text-anchor="${anchor}">${vtcEsc(display)}</text>`);
+      }
+    } else if(f.underline){
+      // Q-2d-c: thin gray underline at anchor for empty single-line fields
+      out.push(`<line x1="${cx}" y1="${cy + 4}" x2="${cx + f.underline}" y2="${cy + 4}" stroke="#cfd6df" stroke-width="1"/>`);
+    }
+  }
+  out.push('</svg>');
+  container.innerHTML = out.join('');
+}
+
+let _vtcDebounceT = null;
+function vtcDebouncedRender(){ if(_vtcDebounceT) clearTimeout(_vtcDebounceT); _vtcDebounceT = setTimeout(vtcRender, 100); }
+
+let _vtcListenersAttached = false;
+function vtcAttachListeners(){
+  if(_vtcListenersAttached) return;
+  const root = document.getElementById('modal-tapcard');
+  if(!root) return;
+  // Single delegated listener pair on the modal root — survives DOM mutations inside form pages.
+  root.addEventListener('input', vtcDebouncedRender, true);
+  root.addEventListener('change', vtcRender, true);
+  _vtcListenersAttached = true;
+}
+
+function vtcMobileTab(view){
+  const modal = document.getElementById('modal-tapcard');
+  if(!modal) return;
+  modal.dataset.mobileView = view;
+  document.querySelectorAll('.vtc-mobile-tab').forEach(el => el.classList.toggle('active', el.dataset.view === view));
+}
+
+function vtcInitOnOpen(){
+  const modal = document.getElementById('modal-tapcard');
+  if(!modal) return;
+  modal.dataset.mobileView = 'form';
+  document.querySelectorAll('.vtc-mobile-tab').forEach(el => el.classList.toggle('active', el.dataset.view === 'form'));
+  vtcAttachListeners();
+  vtcRender();
+}
+
+function vtcReset(){
+  const container = document.getElementById('visual-tapcard-preview-container');
+  if(container){ container.innerHTML = ''; container.classList.remove('vtc-active'); }
+  const modal = document.getElementById('modal-tapcard');
+  if(modal){ modal.classList.remove('vtc-disabled'); modal.removeAttribute('data-mobile-view'); }
 }
 
 function tcSetFooterStatus(kind, message){
