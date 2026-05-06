@@ -236,11 +236,75 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .tc-footer-status.saving{color:var(--orange)}
 .tc-footer-status.saved{color:var(--green)}
 .tc-footer-status.error{color:var(--red)}
+
+/* MI-101 Phase 2a — Materials Sheet UI */
+.ms-bar{background:rgba(74,124,196,0.06);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ms-bar-left{display:flex;flex-direction:column;gap:2px}
+.ms-bar-title{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--blue-light)}
+.ms-bar-meta{font-size:11px;color:var(--muted)}
+.ms-modal{max-width:1100px}
+.ms-modal-body{max-height:calc(90vh - 100px);overflow-y:auto;padding-right:6px}
+.ms-modal-body::-webkit-scrollbar{width:6px}
+.ms-modal-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.ms-section{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden}
+.ms-section[open]{background:var(--surface2)}
+.ms-section summary{padding:12px 16px;cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--blue-light);user-select:none}
+.ms-section summary::-webkit-details-marker{display:none}
+.ms-section summary::before{content:'▸';font-size:11px;color:var(--muted);transition:transform .15s}
+.ms-section[open] summary::before{transform:rotate(90deg)}
+.ms-section summary:hover{background:rgba(74,124,196,0.06)}
+.ms-section-body{padding:14px 16px;border-top:1px solid var(--border)}
+.ms-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.ms-row-3{grid-template-columns:1fr 1fr 1fr}
+.ms-row-4{grid-template-columns:1fr 1fr 1fr 1fr}
+.ms-field{display:flex;flex-direction:column;gap:5px;margin-bottom:0}
+.ms-field-wide{grid-column:span 2}
+.ms-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.ms-label .ms-label-hint{font-size:10px;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px;font-weight:500;font-style:italic}
+.ms-input{background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;font-size:13px;color:var(--white);font-family:'Source Sans 3',sans-serif;outline:none;transition:border-color .15s}
+.ms-input:focus{border-color:var(--blue-light)}
+.ms-input:disabled{opacity:0.4;cursor:not-allowed}
+.ms-textarea{resize:vertical;min-height:64px;line-height:1.5}
+.ms-chips{display:flex;flex-wrap:wrap;gap:6px}
+.ms-chip{background:var(--surface3);border:1px solid var(--border);border-radius:99px;padding:5px 12px;font-size:11px;font-weight:600;color:var(--white);cursor:pointer;letter-spacing:.04em;transition:all .15s}
+.ms-chip:hover{border-color:var(--blue-light)}
+.ms-chip.selected{background:rgba(27,58,107,0.4);border-color:var(--blue-light);color:var(--blue-light)}
+.ms-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;transition:all .15s;width:fit-content}
+.ms-toggle:hover{border-color:var(--blue-light)}
+.ms-toggle .ms-toggle-box{width:16px;height:16px;border-radius:4px;border:2px solid var(--orange);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;color:white}
+.ms-toggle.checked .ms-toggle-box{background:var(--green);border-color:var(--green)}
+.ms-toggle.checked .ms-toggle-label{color:var(--green)}
+.ms-toggle-label{font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.ms-feet-inches{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ms-feet-inches .ms-input{width:64px;text-align:center;padding:8px 6px}
+.ms-feet-inches-suffix{font-size:11px;color:var(--muted);font-weight:600}
+.ms-feet-inches-total{font-size:11px;color:var(--blue-light);font-weight:600;margin-left:4px}
+.ms-feet-inches-total.neg{color:var(--orange)}
+.ms-past-corner{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--orange);cursor:pointer;margin-top:4px;user-select:none}
+.ms-past-corner-box{width:14px;height:14px;border-radius:3px;border:2px solid var(--orange);display:flex;align-items:center;justify-content:center;font-size:9px;color:white}
+.ms-past-corner.checked .ms-past-corner-box{background:var(--orange)}
+.ms-grid-table{width:100%;border-collapse:collapse;background:var(--surface3);border-radius:var(--radius);overflow:hidden}
+.ms-grid-table th{background:rgba(74,124,196,0.1);padding:8px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)}
+.ms-grid-table td{padding:6px 8px;border-bottom:1px solid rgba(74,124,196,0.06)}
+.ms-grid-table tr:last-child td{border-bottom:none}
+.ms-grid-table .ms-input{padding:6px 8px;font-size:12px;width:100%}
+.ms-grid-row-label{font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;color:var(--white);letter-spacing:.04em;text-transform:uppercase}
+.ms-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:14px;border-top:1px solid var(--border);margin-top:14px;flex-wrap:wrap}
+.ms-save-status{font-size:11px;color:var(--muted)}
+.ms-save-status.saving{color:var(--orange)}
+.ms-save-status.saved{color:var(--green)}
+.ms-save-status.error{color:var(--red)}
+.ms-actions{display:flex;gap:8px;flex-wrap:wrap}
+.ms-warn{background:rgba(244,168,32,0.08);border:1px solid rgba(244,168,32,0.25);border-radius:var(--radius);padding:8px 12px;font-size:11px;color:var(--orange);margin-bottom:10px}
+
 @media(max-width:768px){
   .tc-row,.tc-row-3,.tc-row-4{grid-template-columns:1fr}
   .tc-modal{max-width:100%}
   .tc-topbar{flex-wrap:wrap;height:auto;padding:8px 12px;gap:8px}
   .tc-tabs{margin-left:0;width:100%;justify-content:center}
+  .ms-row,.ms-row-3,.ms-row-4{grid-template-columns:1fr}
+  .ms-field-wide{grid-column:auto}
+  .ms-feet-inches .ms-input{width:60px}
 }
 .mat-lead{color:var(--red);font-weight:600}
 .mat-copper{color:var(--green);font-weight:600}
@@ -1076,6 +1140,21 @@ html,body{overflow-x:hidden}
       <button class="modal-close" onclick="closeModal('modal-property-detail')">✕</button>
     </div>
     <div class="pd-header-grid" id="pd-header-grid"></div>
+    <div class="ms-bar" id="pd-materials-sheet-bar" style="display:none">
+      <div class="ms-bar-left">
+        <div class="ms-bar-title">Materials Sheet</div>
+        <div class="ms-bar-meta" id="pd-ms-meta">No active sheet for this property.</div>
+      </div>
+      <button class="btn-sm btn-orange" id="pd-ms-open-btn" onclick="openMaterialsSheetForCurrentProperty()">Open Materials Sheet</button>
+    </div>
+    <div id="pd-ms-history-section" style="display:none;margin-bottom:14px">
+      <details>
+        <summary style="cursor:pointer;font-size:11px;color:var(--muted);padding:6px 0;letter-spacing:.06em;text-transform:uppercase;font-weight:700;user-select:none">
+          Materials Sheet History — <span id="pd-ms-history-count">0</span> sheet(s) (active + soft-deleted)
+        </summary>
+        <div id="pd-ms-history-list" style="margin-top:8px"></div>
+      </details>
+    </div>
     <div class="pd-section-title">Phase Submissions <span id="pd-submission-count"></span></div>
     <div id="pd-submissions-list">
       <div class="loading"><div class="spinner"></div><br>Loading submissions...</div>
@@ -1241,6 +1320,340 @@ html,body{overflow-x:hidden}
   </div>
 </div>
 
+<!-- MI-101 PHASE 2A — MATERIALS SHEET MODAL -->
+<div class="modal-overlay" id="modal-materials-sheet">
+  <div class="modal modal-lg ms-modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="ms-modal-title">New Materials Sheet</div>
+        <div class="modal-sub" id="ms-modal-sub">Property — paper Tapcard page 1 (CDM-Smith fields)</div>
+      </div>
+      <button class="modal-close" onclick="closeMaterialsSheetModal()">&#10005;</button>
+    </div>
+    <div class="ms-modal-body">
+
+      <details class="ms-section" open>
+        <summary>Section A — Header</summary>
+        <div class="ms-section-body">
+          <div class="ms-row">
+            <div class="ms-field"><label class="ms-label">Date</label>
+              <input class="ms-input" type="date" id="ms-sheet_date"></div>
+            <div class="ms-field"><label class="ms-label">Contractor</label>
+              <input class="ms-input" type="text" id="ms-contractor_name" placeholder="Montana Construction" list="ms-contractor-options" autocomplete="off"></div>
+          </div>
+          <div class="ms-row">
+            <div class="ms-field"><label class="ms-label">Service Type <span class="ms-label-hint">free text (B2 unconfirmed)</span></label>
+              <input class="ms-input" type="text" id="ms-service_type" placeholder="e.g. test_pit, service_work" autocomplete="off"></div>
+            <div class="ms-field"><label class="ms-label">Foreman</label>
+              <input class="ms-input" type="text" id="ms-foreman_name" placeholder="Foreman name" autocomplete="off"></div>
+          </div>
+          <div class="ms-row">
+            <div class="ms-field"><label class="ms-label">Temperature (&deg;F) <span class="ms-label-hint">-50 to 150</span></label>
+              <input class="ms-input" type="number" id="ms-temperature_f" min="-50" max="150" placeholder="72"></div>
+            <div class="ms-field"><label class="ms-label">Kill Type / Location <span class="ms-label-hint">free text (B3 unconfirmed)</span></label>
+              <input class="ms-input" type="text" id="ms-kill_location" placeholder="e.g. ABANDON, RELOCATE_FULL" autocomplete="off"></div>
+          </div>
+          <div class="ms-field">
+            <label class="ms-label">Sky Condition</label>
+            <div class="ms-chips" id="ms-sky_condition-chips" data-field="sky_condition">
+              <div class="ms-chip" data-value="sunny" onclick="msSelectChip('sky_condition','sunny')">Sunny</div>
+              <div class="ms-chip" data-value="cloudy" onclick="msSelectChip('sky_condition','cloudy')">Cloudy</div>
+              <div class="ms-chip" data-value="rain" onclick="msSelectChip('sky_condition','rain')">Rain</div>
+              <div class="ms-chip" data-value="snow" onclick="msSelectChip('sky_condition','snow')">Snow</div>
+              <div class="ms-chip" data-value="other" onclick="msSelectChip('sky_condition','other')">Other</div>
+            </div>
+            <input type="hidden" id="ms-sky_condition">
+          </div>
+          <div class="ms-field">
+            <label class="ms-label">Test Pit</label>
+            <div class="ms-toggle" id="ms-test_pit-toggle" onclick="msToggleBoolean('test_pit')">
+              <div class="ms-toggle-box"></div>
+              <div class="ms-toggle-label" id="ms-test_pit-label">No</div>
+            </div>
+            <input type="hidden" id="ms-test_pit" value="false">
+          </div>
+        </div>
+      </details>
+
+      <details class="ms-section">
+        <summary>Section B — Test Pit Information</summary>
+        <div class="ms-section-body">
+          <div class="ms-field">
+            <label class="ms-label">Curb Box Location</label>
+            <div class="ms-chips" id="ms-curb_box_location-chips" data-field="curb_box_location">
+              <div class="ms-chip" data-value="city_strip" onclick="msSelectChip('curb_box_location','city_strip')">City Strip</div>
+              <div class="ms-chip" data-value="sidewalk" onclick="msSelectChip('curb_box_location','sidewalk')">Sidewalk</div>
+              <div class="ms-chip" data-value="driveway" onclick="msSelectChip('curb_box_location','driveway')">Driveway</div>
+              <div class="ms-chip" data-value="lawn" onclick="msSelectChip('curb_box_location','lawn')">Lawn</div>
+            </div>
+            <input type="hidden" id="ms-curb_box_location">
+          </div>
+          <div class="ms-row-3" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+            <div class="ms-field">
+              <label class="ms-label">Curb Box Replaced</label>
+              <div class="ms-toggle" id="ms-curb_box_replaced-toggle" onclick="msToggleBoolean('curb_box_replaced')">
+                <div class="ms-toggle-box"></div>
+                <div class="ms-toggle-label" id="ms-curb_box_replaced-label">No</div>
+              </div>
+              <input type="hidden" id="ms-curb_box_replaced" value="false">
+            </div>
+            <div class="ms-field"><label class="ms-label">Number of Excavations</label>
+              <input class="ms-input" type="number" id="ms-num_excavations" min="0" placeholder="0"></div>
+            <div class="ms-field">
+              <label class="ms-label">Existing MP Noted <span class="ms-label-hint">CDM-Smith rule b</span></label>
+              <div class="ms-toggle" id="ms-existing_mp_noted-toggle" onclick="msToggleBoolean('existing_mp_noted')">
+                <div class="ms-toggle-box"></div>
+                <div class="ms-toggle-label" id="ms-existing_mp_noted-label">No</div>
+              </div>
+              <input type="hidden" id="ms-existing_mp_noted" value="false">
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <details class="ms-section">
+        <summary>Section C — Notes</summary>
+        <div class="ms-section-body">
+          <div class="ms-field">
+            <label class="ms-label">Free Text Notes</label>
+            <textarea class="ms-input ms-textarea" id="ms-notes" rows="4" placeholder="Anything not captured by the structured fields above..."></textarea>
+          </div>
+        </div>
+      </details>
+
+      <details class="ms-section">
+        <summary>Section D — Service Materials Grid</summary>
+        <div class="ms-section-body">
+          <table class="ms-grid-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Old Size (in)</th>
+                <th>Old Material</th>
+                <th>New Size (in)</th>
+                <th>New Material</th>
+                <th>New Amount (ft)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="ms-grid-row-label">NJAW (Company side)</td>
+                <td><input class="ms-input" type="number" id="ms-njaw_old_size_inches" step="0.25" min="0" placeholder="0.75"></td>
+                <td><input class="ms-input" type="text" id="ms-njaw_old_material" placeholder="Copper / Lead / Galv" list="ms-material-options" autocomplete="off"></td>
+                <td><input class="ms-input" type="number" id="ms-njaw_new_size_inches" step="0.25" min="0" placeholder="1"></td>
+                <td><input class="ms-input" type="text" id="ms-njaw_new_material" placeholder="Copper" list="ms-material-options" autocomplete="off"></td>
+                <td><input class="ms-input" type="number" id="ms-njaw_new_amount_feet" min="0" placeholder="ft"></td>
+              </tr>
+              <tr>
+                <td class="ms-grid-row-label">Customer side</td>
+                <td><input class="ms-input" type="number" id="ms-customer_old_size_inches" step="0.25" min="0" placeholder="0.75"></td>
+                <td><input class="ms-input" type="text" id="ms-customer_old_material" placeholder="Copper / Lead / Galv" list="ms-material-options" autocomplete="off"></td>
+                <td><input class="ms-input" type="number" id="ms-customer_new_size_inches" step="0.25" min="0" placeholder="1"></td>
+                <td><input class="ms-input" type="text" id="ms-customer_new_material" placeholder="Copper" list="ms-material-options" autocomplete="off"></td>
+                <td><input class="ms-input" type="number" id="ms-customer_new_amount_feet" min="0" placeholder="ft"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <details class="ms-section">
+        <summary>Section E — Measurements</summary>
+        <div class="ms-section-body">
+          <div class="ms-warn">All depths/distances entered as feet + inches; saved as total inches in DB. Most must be ≥ 0; only CS-House allows negative via the Past Corner toggle (CDM-Smith rule e).</div>
+          <div class="ms-row">
+            <div class="ms-field">
+              <label class="ms-label">Corp Depth</label>
+              <div class="ms-feet-inches" data-measure="corp_depth">
+                <input class="ms-input" type="number" min="0" id="ms-corp_depth-ft" placeholder="ft" oninput="msRecalcMeasure('corp_depth')">
+                <span class="ms-feet-inches-suffix">ft</span>
+                <input class="ms-input" type="number" min="0" max="11" id="ms-corp_depth-in" placeholder="in" oninput="msRecalcMeasure('corp_depth')">
+                <span class="ms-feet-inches-suffix">in</span>
+                <span class="ms-feet-inches-total" id="ms-corp_depth-total">→ 0 in</span>
+              </div>
+            </div>
+            <div class="ms-field">
+              <label class="ms-label">CS Depth <span class="ms-label-hint">min 36"</span></label>
+              <div class="ms-feet-inches" data-measure="cs_depth">
+                <input class="ms-input" type="number" min="0" id="ms-cs_depth-ft" placeholder="ft" oninput="msRecalcMeasure('cs_depth')">
+                <span class="ms-feet-inches-suffix">ft</span>
+                <input class="ms-input" type="number" min="0" max="11" id="ms-cs_depth-in" placeholder="in" oninput="msRecalcMeasure('cs_depth')">
+                <span class="ms-feet-inches-suffix">in</span>
+                <span class="ms-feet-inches-total" id="ms-cs_depth-total">→ 0 in</span>
+              </div>
+            </div>
+          </div>
+          <div class="ms-row">
+            <div class="ms-field">
+              <label class="ms-label">CS-House <span class="ms-label-hint">CDM-Smith rule e</span></label>
+              <div class="ms-feet-inches" data-measure="cs_house">
+                <input class="ms-input" type="number" min="0" id="ms-cs_house-ft" placeholder="ft" oninput="msRecalcMeasure('cs_house')">
+                <span class="ms-feet-inches-suffix">ft</span>
+                <input class="ms-input" type="number" min="0" max="11" id="ms-cs_house-in" placeholder="in" oninput="msRecalcMeasure('cs_house')">
+                <span class="ms-feet-inches-suffix">in</span>
+                <span class="ms-feet-inches-total" id="ms-cs_house-total">→ 0 in</span>
+              </div>
+              <div class="ms-past-corner" id="ms-cs_house-past_corner-toggle" onclick="msTogglePastCorner()" title="Toggle on if curbstop is past the corner (sign-convention exception per CDM-Smith)">
+                <div class="ms-past-corner-box" id="ms-cs_house-past_corner-box"></div>
+                <span>Past corner (stores as negative)</span>
+              </div>
+            </div>
+            <div class="ms-field">
+              <label class="ms-label">CS-RS</label>
+              <div class="ms-feet-inches" data-measure="cs_rs">
+                <input class="ms-input" type="number" min="0" id="ms-cs_rs-ft" placeholder="ft" oninput="msRecalcMeasure('cs_rs')">
+                <span class="ms-feet-inches-suffix">ft</span>
+                <input class="ms-input" type="number" min="0" max="11" id="ms-cs_rs-in" placeholder="in" oninput="msRecalcMeasure('cs_rs')">
+                <span class="ms-feet-inches-suffix">in</span>
+                <span class="ms-feet-inches-total" id="ms-cs_rs-total">→ 0 in</span>
+              </div>
+            </div>
+          </div>
+          <div class="ms-row">
+            <div class="ms-field">
+              <label class="ms-label">CS-LS</label>
+              <div class="ms-feet-inches" data-measure="cs_ls">
+                <input class="ms-input" type="number" min="0" id="ms-cs_ls-ft" placeholder="ft" oninput="msRecalcMeasure('cs_ls')">
+                <span class="ms-feet-inches-suffix">ft</span>
+                <input class="ms-input" type="number" min="0" max="11" id="ms-cs_ls-in" placeholder="in" oninput="msRecalcMeasure('cs_ls')">
+                <span class="ms-feet-inches-suffix">in</span>
+                <span class="ms-feet-inches-total" id="ms-cs_ls-total">→ 0 in</span>
+              </div>
+            </div>
+            <div class="ms-field">
+              <label class="ms-label">CS-Near Curb</label>
+              <div class="ms-feet-inches" data-measure="cs_near_curb">
+                <input class="ms-input" type="number" min="0" id="ms-cs_near_curb-ft" placeholder="ft" oninput="msRecalcMeasure('cs_near_curb')">
+                <span class="ms-feet-inches-suffix">ft</span>
+                <input class="ms-input" type="number" min="0" max="11" id="ms-cs_near_curb-in" placeholder="in" oninput="msRecalcMeasure('cs_near_curb')">
+                <span class="ms-feet-inches-suffix">in</span>
+                <span class="ms-feet-inches-total" id="ms-cs_near_curb-total">→ 0 in</span>
+              </div>
+            </div>
+          </div>
+          <div class="ms-row">
+            <div class="ms-field">
+              <label class="ms-label">CS-Far Curb</label>
+              <div class="ms-feet-inches" data-measure="cs_far_curb">
+                <input class="ms-input" type="number" min="0" id="ms-cs_far_curb-ft" placeholder="ft" oninput="msRecalcMeasure('cs_far_curb')">
+                <span class="ms-feet-inches-suffix">ft</span>
+                <input class="ms-input" type="number" min="0" max="11" id="ms-cs_far_curb-in" placeholder="in" oninput="msRecalcMeasure('cs_far_curb')">
+                <span class="ms-feet-inches-suffix">in</span>
+                <span class="ms-feet-inches-total" id="ms-cs_far_curb-total">→ 0 in</span>
+              </div>
+            </div>
+            <div class="ms-field">
+              <label class="ms-label">CS-Corp</label>
+              <div class="ms-feet-inches" data-measure="cs_corp">
+                <input class="ms-input" type="number" min="0" id="ms-cs_corp-ft" placeholder="ft" oninput="msRecalcMeasure('cs_corp')">
+                <span class="ms-feet-inches-suffix">ft</span>
+                <input class="ms-input" type="number" min="0" max="11" id="ms-cs_corp-in" placeholder="in" oninput="msRecalcMeasure('cs_corp')">
+                <span class="ms-feet-inches-suffix">in</span>
+                <span class="ms-feet-inches-total" id="ms-cs_corp-total">→ 0 in</span>
+              </div>
+            </div>
+          </div>
+          <div class="ms-row">
+            <div class="ms-field">
+              <label class="ms-label">CS-MP</label>
+              <div class="ms-feet-inches" data-measure="cs_mp">
+                <input class="ms-input" type="number" min="0" id="ms-cs_mp-ft" placeholder="ft" oninput="msRecalcMeasure('cs_mp')">
+                <span class="ms-feet-inches-suffix">ft</span>
+                <input class="ms-input" type="number" min="0" max="11" id="ms-cs_mp-in" placeholder="in" oninput="msRecalcMeasure('cs_mp')">
+                <span class="ms-feet-inches-suffix">in</span>
+                <span class="ms-feet-inches-total" id="ms-cs_mp-total">→ 0 in</span>
+              </div>
+            </div>
+            <div class="ms-field">
+              <label class="ms-label">MP Horn Copper <span class="ms-label-hint">CDM-Smith rule d</span></label>
+              <div class="ms-feet-inches" data-measure="mp_horn_copper">
+                <input class="ms-input" type="number" min="0" id="ms-mp_horn_copper-ft" placeholder="ft" oninput="msRecalcMeasure('mp_horn_copper')">
+                <span class="ms-feet-inches-suffix">ft</span>
+                <input class="ms-input" type="number" min="0" max="11" id="ms-mp_horn_copper-in" placeholder="in" oninput="msRecalcMeasure('mp_horn_copper')">
+                <span class="ms-feet-inches-suffix">in</span>
+                <span class="ms-feet-inches-total" id="ms-mp_horn_copper-total">→ 0 in</span>
+              </div>
+            </div>
+          </div>
+          <div class="ms-row-3" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+            <div class="ms-field"><label class="ms-label">Size of Main (in)</label>
+              <input class="ms-input" type="number" id="ms-size_of_main_inches" step="0.25" min="0" placeholder="6 / 8 / 12"></div>
+            <div class="ms-field"><label class="ms-label">Type of Main</label>
+              <input class="ms-input" type="text" id="ms-type_of_main" placeholder="ductile iron / cast iron / PVC" list="ms-type_of_main-options" autocomplete="off"></div>
+            <div class="ms-field">
+              <label class="ms-label">Service Side</label>
+              <div class="ms-chips" id="ms-service_side-chips" data-field="service_side">
+                <div class="ms-chip" data-value="long" onclick="msSelectChip('service_side','long')">Long</div>
+                <div class="ms-chip" data-value="short" onclick="msSelectChip('service_side','short')">Short</div>
+              </div>
+              <input type="hidden" id="ms-service_side">
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <details class="ms-section">
+        <summary>Section F — Multi-Tenant Housing</summary>
+        <div class="ms-section-body">
+          <div class="ms-row-3" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+            <div class="ms-field">
+              <label class="ms-label">Multi-Tenant?</label>
+              <div class="ms-toggle" id="ms-multi_tenant-toggle" onclick="msToggleBoolean('multi_tenant'); msUpdateMultiTenantGate();">
+                <div class="ms-toggle-box"></div>
+                <div class="ms-toggle-label" id="ms-multi_tenant-label">No</div>
+              </div>
+              <input type="hidden" id="ms-multi_tenant" value="false">
+            </div>
+            <div class="ms-field"><label class="ms-label">Number of Units <span class="ms-label-hint">enabled when multi-tenant</span></label>
+              <input class="ms-input" type="number" id="ms-num_units" min="1" placeholder="2" disabled></div>
+            <div class="ms-field">
+              <label class="ms-label">Pitcher Delivered?</label>
+              <div class="ms-toggle" id="ms-pitcher_delivered-toggle" onclick="msToggleBoolean('pitcher_delivered')">
+                <div class="ms-toggle-box"></div>
+                <div class="ms-toggle-label" id="ms-pitcher_delivered-label">No</div>
+              </div>
+              <input type="hidden" id="ms-pitcher_delivered" value="false">
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <details class="ms-section">
+        <summary>Section G — Downtime</summary>
+        <div class="ms-section-body">
+          <div class="ms-row">
+            <div class="ms-field"><label class="ms-label">Downtime Hours <span class="ms-label-hint">decimal OK, e.g. 2.5</span></label>
+              <input class="ms-input" type="number" id="ms-downtime_hours" step="0.25" min="0" placeholder="0"></div>
+            <div class="ms-field">
+              <label class="ms-label">Notified?</label>
+              <div class="ms-toggle" id="ms-downtime_notified-toggle" onclick="msToggleBoolean('downtime_notified')">
+                <div class="ms-toggle-box"></div>
+                <div class="ms-toggle-label" id="ms-downtime_notified-label">No</div>
+              </div>
+              <input type="hidden" id="ms-downtime_notified" value="false">
+            </div>
+          </div>
+        </div>
+      </details>
+
+    </div>
+    <div class="ms-footer">
+      <span class="ms-save-status" id="ms-save-status">Not saved</span>
+      <div class="ms-actions">
+        <button class="btn-sm btn-ghost" id="ms-delete-btn" onclick="confirmSoftDeleteMaterialsSheet()" style="display:none">Soft delete</button>
+        <button class="btn-sm btn-ghost" onclick="closeMaterialsSheetModal()">Close</button>
+        <button class="btn-sm btn-orange" id="ms-save-btn" onclick="saveMaterialsSheet()">Save Materials Sheet</button>
+      </div>
+      </div>
+    </div>
+    <!-- MI-101 Phase 2a polish: datalists for free-text autocomplete. Populated lazily
+         from prior firm sheets via loadMaterialsSheetAutocomplete(). RLS isolates by firm. -->
+    <datalist id="ms-contractor-options"></datalist>
+    <datalist id="ms-material-options"></datalist>
+    <datalist id="ms-type_of_main-options"></datalist>
+  </div>
+</div>
+
 <!-- MI-109 CARLO AUTHORIZATION MODAL -->
 <div class="modal-overlay" id="modal-cs-auth">
   <div class="modal">
@@ -1314,6 +1727,18 @@ let noWorkHousePhotoUrl = null;
 let noWorkWhiteboardPhotoUrl = null;
 let noWorkWhiteboardDetected = false;
 let noWorkReason = '';
+
+// --- MI-101 Phase 2a Materials Sheet state ---
+// currentMaterialsSheet holds the loaded/draft sheet object (with id when EDIT mode,
+// null id when NEW). currentPropertyDetailId tracks which property's detail modal is
+// open so the entry-point button can hand off propertyId to the form.
+let currentMaterialsSheet = null;
+let currentPropertyDetailId = null;
+let msPastCorner = false;
+const MS_MEASURE_FIELDS = [
+  'corp_depth','cs_depth','cs_house','cs_rs','cs_ls',
+  'cs_near_curb','cs_far_curb','cs_corp','cs_mp','mp_horn_copper'
+];
 
 function newSubmissionUUID() {
   currentSubmissionUUID = crypto.randomUUID();
@@ -3025,6 +3450,11 @@ async function openPropertyDetail(propertyId){
     '<div class="loading"><div class="spinner"></div><br>Loading submissions...</div>';
   document.getElementById('pd-header-grid').innerHTML = '';
   document.getElementById('pd-submission-count').textContent = '';
+  // MI-101 Phase 2a: track which property is currently open so the Materials
+  // Sheet bar's "Open Materials Sheet" button knows which property to attach to.
+  currentPropertyDetailId = propertyId;
+  const msBar = document.getElementById('pd-materials-sheet-bar');
+  if(msBar) msBar.style.display = 'none';
 
   // Load property
   const {data:prop, error:propErr} = await sb.from('properties').select('*').eq('id',propertyId).maybeSingle();
@@ -3070,6 +3500,12 @@ async function openPropertyDetail(propertyId){
     <div class="pd-stat"><div class="pd-stat-label">Added</div>
       <div class="pd-stat-val">${prop.created_at ? new Date(prop.created_at).toLocaleDateString() : '—'}</div></div>
   `;
+
+  // MI-101 Phase 2a: surface the Materials Sheet bar with current sheet status
+  // (most-recent active sheet for this property, or "no sheet yet" placeholder).
+  refreshMaterialsSheetBar(propertyId).catch(err => console.warn('MS bar refresh error:', err));
+  // Phase 2a polish: also surface the full history (active + soft-deleted) for this property.
+  loadMaterialsSheetHistory(propertyId).catch(err => console.warn('MS history load error:', err));
 
   // Load all submissions for this property, plus the submitter profiles
   const {data:subs, error:subErr} = await sb
@@ -3169,6 +3605,540 @@ async function openPropertyDetail(propertyId){
 function togglePDSub(idx){
   const el = document.getElementById('pd-sub-'+idx);
   if(el) el.classList.toggle('open');
+}
+
+// ── MI-101 PHASE 2A — MATERIALS SHEET UI ──────────────
+// Property Detail bar: query most-recent active sheet for the property; populate meta + button label.
+async function refreshMaterialsSheetBar(propertyId){
+  const bar = document.getElementById('pd-materials-sheet-bar');
+  const meta = document.getElementById('pd-ms-meta');
+  const btn = document.getElementById('pd-ms-open-btn');
+  if(!bar || !meta || !btn) return;
+  bar.style.display = 'flex';
+  meta.textContent = 'Loading…';
+  btn.disabled = true;
+  try {
+    const { data, error } = await sb
+      .from('materials_sheets')
+      .select('id, sheet_date, contractor_name, foreman_name, created_at')
+      .eq('property_id', propertyId)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if(error) throw error;
+    const sheet = (data && data.length) ? data[0] : null;
+    if(sheet){
+      const dt = sheet.sheet_date || (sheet.created_at ? new Date(sheet.created_at).toLocaleDateString() : '—');
+      const who = sheet.foreman_name || sheet.contractor_name || 'unsigned';
+      meta.textContent = `Active sheet from ${dt} (${who}). Edit or view history below.`;
+      btn.textContent = 'Edit Materials Sheet';
+    } else {
+      meta.textContent = 'No active sheet for this property — create one to capture page-1 Tapcard fields.';
+      btn.textContent = 'Open Materials Sheet';
+    }
+  } catch(err){
+    console.error('refreshMaterialsSheetBar error:', err);
+    meta.textContent = 'Could not check materials sheet status.';
+    btn.textContent = 'Open Materials Sheet';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// Entry point fired by the Property Detail bar button. Looks up most-recent active
+// sheet; opens it in EDIT mode, or NEW form if none exists.
+async function openMaterialsSheetForCurrentProperty(){
+  if(!currentPropertyDetailId){
+    showToast('No property selected.', 'error');
+    return;
+  }
+  await openMaterialsSheetForProperty(currentPropertyDetailId);
+}
+
+async function openMaterialsSheetForProperty(propertyId){
+  msClearForm();
+  // Try most-recent active sheet
+  const { data, error } = await sb
+    .from('materials_sheets')
+    .select('*')
+    .eq('property_id', propertyId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  if(error){
+    console.error('openMaterialsSheetForProperty error:', error);
+    showToast('Could not load materials sheet: ' + error.message, 'error');
+    return;
+  }
+  if(data && data.length){
+    msPopulateForm(data[0]);
+    currentMaterialsSheet = data[0];
+    document.getElementById('ms-modal-title').textContent = 'Edit Materials Sheet';
+    document.getElementById('ms-modal-sub').textContent = `Property — last saved ${new Date(data[0].created_at).toLocaleString()}`;
+    document.getElementById('ms-delete-btn').style.display = 'inline-block';
+    msSetSaveStatus('saved', 'Loaded existing sheet');
+  } else {
+    currentMaterialsSheet = { id: null, property_id: propertyId };
+    document.getElementById('ms-modal-title').textContent = 'New Materials Sheet';
+    document.getElementById('ms-modal-sub').textContent = 'Property — fresh sheet, page-1 Tapcard fields';
+    document.getElementById('ms-delete-btn').style.display = 'none';
+    msSetSaveStatus('idle', 'Not saved');
+  }
+  document.getElementById('modal-materials-sheet').classList.add('open');
+  // Phase 2a polish: lazy-load autocomplete suggestions for free-text fields
+  loadMaterialsSheetAutocomplete().catch(() => {});
+}
+
+function closeMaterialsSheetModal(){
+  document.getElementById('modal-materials-sheet').classList.remove('open');
+  currentMaterialsSheet = null;
+}
+
+// Convert (ft, in) → total inches. Treats blanks as 0.
+function msFeetInchesToTotal(ft, inch){
+  const f = Number(ft) || 0;
+  const i = Number(inch) || 0;
+  return Math.round(f * 12 + i);
+}
+
+// Convert total inches → { ft, in }. Used in EDIT mode to repopulate.
+function msTotalToFeetInches(total){
+  if(total === null || total === undefined || total === '') return { ft: '', in: '' };
+  const abs = Math.abs(Number(total));
+  return { ft: Math.floor(abs / 12), in: abs % 12 };
+}
+
+function msRecalcMeasure(name){
+  const ftEl = document.getElementById(`ms-${name}-ft`);
+  const inEl = document.getElementById(`ms-${name}-in`);
+  const totalEl = document.getElementById(`ms-${name}-total`);
+  if(!ftEl || !inEl || !totalEl) return;
+  let total = msFeetInchesToTotal(ftEl.value, inEl.value);
+  if(name === 'cs_house' && msPastCorner) total = -total;
+  totalEl.textContent = `→ ${total} in`;
+  totalEl.classList.toggle('neg', total < 0);
+}
+
+function msTogglePastCorner(){
+  msPastCorner = !msPastCorner;
+  const toggle = document.getElementById('ms-cs_house-past_corner-toggle');
+  const box = document.getElementById('ms-cs_house-past_corner-box');
+  if(toggle) toggle.classList.toggle('checked', msPastCorner);
+  if(box) box.innerHTML = msPastCorner ? '&#10003;' : '';
+  msRecalcMeasure('cs_house');
+}
+
+function msSelectChip(field, value){
+  const group = document.getElementById(`ms-${field}-chips`);
+  const hidden = document.getElementById(`ms-${field}`);
+  if(!group || !hidden) return;
+  // Allow toggle-off if user clicks the already-selected chip
+  if(hidden.value === value){
+    hidden.value = '';
+    group.querySelectorAll('.ms-chip').forEach(el => el.classList.remove('selected'));
+    return;
+  }
+  hidden.value = value;
+  group.querySelectorAll('.ms-chip').forEach(el => {
+    el.classList.toggle('selected', el.dataset.value === value);
+  });
+}
+
+function msToggleBoolean(field){
+  const hidden = document.getElementById(`ms-${field}`);
+  const toggle = document.getElementById(`ms-${field}-toggle`);
+  const label = document.getElementById(`ms-${field}-label`);
+  if(!hidden || !toggle) return;
+  const next = hidden.value !== 'true';
+  hidden.value = next ? 'true' : 'false';
+  toggle.classList.toggle('checked', next);
+  if(label) label.textContent = next ? 'Yes' : 'No';
+}
+
+function msUpdateMultiTenantGate(){
+  const isMulti = document.getElementById('ms-multi_tenant')?.value === 'true';
+  const numUnits = document.getElementById('ms-num_units');
+  if(numUnits){
+    numUnits.disabled = !isMulti;
+    if(!isMulti) numUnits.value = '';
+  }
+}
+
+function msSetChipValue(field, value){
+  const hidden = document.getElementById(`ms-${field}`);
+  const group = document.getElementById(`ms-${field}-chips`);
+  if(hidden) hidden.value = value || '';
+  if(group){
+    group.querySelectorAll('.ms-chip').forEach(el => {
+      el.classList.toggle('selected', !!value && el.dataset.value === value);
+    });
+  }
+}
+
+function msSetBooleanValue(field, value){
+  const hidden = document.getElementById(`ms-${field}`);
+  const toggle = document.getElementById(`ms-${field}-toggle`);
+  const label = document.getElementById(`ms-${field}-label`);
+  const v = value === true || value === 'true';
+  if(hidden) hidden.value = v ? 'true' : 'false';
+  if(toggle) toggle.classList.toggle('checked', v);
+  if(label) label.textContent = v ? 'Yes' : 'No';
+}
+
+function msSetMeasure(name, totalInches){
+  const ftEl = document.getElementById(`ms-${name}-ft`);
+  const inEl = document.getElementById(`ms-${name}-in`);
+  if(totalInches === null || totalInches === undefined){
+    if(ftEl) ftEl.value = '';
+    if(inEl) inEl.value = '';
+  } else {
+    const { ft, in: inch } = msTotalToFeetInches(totalInches);
+    if(ftEl) ftEl.value = ft;
+    if(inEl) inEl.value = inch;
+  }
+  msRecalcMeasure(name);
+}
+
+function msClearForm(){
+  // Reset all simple text/number/date inputs that match ms-* (excluding feet/inches subfields handled by msSetMeasure)
+  ['sheet_date','contractor_name','service_type','foreman_name','temperature_f',
+   'kill_location','num_excavations','notes',
+   'njaw_old_size_inches','njaw_old_material','njaw_new_size_inches','njaw_new_material','njaw_new_amount_feet',
+   'customer_old_size_inches','customer_old_material','customer_new_size_inches','customer_new_material','customer_new_amount_feet',
+   'size_of_main_inches','type_of_main','num_units','downtime_hours'
+  ].forEach(f => { const el = document.getElementById('ms-' + f); if(el) el.value = ''; });
+
+  ['sky_condition','curb_box_location','service_side'].forEach(f => msSetChipValue(f, ''));
+  ['test_pit','curb_box_replaced','existing_mp_noted','multi_tenant','pitcher_delivered','downtime_notified']
+    .forEach(f => msSetBooleanValue(f, false));
+
+  msPastCorner = false;
+  const pcToggle = document.getElementById('ms-cs_house-past_corner-toggle');
+  const pcBox = document.getElementById('ms-cs_house-past_corner-box');
+  if(pcToggle) pcToggle.classList.remove('checked');
+  if(pcBox) pcBox.innerHTML = '';
+
+  MS_MEASURE_FIELDS.forEach(name => msSetMeasure(name, null));
+  msUpdateMultiTenantGate();
+}
+
+function msPopulateForm(sheet){
+  if(!sheet) return;
+  // Plain inputs
+  ['sheet_date','contractor_name','service_type','foreman_name','temperature_f',
+   'kill_location','num_excavations','notes',
+   'njaw_old_size_inches','njaw_old_material','njaw_new_size_inches','njaw_new_material','njaw_new_amount_feet',
+   'customer_old_size_inches','customer_old_material','customer_new_size_inches','customer_new_material','customer_new_amount_feet',
+   'size_of_main_inches','type_of_main','num_units','downtime_hours'
+  ].forEach(f => {
+    const el = document.getElementById('ms-' + f);
+    if(el) el.value = (sheet[f] === null || sheet[f] === undefined) ? '' : sheet[f];
+  });
+
+  msSetChipValue('sky_condition', sheet.sky_condition);
+  msSetChipValue('curb_box_location', sheet.curb_box_location);
+  msSetChipValue('service_side', sheet.service_side);
+
+  msSetBooleanValue('test_pit', sheet.test_pit);
+  msSetBooleanValue('curb_box_replaced', sheet.curb_box_replaced);
+  msSetBooleanValue('existing_mp_noted', sheet.existing_mp_noted);
+  msSetBooleanValue('multi_tenant', sheet.multi_tenant);
+  msSetBooleanValue('pitcher_delivered', sheet.pitcher_delivered);
+  msSetBooleanValue('downtime_notified', sheet.downtime_notified);
+
+  // Past Corner: cs_house_inches < 0 means past-corner per CDM-Smith rule e
+  msPastCorner = (typeof sheet.cs_house_inches === 'number' && sheet.cs_house_inches < 0);
+  const pcToggle = document.getElementById('ms-cs_house-past_corner-toggle');
+  const pcBox = document.getElementById('ms-cs_house-past_corner-box');
+  if(pcToggle) pcToggle.classList.toggle('checked', msPastCorner);
+  if(pcBox) pcBox.innerHTML = msPastCorner ? '&#10003;' : '';
+
+  MS_MEASURE_FIELDS.forEach(name => {
+    const col = name + '_inches';
+    msSetMeasure(name, sheet[col] === null || sheet[col] === undefined ? null : sheet[col]);
+  });
+
+  msUpdateMultiTenantGate();
+}
+
+// Read form into a payload object suitable for INSERT/UPDATE. Empty strings
+// become null so server defaults / nullables apply correctly.
+function msReadForm(){
+  const numOrNull = id => {
+    const v = document.getElementById('ms-' + id)?.value;
+    if(v === '' || v === null || v === undefined) return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+  const textOrNull = id => {
+    const v = document.getElementById('ms-' + id)?.value;
+    if(v === '' || v === null || v === undefined) return null;
+    return String(v).trim() || null;
+  };
+  const boolOrNull = id => {
+    const v = document.getElementById('ms-' + id)?.value;
+    if(v === 'true') return true;
+    if(v === 'false') return false;
+    return null;
+  };
+  const measureOrNull = name => {
+    const ftEl = document.getElementById(`ms-${name}-ft`);
+    const inEl = document.getElementById(`ms-${name}-in`);
+    if(!ftEl || !inEl) return null;
+    if(ftEl.value === '' && inEl.value === '') return null;
+    let total = msFeetInchesToTotal(ftEl.value, inEl.value);
+    if(name === 'cs_house' && msPastCorner) total = -total;
+    return total;
+  };
+
+  const payload = {
+    sheet_date: textOrNull('sheet_date'),
+    contractor_name: textOrNull('contractor_name'),
+    service_type: textOrNull('service_type'),
+    foreman_name: textOrNull('foreman_name'),
+    temperature_f: numOrNull('temperature_f'),
+    sky_condition: textOrNull('sky_condition'),
+    test_pit: boolOrNull('test_pit'),
+    kill_location: textOrNull('kill_location'),
+    curb_box_location: textOrNull('curb_box_location'),
+    curb_box_replaced: boolOrNull('curb_box_replaced'),
+    num_excavations: numOrNull('num_excavations'),
+    existing_mp_noted: boolOrNull('existing_mp_noted'),
+    notes: textOrNull('notes'),
+    njaw_old_size_inches: numOrNull('njaw_old_size_inches'),
+    njaw_old_material: textOrNull('njaw_old_material'),
+    njaw_new_size_inches: numOrNull('njaw_new_size_inches'),
+    njaw_new_material: textOrNull('njaw_new_material'),
+    njaw_new_amount_feet: numOrNull('njaw_new_amount_feet'),
+    customer_old_size_inches: numOrNull('customer_old_size_inches'),
+    customer_old_material: textOrNull('customer_old_material'),
+    customer_new_size_inches: numOrNull('customer_new_size_inches'),
+    customer_new_material: textOrNull('customer_new_material'),
+    customer_new_amount_feet: numOrNull('customer_new_amount_feet'),
+    size_of_main_inches: numOrNull('size_of_main_inches'),
+    type_of_main: textOrNull('type_of_main'),
+    service_side: textOrNull('service_side'),
+    multi_tenant: boolOrNull('multi_tenant'),
+    num_units: numOrNull('num_units'),
+    pitcher_delivered: boolOrNull('pitcher_delivered'),
+    downtime_hours: numOrNull('downtime_hours'),
+    downtime_notified: boolOrNull('downtime_notified'),
+  };
+  MS_MEASURE_FIELDS.forEach(name => { payload[name + '_inches'] = measureOrNull(name); });
+
+  return payload;
+}
+
+function msSetSaveStatus(state, message){
+  const el = document.getElementById('ms-save-status');
+  if(!el) return;
+  el.classList.remove('saving','saved','error');
+  if(state === 'saving') el.classList.add('saving');
+  else if(state === 'saved') el.classList.add('saved');
+  else if(state === 'error') el.classList.add('error');
+  el.textContent = message || '';
+}
+
+async function saveMaterialsSheet(){
+  if(!currentMaterialsSheet){
+    showToast('No materials sheet context — close and reopen.', 'error');
+    return;
+  }
+  const payload = msReadForm();
+  payload.property_id = currentMaterialsSheet.property_id;
+  payload.firm_id = currentFirmId;
+  payload.submitted_by = currentUser?.id || null;
+
+  const btn = document.getElementById('ms-save-btn');
+  if(btn) btn.disabled = true;
+  msSetSaveStatus('saving', 'Saving…');
+
+  try {
+    let result;
+    if(currentMaterialsSheet.id){
+      // EDIT mode — UPDATE existing row
+      result = await sb.from('materials_sheets').update(payload).eq('id', currentMaterialsSheet.id).select().maybeSingle();
+    } else {
+      // NEW mode — INSERT, then capture id for subsequent saves
+      result = await sb.from('materials_sheets').insert(payload).select().maybeSingle();
+    }
+    if(result.error){
+      console.error('Materials sheet save error:', result.error);
+      const msg = result.error.message || '';
+      let userMsg = 'Save failed: ' + msg;
+      // Surface specific CHECK constraint violations cleanly
+      if(msg.includes('materials_sheets_sky_condition_enum')) userMsg = 'Sky Condition must be sunny / cloudy / rain / snow / other.';
+      else if(msg.includes('materials_sheets_curb_box_location_enum')) userMsg = 'Curb Box Location must be city_strip / sidewalk / driveway / lawn.';
+      else if(msg.includes('materials_sheets_service_side_enum')) userMsg = 'Service Side must be long or short.';
+      else if(msg.includes('materials_sheets_temperature_range')) userMsg = 'Temperature must be between -50°F and 150°F.';
+      else if(msg.includes('_nonneg') || msg.includes('_positive')) userMsg = 'A measurement value is out of range — check non-negative fields and Size of Main / Number of Units (must be > 0).';
+      msSetSaveStatus('error', userMsg);
+      showToast(userMsg, 'error');
+      if(btn) btn.disabled = false;
+      return;
+    }
+    if(result.data){
+      currentMaterialsSheet = result.data;
+      document.getElementById('ms-modal-title').textContent = 'Edit Materials Sheet';
+      document.getElementById('ms-delete-btn').style.display = 'inline-block';
+    }
+    msSetSaveStatus('saved', 'Saved ' + new Date().toLocaleTimeString());
+    if(currentPropertyDetailId){
+      refreshMaterialsSheetBar(currentPropertyDetailId).catch(() => {});
+      loadMaterialsSheetHistory(currentPropertyDetailId).catch(() => {});
+    }
+  } catch(err){
+    console.error('Materials sheet save unexpected error:', err);
+    msSetSaveStatus('error', 'Save failed — see console');
+    showToast('Save failed: ' + (err.message || 'unknown error'), 'error');
+  } finally {
+    if(btn) btn.disabled = false;
+  }
+}
+
+async function confirmSoftDeleteMaterialsSheet(){
+  if(!currentMaterialsSheet || !currentMaterialsSheet.id){
+    showToast('No saved sheet to delete.', 'error');
+    return;
+  }
+  const ok = confirm('Soft-delete this Materials Sheet? It will be hidden from active views but the audit_log retains the full history. (Hard-delete is restricted by audit chain immutability.)');
+  if(!ok) return;
+  const btn = document.getElementById('ms-delete-btn');
+  if(btn) btn.disabled = true;
+  msSetSaveStatus('saving', 'Soft-deleting…');
+  try {
+    const { error } = await sb.from('materials_sheets')
+      .update({ deleted_at: new Date().toISOString(), deleted_by: currentUser?.id || null })
+      .eq('id', currentMaterialsSheet.id);
+    if(error){
+      msSetSaveStatus('error', 'Soft-delete failed: ' + error.message);
+      showToast('Soft-delete failed: ' + error.message, 'error');
+      if(btn) btn.disabled = false;
+      return;
+    }
+    showToast('Materials sheet soft-deleted.', 'success');
+    closeMaterialsSheetModal();
+    if(currentPropertyDetailId){
+      refreshMaterialsSheetBar(currentPropertyDetailId).catch(() => {});
+      loadMaterialsSheetHistory(currentPropertyDetailId).catch(() => {});
+    }
+  } catch(err){
+    console.error('Materials sheet soft-delete error:', err);
+    msSetSaveStatus('error', 'Soft-delete failed — see console');
+  } finally {
+    if(btn) btn.disabled = false;
+  }
+}
+
+// Phase 2a polish: free-text autocomplete + property history. Pulls distinct values
+// from prior firm sheets (RLS auto-isolates by firm). Always includes a small set of
+// common defaults so a fresh firm with zero sheets still gets useful suggestions.
+async function loadMaterialsSheetAutocomplete(){
+  try {
+    const { data, error } = await sb.from('materials_sheets')
+      .select('contractor_name, njaw_old_material, njaw_new_material, customer_old_material, customer_new_material, type_of_main')
+      .is('deleted_at', null)
+      .limit(500);
+    if(error){ console.warn('autocomplete load error:', error); return; }
+    const contractors = new Set();
+    const materials = new Set(['Copper','Lead','Galvanized','Cast Iron','PVC','PEX']);
+    const mainTypes = new Set(['Ductile Iron','Cast Iron','PVC','Asbestos Cement']);
+    (data || []).forEach(s => {
+      if(s.contractor_name) contractors.add(s.contractor_name);
+      ['njaw_old_material','njaw_new_material','customer_old_material','customer_new_material'].forEach(k => {
+        if(s[k]) materials.add(s[k]);
+      });
+      if(s.type_of_main) mainTypes.add(s.type_of_main);
+    });
+    msPopulateDatalist('ms-contractor-options', [...contractors].sort());
+    msPopulateDatalist('ms-material-options', [...materials].sort());
+    msPopulateDatalist('ms-type_of_main-options', [...mainTypes].sort());
+  } catch(err){
+    console.warn('autocomplete unexpected error:', err);
+  }
+}
+
+function msPopulateDatalist(id, values){
+  const dl = document.getElementById(id);
+  if(!dl) return;
+  dl.innerHTML = (values || []).map(v => `<option value="${String(v).replace(/"/g,'&quot;')}">`).join('');
+}
+
+// Property Detail: list every materials sheet for this property (active + soft-deleted)
+// with restore/edit actions. Hidden when no sheets exist.
+async function loadMaterialsSheetHistory(propertyId){
+  const section = document.getElementById('pd-ms-history-section');
+  const list = document.getElementById('pd-ms-history-list');
+  const count = document.getElementById('pd-ms-history-count');
+  if(!section || !list || !count) return;
+  try {
+    const { data, error } = await sb.from('materials_sheets')
+      .select('id, sheet_date, contractor_name, foreman_name, created_at, deleted_at')
+      .eq('property_id', propertyId)
+      .order('created_at', { ascending: false });
+    if(error){ console.warn('history load error:', error); section.style.display = 'none'; return; }
+    const sheets = data || [];
+    count.textContent = sheets.length;
+    if(!sheets.length){ section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    list.innerHTML = sheets.map(s => {
+      const dt = s.sheet_date || (s.created_at ? new Date(s.created_at).toLocaleDateString() : '—');
+      const who = s.foreman_name || s.contractor_name || 'unsigned';
+      const isDeleted = !!s.deleted_at;
+      const statusPill = isDeleted
+        ? '<span style="color:var(--red);font-weight:600">Soft-deleted</span>'
+        : '<span style="color:var(--green);font-weight:600">Active</span>';
+      const action = isDeleted
+        ? `<button class="btn-sm btn-ghost" onclick="restoreMaterialsSheet('${s.id}')">Restore</button>`
+        : `<button class="btn-sm btn-ghost" onclick="editMaterialsSheetById('${s.id}')">Edit</button>`;
+      return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;background:var(--surface3);border:1px solid var(--border);border-radius:6px;margin-bottom:6px;font-size:11px;flex-wrap:wrap">
+        <div>
+          <span style="font-weight:600;color:var(--white)">${dt}</span>
+          <span style="color:var(--muted);margin-left:10px">${who}</span>
+          <span style="margin-left:10px">${statusPill}</span>
+        </div>
+        <div>${action}</div>
+      </div>`;
+    }).join('');
+  } catch(err){
+    console.warn('history unexpected error:', err);
+    section.style.display = 'none';
+  }
+}
+
+async function restoreMaterialsSheet(sheetId){
+  if(!confirm('Restore this soft-deleted Materials Sheet? It returns to the active list.')) return;
+  try {
+    const { error } = await sb.from('materials_sheets')
+      .update({ deleted_at: null, deleted_by: null })
+      .eq('id', sheetId);
+    if(error){ showToast('Restore failed: ' + error.message, 'error'); return; }
+    showToast('Materials Sheet restored.', 'success');
+    if(currentPropertyDetailId){
+      refreshMaterialsSheetBar(currentPropertyDetailId).catch(() => {});
+      loadMaterialsSheetHistory(currentPropertyDetailId).catch(() => {});
+    }
+  } catch(err){
+    showToast('Restore failed: ' + (err.message || 'unknown error'), 'error');
+  }
+}
+
+async function editMaterialsSheetById(sheetId){
+  try {
+    const { data, error } = await sb.from('materials_sheets').select('*').eq('id', sheetId).maybeSingle();
+    if(error || !data){ showToast('Could not load sheet: ' + (error?.message || 'not found'), 'error'); return; }
+    msClearForm();
+    msPopulateForm(data);
+    currentMaterialsSheet = data;
+    document.getElementById('ms-modal-title').textContent = 'Edit Materials Sheet';
+    document.getElementById('ms-modal-sub').textContent = `Property — last saved ${new Date(data.created_at).toLocaleString()}`;
+    document.getElementById('ms-delete-btn').style.display = data.deleted_at ? 'none' : 'inline-block';
+    msSetSaveStatus('saved', data.deleted_at ? 'Loaded soft-deleted sheet (restore from history list)' : 'Loaded existing sheet');
+    document.getElementById('modal-materials-sheet').classList.add('open');
+    loadMaterialsSheetAutocomplete().catch(() => {});
+  } catch(err){
+    showToast('Could not load sheet: ' + (err.message || 'unknown error'), 'error');
+  }
 }
 
 function openLightbox(url){
