@@ -4,8 +4,8 @@
 > **CLAUDE.md** holds locked principles. **STATE.md** holds live state.
 > Conflict with Claude memory: this file wins.
 
-**Last updated:** May 5, 2026 ~late evening EDT (post Phase 2a → main merge + Phase 2d-revision Unit 1 Step 1 ship)
-**Updated by:** Buddy direct via Filesystem MCP (CC's Update tool was hitting stale-state mismatches; Buddy wrote fresh from current file state to unblock session close)
+**Last updated:** May 6, 2026 ~late evening EDT (post Phase 2d-revision Unit 1 Step 2 + Unit 2 ship + MI-DEMO seed bootstrap)
+**Updated by:** Lead (CC) on `mi-demo-seed` branch; doc commit follows Buddy's seed-apply sync as commit `08fac2d`. Tonight's session shipped both the Phase 2d-revision visual tapcard (commits `52adf8a` + `7018493` on `demo-banner`) and the MI-DEMO seed (12 migrations applied via Buddy direct MCP write; Lead's MCP read-only).
 
 ---
 
@@ -20,7 +20,7 @@
 
 ## Active gate: v0.1 Compliance Foundation
 
-**~67% of v1.0 scope complete by session count** (Mon 5/5 close, +5% from session start tonight: Phase 2a frontend finally merged to main, MI-AUDIT-3 trigger filter shipped, Phase 2c lean scaffold + Phase 2d original on demo-banner, Phase 2d-revision Unit 1 Step 1 vestigial cleanup shipped).
+**~70% of v1.0 scope complete by session count** (Wed 5/6 close, +3% from Mon 5/5: Phase 2d-revision Unit 1 Step 2 + Unit 2 shipped, MI-DEMO sample-data seed bootstrap shipped, `pg_net` extension installed, `profiles.email` column added).
 
 | Ticket | Status | Notes |
 |---|---|---|
@@ -41,7 +41,7 @@
 | MI-101 Phase 2c-form pickup (Restoration form) | Queued — work order on disk | Work order `.coordination/work_order_phase2c_form_restoration.md` (Buddy, 5/5 evening). Q-7=C Save Draft locked, Q-2c-c/d/e ratifications, photo upload + sector dispatch + whiteboard validation specced. ~3 sessions. |
 | MI-101 Phase 2d (Visual Tapcard Preview, original placement) | Shipped Mon 5/5 on `demo-banner` (`79f8434`); superseded by Phase 2d-revision | Original placement on `#modal-tapcard`. Vestigial scaffolding removed in Phase 2d-revision Unit 1 Step 1 (commit `6b9a9d3`). VTC config + helpers preserved for Step 2 reuse on `modal-materials-sheet`. |
 | **MI-101 Phase 2d-revision Unit 1 Step 1 (vestigial removal)** | **Closed Mon 5/5 ~late evening** | Commit `6b9a9d3` on `demo-banner`. Removed `vtc-mobile-tabs` + `tc-mid` wrapper + `visual-tapcard-preview-container` from `#modal-tapcard`; removed `vtcInitOnOpen` / `vtcReset` / `vtcAttachListeners` / `vtcMobileTab` functions + call sites + `currentTapcard.property = prop` stash. Preserved `VTC_FIELDS` config + `vtcRender` + `vtcDebouncedRender` + `vtcVal` / `vtcEsc` / `vtcWrap` helpers + CSS rules. |
-| **MI-101 Phase 2d-revision Unit 1 Step 2 + Unit 2** | **Queued — next session** | Work order `.coordination/work_order_2026-05-05_phase2d_revision_v2.md`. Step 2 (sub-steps C-G): embed visual-tapcard-preview container in `modal-materials-sheet` (50/50 desktop split + 55/45 tablet + mobile sub-tab toggle), rewrite `VTC_FIELDS` against materials_sheets schema per v2 field map, rewrite `vtcRender` for paper-true NJAW Service Line Renewal Company Side layout (6 sections + Job Notes box), wire static render from `openMaterialsSheetForProperty`, sector dispatch (NJ6_NORMAL renders, ShortHills shows placeholder). ~60-90 min focused build. Then Unit 2: autopop wiring + Materials Installed extrapolation per `service_type` (FULL/KILL/M2C/H2C/TP mappings locked in work order). |
+| **MI-101 Phase 2d-revision Unit 1 Step 2 + Unit 2** | **Closed Wed 5/6 ~evening** | Two commits on `demo-banner`: `52adf8a` (Unit 1 Step 2 — split layout 50/50 desktop / 55/45 tablet / mobile sub-tab toggle, paper-true 6-section + Job Notes box SVG, sector dispatch via `currentMaterialsSheetProperty.sector`, helpers `vtcMs`/`vtcProp`/`vtcInchesToFtIn`/parsers) and `7018493` (Unit 2 — `vtcAttachAutopopListeners` idempotent delegated input listener, chip/toggle/recalc helper patches fire `vtcRender` directly, `tc-co-*` one-way binding, `vtcMaterialsRows` extrapolation FULL/KILL/M2C/H2C/MP/TP). Vercel preview `dpl_BbarAjj9...` from sha `7018493` confirmed READY. Schema verified pre-build (no drift; spec said `materials_sheets` 39 cols, actual 48 — caught + adjusted). |
 | MI-110 Phase 4 (Tapcard Diagram editor) | Brief drafted | Highest-risk surface in v1.0 (touch events on iPad). ~6 sessions. |
 | MI-302 Construction PM frontend | Work order on disk (Buddy 5/5 evening) | Backend fully shipped. CP default project seeded Sun (`722f9db8...`). Q-302-b/c/d/e ratified. Patent-claim module per Bill. ~4 sessions. |
 | MI-luis-1 Luis AI v1 (Water Utility) | Work order on disk (Buddy 5/5 evening) | `luis_conversations` table shipped. Haiku 4.5 via Anthropic API + `luis-ask` Edge Function + brand-palette chat panel + citation chips. Demo-target for Jeff (5/14-5/15). ~2 sessions. |
@@ -56,6 +56,9 @@
 | Soft-delete view rebuild (CLAUDE.md principle #7) | Closed Sat | Migration `soft_delete_views_security_invoker_rebuild` |
 | `legal_holds` workflow | Backend exists, no UI | Table indexed + RLS-locked. No active ticket. |
 | Demo tenant + `firm_safe_to_display` | Closed Sat | Migrations `firms_safe_to_display_flag` + `demo_tenant_seed_data_v3` + `demo_inspector_binding` |
+| **MI-DEMO seed (Track 2 sample data)** | **Closed Wed 5/6 ~evening** | 12 migrations applied via Buddy direct MCP write on `mi-demo-seed` branch (Lead's MCP read-only). Demo firm now has 12 properties (10 NJ6 + 2 ShortHills), 25 phase_submissions covering all 9 phases + all 6 NJAW codes + 1 KILL-with-subtype, 5 materials_sheets, 1 cs_replacement_authorization, 6 daily_reports, 3 documents, 2 RFIs, 2 Luis conversations, 5 demo `auth.users` + matching profiles. Spec at `.coordination/MI-DEMO_seed_spec_2026-05-06.md`. Sync note at `.coordination/buddy_demo_seed_sync_2026-05-06.md`. Three side decisions banked: `pg_net` extension installed, `profiles.email` column added (with backfill from `auth.users`), `seed-demo-users` Edge Function deployed-but-broken (admin SDK `listUsers` fails — SQL bypass replaced it). §22 demo-tenant policy: NEVER MERGE TO MAIN. Branch `mi-demo-seed` merges forward to `demo-banner`. |
+| MI-DEMO-UI v2 (banner copy + write suppression) | Spec pending | Companion to MI-DEMO; out of scope of seed spec. Owns `firm_safe_to_display` UI consumers + pitch-day write-suppression toggle. |
+| MI-DEMO-DEPLOY (pitch-day deploy ritual) | Spec pending | Companion to MI-DEMO; deploy alias swap, post-demo wipe schedule, Jorge-side checklist. Out of scope of seed spec. |
 
 ---
 
@@ -64,7 +67,7 @@
 | Ticket | What | Sessions | Status |
 |---|---|---|---|
 | MI-100 | Sector toggle (NJ6_NORMAL / NJAW_SHORT_HILLS) | 3 | Closed |
-| MI-101 | Normal Tapcard 3-page (CDM-Smith rules b, d, e) | 6 | Phases 1a-2b shipped; 2a frontend merged 5/5 late evening; 2c lean scaffolded; 2d shipped 5/5 (re-scoped to Phase 2d-revision); 2d-revision Unit 1 Step 1 vestigial cleanup shipped 5/5; Step 2 + Unit 2 + 2c-form queued |
+| MI-101 | Normal Tapcard 3-page (CDM-Smith rules b, d, e) | 6 | Phases 1a-2b shipped; 2a frontend merged 5/5; 2c lean scaffolded; 2d shipped 5/5 (re-scoped to 2d-revision); 2d-revision Unit 1 Step 1 vestigial cleanup shipped 5/5; **2d-revision Unit 1 Step 2 + Unit 2 shipped 5/6** (visual tapcard rebased onto materials_sheet modal, paper-true SVG, autopop wiring, materials-installed extrapolation); 2c-form Restoration queued |
 | MI-101.5 | Dual-mode entry (Type fields \| Photo notebook + Vision parse) | 4 | Queued post-Phase-4 |
 | MI-102 | ShortHills (Company + Restoration) | 5 | Placeholder tab tonight (Phase 2c); build queued post master-parts-list |
 | MI-103 | Vision parse refs DONE → build spec | 0 | Blocked on 3 reference images |
@@ -185,6 +188,14 @@
 - **3 custom skills written** to `.coordination/skills/`: `verify-ground-truth-before-drafting`, `serrano-group-brand`, `myinspector-domain-rules`.
 - **Strategic docs:** `future_proofing_tools_2026-05-05.md` (5 CC plugins to install + 3 custom skills + MCP recommendations); `serrano_group_homepage_copy.md` (pre-staged copy for serranogroup.org); `progress_report_2026-05-05.md` (comprehensive accounting).
 
+**Wed 5/6 evening (Phase 2d-revision finish + MI-DEMO seed):**
+- **Phase 2d-revision Unit 1 Step 2 SHIPPED** as commit `52adf8a` on `demo-banner`: visual-tapcard-preview container embedded inside `modal-materials-sheet` with split layout (50/50 desktop, 55/45 tablet, mobile sub-tab toggle); `VTC_FIELDS` rewritten against verified `materials_sheets` 48-col schema (spec said 39 — drift caught); paper-true SVG layout mirrors NJAW Service Line Renewal Company Side (6 sections + Job Notes box); helpers added (`vtcMs`/`vtcProp`/`vtcInchesToFtIn`/parsers); sector dispatch via `currentMaterialsSheetProperty.sector`; `openMaterialsSheetForProperty` + `editMaterialsSheetById` fetch joined property in parallel and call `vtcRender`; `closeMaterialsSheetModal` clears state + preview.
+- **Phase 2d-revision Unit 2 SHIPPED** as commit `7018493` on `demo-banner`: `vtcAttachAutopopListeners` idempotent delegated input listener attached on first modal open (text/number debounced 100ms, date/select immediate); chip/toggle/recalc helpers patched to fire `vtcRender` directly (hidden inputs don't emit `'input'` events); `tc-co-*` form one-way binds into materials sheet visual; `vtcMaterialsRows` extrapolation maps service_type → rows (FULL 11 / KILL 3 / M2C 5 / H2C 6 / MP 5 / TP blank); paper QA against 44 Dunnell example renders correctly. Vercel preview `dpl_BbarAjj9...` from sha `7018493` confirmed READY on demo-banner alias.
+- **MI-DEMO seed bootstrap SHIPPED** via Buddy direct MCP write (Lead's MCP read-only blocked apply): 12 migrations applied, demo firm now has 12 properties (10 NJ6_NORMAL + 2 NJAW_SHORT_HILLS), 25 phase_submissions covering all 9 phase enum values + all 6 NJAW work order codes + 1 KILL-with-subtype, 5 materials_sheets (property #1 = comprehensive 44 Dunnell paper-true values), 1 cs_replacement_authorization (CDM-Smith rule c exercise), 6 daily_reports, 3 documents, 2 RFIs, 2 Luis conversations, 5 demo `auth.users` + matching profiles. Spec at `.coordination/MI-DEMO_seed_spec_2026-05-06.md` (Lead reconciled v3 with §24 stop conditions). Sync note at `.coordination/buddy_demo_seed_sync_2026-05-06.md`. Sync commit `08fac2d` on `mi-demo-seed` branch (off `demo-banner`); per §22, NEVER MERGE TO MAIN — merge target is `demo-banner` only.
+- **Three side decisions banked during seed run:** `pg_net` extension installed (forward capability for trigger-based Edge Function calls); `profiles.email` column added with backfill from `auth.users` (denormalized convenience for email-based lookups); `seed-demo-users` Edge Function deployed but functionally broken (`auth.admin.listUsers` SDK call fails — SQL bypass migration `20260506230158_mi_demo_seed_04_create_demo_auth_users_via_sql.sql` replaces it). Function source preserved at `supabase/functions/seed-demo-users/index.ts` for future SDK-version retry.
+- **§16a actor coverage outcome:** Spec target was ~91% audit attribution from ~1,000 cascade rows. Actual: 36.5% from ~58 cascade rows. Spec drift — cascade was much smaller than estimated. Demo-firm `audit_log` final state: 159 total, 58 attributed (36.5%), 101 NULL legacy (untouched per §16a option a). Defensible under audit.
+- **Companion specs queued (out of scope of seed):** MI-DEMO-UI v2 (banner copy + write suppression), MI-DEMO-DEPLOY (pitch-day deploy ritual + post-demo wipe schedule). Both pending separate spec drafts before pitch day.
+
 ---
 
 ## Open investigations / blockers
@@ -225,15 +236,21 @@
 
 ## Last 3 sessions
 
-1. **Mon 5/5 evening (commits `79f8434` + `7c0e83b`)** — Phase 2d Visual Tapcard Preview shipped on `demo-banner` (`79f8434`): 7 surgical edits to index.html (Phase 2c structural + Phase 2d build). Q-2d-a/b/c ratified via Buddy defaults during build. Buddy parallel-track refresh on buddy_context.md + questions.md mid-session. Followed by docs commit `7c0e83b` (Buddy): STATE refresh + Buddy parallel-track sync + Phase 2b field reference banked.
-2. **Mon 5/5 late evening (MI-AUDIT-3 close commit `f99b6f0`)** — Path C ship: MI-AUDIT-3 trigger filter only. Schema survey confirmed only `last_client_sync_at` qualifies as heartbeat. Migration applied via Buddy direct Supabase MCP after Lead's MCP hit read-only block — Lead drafted SQL to disk fallback, Buddy applied direct + verified. 2/2 verification tests PASSED. Hash chain intact. Phase 2a doc-drift caught + corrected. Buddy refreshed `buddy_context.md` Phase 2a correction in parallel.
-3. **Mon 5/5 close batch (commits `9c446e7` on main + `553dea2` + `6b9a9d3` on demo-banner)** — Phase 2a → main merge SHIPPED via Path C cherry-pick (production gap closed: inspectors can now create materials_sheets via UI). main → demo-banner merge-forward with conflicts resolved (Phase 2c reconciliation moved `ms-bar` + `pd-ms-history-section` INSIDE `pd-page-overview`). Phase 2d-revision Unit 1 Step 1 vestigial cleanup shipped (sub-steps A+B; C-G queued for Step 2 next session). Buddy parallel-track 45-min push: 4 new work orders drafted (Phase 2c-form, MI-302, Module 2, Luis v1) + 3 custom skills written + future-proofing strategic doc + comprehensive progress report on disk. STATE.md refreshed direct via Buddy Filesystem MCP after CC's Update tool hit stale-state mismatches 5x.
+1. **Mon 5/5 late evening (MI-AUDIT-3 close commit `f99b6f0`)** — Path C ship: MI-AUDIT-3 trigger filter only. Schema survey confirmed only `last_client_sync_at` qualifies as heartbeat. Migration applied via Buddy direct Supabase MCP after Lead's MCP hit read-only block — Lead drafted SQL to disk fallback, Buddy applied direct + verified. 2/2 verification tests PASSED. Hash chain intact. Phase 2a doc-drift caught + corrected. Buddy refreshed `buddy_context.md` Phase 2a correction in parallel.
+2. **Mon 5/5 close batch (commits `9c446e7` on main + `553dea2` + `6b9a9d3` on demo-banner)** — Phase 2a → main merge SHIPPED via Path C cherry-pick (production gap closed: inspectors can now create materials_sheets via UI). main → demo-banner merge-forward with conflicts resolved (Phase 2c reconciliation moved `ms-bar` + `pd-ms-history-section` INSIDE `pd-page-overview`). Phase 2d-revision Unit 1 Step 1 vestigial cleanup shipped (sub-steps A+B; C-G queued for Step 2 next session). Buddy parallel-track 45-min push: 4 new work orders drafted (Phase 2c-form, MI-302, Module 2, Luis v1) + 3 custom skills written + future-proofing strategic doc + comprehensive progress report on disk. STATE.md refreshed direct via Buddy Filesystem MCP after CC's Update tool hit stale-state mismatches 5x.
+3. **Wed 5/6 evening (commits `52adf8a` + `7018493` on demo-banner; `08fac2d` on mi-demo-seed)** — Phase 2d-revision Unit 1 Step 2 + Unit 2 SHIPPED on `demo-banner` (visual tapcard rebased onto materials_sheet modal, paper-true SVG layout, autopop wiring + Materials Installed extrapolation, Vercel preview READY). MI-DEMO seed bootstrap SHIPPED via Buddy direct MCP write (Lead's MCP read-only): 12 migrations applied to demo firm — 12 properties, 25 phase_submissions covering all 9 phase enums + all 6 NJAW codes, 5 materials_sheets, 1 cs_authorization, 6 daily_reports, 3 documents, 2 RFIs, 2 Luis conversations, 5 demo `auth.users` + matching profiles. Spec at `.coordination/MI-DEMO_seed_spec_2026-05-06.md` (Lead reconciled v3 + §24 stop conditions). Sync note at `.coordination/buddy_demo_seed_sync_2026-05-06.md`. Three side decisions banked: `pg_net` extension installed, `profiles.email` column added with backfill, `seed-demo-users` Edge Function deployed-but-broken (admin SDK `listUsers` fails — SQL bypass replaces it). §22 demo-tenant policy locked: `mi-demo-seed` merges to `demo-banner` only, NEVER MAIN.
 
-## Next session opens with — Phase 2d-revision Unit 1 Step 2 + Unit 2
+## Next session opens with — MI-DEMO-UI v2 + MI-DEMO-DEPLOY specs, then Phase 2c-form
 
-Work order: `.coordination/work_order_2026-05-05_phase2d_revision_v2.md`. Step 2 (sub-steps C-G): embed visual-tapcard-preview container in `modal-materials-sheet` (50/50 desktop split + 55/45 tablet + mobile sub-tab toggle), rewrite `VTC_FIELDS` against materials_sheets schema per v2 field map, rewrite `vtcRender` for paper-true NJAW Service Line Renewal Company Side layout (6 sections + Job Notes box), wire static render from `openMaterialsSheetForProperty`, sector dispatch (NJ6_NORMAL renders, ShortHills shows placeholder). ~60-90 min focused build. Then Unit 2: autopop wiring (100ms debounce text, immediate enums) + Materials Installed table extrapolation per `service_type` (FULL/KILL/M2C/H2C/TP mappings locked in work order). Both land on `demo-banner`.
+Phase 2d-revision Unit 1 Step 2 + Unit 2 closed Wed 5/6 evening (commits `52adf8a` + `7018493` on `demo-banner`). MI-DEMO seed shipped Wed 5/6 evening (sync commit `08fac2d` on `mi-demo-seed`; merged to `demo-banner`).
 
-After Phase 2d-revision: pickup order from Buddy work-order queue per progress report — Phase 2c-form Restoration form (Q-7=C, ~3 sessions), then Luis AI v1 (~2 sessions, demo-target for Jeff), then optionally MI-401 GIS List (~3 sessions) and MI-404 Herald Tab (~2 sessions, Jeff in August issue) before Jeff demo on 5/14-5/15.
+**Pre-pitch-day work order queue (Jeff demo Thu 5/14 or Fri 5/15):**
+
+1. **MI-DEMO-UI v2** — banner copy refresh + write-suppression toggles for demo-firm sessions. Owns `firm_safe_to_display` UI consumers + "Sample tenant — read-only on pitch day" toggles. ~1 session. Spec pending.
+2. **MI-DEMO-DEPLOY** — pitch-day deploy ritual (Vercel alias swap), post-demo wipe schedule, Jorge-side checklist. Spec pending. ~30 min spec + execution day-of.
+3. **Phase 2c-form Restoration form** (Q-7=C Save Draft locked, work order `.coordination/work_order_phase2c_form_restoration.md`, ~3 sessions). Photo upload + sector dispatch + whiteboard validation.
+4. **Luis AI v1** (~2 sessions, demo-target for Jeff). `luis_conversations` table shipped + already seeded with 2 demo conversations; need `luis-ask` Edge Function + brand-palette chat panel + citation chips.
+5. Optional pre-demo: MI-401 GIS List (~3 sessions), MI-404 Herald Tab (~2 sessions, Jeff in August issue).
 
 Post-demo: MI-302 Construction PM frontend (4 sessions, patent claim), Module 2 Wastewater/Sewer backend (1 session, 4 migrations), MI-110 Phase 4 Diagram editor (6 sessions, highest risk).
 
@@ -244,13 +261,13 @@ Post-demo: MI-302 Construction PM frontend (4 sessions, patent claim), Module 2 
 - MyInspector v1.0 = **57–78 sessions**
 - Aggressive: end of May 2026
 - Realistic: mid-July 2026
-- Founded: 4:20pm April 20, 2026. **16 days in = ~67% scope per Mon 5/5 close.**
+- Founded: 4:20pm April 20, 2026. **17 days in = ~70% scope per Wed 5/6 close.**
 
-## Completion percentages (per progress_report_2026-05-05.md)
+## Completion percentages (per progress_report_2026-05-05.md, +deltas Wed 5/6)
 
-- v0.1 Compliance Foundation: ~67% (was ~62% session start, +5% tonight)
-- v1.0 (commercial-ready Water Utility): ~55%
-- Full 7-module platform: ~26%
+- v0.1 Compliance Foundation: ~70% (was ~67% Mon 5/5 close, +3% Wed 5/6)
+- v1.0 (commercial-ready Water Utility): ~57% (was ~55%, +2%)
+- Full 7-module platform: ~27% (was ~26%, +1%)
 - Full architected vision (incl. integrations, mobile native, all 7 modules, Luis cross-discipline, residential): ~13%
 
 ---
