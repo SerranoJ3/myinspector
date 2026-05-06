@@ -3839,7 +3839,9 @@ async function openMaterialsSheetForProperty(propertyId){
   }
   document.getElementById('modal-materials-sheet').classList.add('open');
   // Phase 2d-revision Unit 1 Step 2: static render of visual tapcard preview.
-  // Sector dispatch + paper-true layout. Unit 2 will wire autopop on form input.
+  // Phase 2d-revision Unit 2: autopop wiring lives via delegated listeners
+  // attached on first open (idempotent) + chip/toggle/recalc patches.
+  vtcAttachAutopopListeners();
   vtcRender();
   // Phase 2a polish: lazy-load autocomplete suggestions for free-text fields
   loadMaterialsSheetAutocomplete().catch(() => {});
@@ -3880,6 +3882,10 @@ function msRecalcMeasure(name){
   if(name === 'cs_house' && msPastCorner) total = -total;
   totalEl.textContent = `→ ${total} in`;
   totalEl.classList.toggle('neg', total < 0);
+  // Phase 2d-revision Unit 2: ft+in inputs are visible (caught by delegated
+  // 'input' listener) but the derived total drives vtcMs reads. Trigger
+  // visual tapcard re-render on each recalc so derived measurements flow.
+  if(typeof vtcDebouncedRender === 'function') vtcDebouncedRender();
 }
 
 function msTogglePastCorner(){
@@ -3899,12 +3905,15 @@ function msSelectChip(field, value){
   if(hidden.value === value){
     hidden.value = '';
     group.querySelectorAll('.ms-chip').forEach(el => el.classList.remove('selected'));
+    if(typeof vtcRender === 'function') vtcRender();
     return;
   }
   hidden.value = value;
   group.querySelectorAll('.ms-chip').forEach(el => {
     el.classList.toggle('selected', el.dataset.value === value);
   });
+  // Phase 2d-revision Unit 2: chip change is enum — immediate render
+  if(typeof vtcRender === 'function') vtcRender();
 }
 
 function msToggleBoolean(field){
@@ -3916,6 +3925,8 @@ function msToggleBoolean(field){
   hidden.value = next ? 'true' : 'false';
   toggle.classList.toggle('checked', next);
   if(label) label.textContent = next ? 'Yes' : 'No';
+  // Phase 2d-revision Unit 2: boolean toggle is enum — immediate render
+  if(typeof vtcRender === 'function') vtcRender();
 }
 
 function msUpdateMultiTenantGate(){
@@ -4308,6 +4319,7 @@ async function editMaterialsSheetById(sheetId){
     document.getElementById('ms-delete-btn').style.display = data.deleted_at ? 'none' : 'inline-block';
     msSetSaveStatus('saved', data.deleted_at ? 'Loaded soft-deleted sheet (restore from history list)' : 'Loaded existing sheet');
     document.getElementById('modal-materials-sheet').classList.add('open');
+    vtcAttachAutopopListeners();
     vtcRender();
     loadMaterialsSheetAutocomplete().catch(() => {});
   } catch(err){
@@ -4562,6 +4574,65 @@ function vtcServiceTypePurpose(st){
            H2C:'CURB-TO-HOUSE', TP:'TEST PIT', MP:'METER PIT'})[st] || st;
 }
 
+// Phase 2d-revision Unit 2: Materials Installed extrapolation. Maps NJAW
+// service_type → array of standard rows {quan, size, material}. Per work
+// order Q-2d-revision-b=(a). Sized off njaw_new_size_inches. Lead's craft
+// on the rule set; document overrides in commit if Jorge or field experience
+// changes the row inventory.
+function vtcMaterialsRows(){
+  const st = String(vtcMs('service_type') || '').toUpperCase();
+  if(!st) return [];
+  const sz = vtcMs('njaw_new_size_inches');
+  const mat = vtcMs('njaw_new_material') || 'COPPER';
+  const ft = vtcMs('njaw_new_amount_feet');
+  const sizeStr = sz ? `${sz}"` : '__';
+  const tubingMat = sz && mat ? `${sz}" ${mat} TUBING (TYPE 'L')` : `${mat} TUBING (TYPE 'L')`;
+  switch(st){
+    case 'FULL': return [
+      { quan: ft || '', size: sizeStr, material: tubingMat },
+      { quan: '1', size: '6"', material: 'PLASTIC CURB BOX TOP' },
+      { quan: '1', size: '6"', material: 'PLASTIC CURB BOX BOTTOM' },
+      { quan: '1', size: sz ? `${sz}"-${sz}"` : '', material: 'C × C ORI CURB STOP' },
+      { quan: '', size: '', material: 'COMP. COMP. COUPLING' },
+      { quan: '1', size: sizeStr, material: 'COMP. CORPORATION' },
+      { quan: '1', size: '20"-30"', material: 'PVC METER PIT' },
+      { quan: '1', size: '20"', material: 'METER PIT FRAME' },
+      { quan: '1', size: '20"', material: 'METER PIT LID' },
+      { quan: '1', size: sizeStr, material: 'METER SETTER' },
+      { quan: '1', size: sizeStr, material: 'METER IDLER' },
+    ];
+    case 'KILL': return [
+      { quan: '1', size: sizeStr, material: 'COMP. CORPORATION' },
+      { quan: '1', size: sizeStr, material: 'C × C ORI CURB STOP' },
+      { quan: '1', size: '', material: 'CAP' },
+    ];
+    case 'M2C': return [
+      { quan: '1', size: sizeStr, material: 'COMP. CORPORATION' },
+      { quan: '1', size: '6"', material: 'PLASTIC CURB BOX TOP' },
+      { quan: '1', size: '6"', material: 'PLASTIC CURB BOX BOTTOM' },
+      { quan: '1', size: sz ? `${sz}"-${sz}"` : '', material: 'C × C ORI CURB STOP' },
+      { quan: '', size: '', material: 'COMP. COMP. COUPLING' },
+    ];
+    case 'H2C': return [
+      { quan: ft || '', size: sizeStr, material: tubingMat },
+      { quan: '1', size: '20"-30"', material: 'PVC METER PIT' },
+      { quan: '1', size: '20"', material: 'METER PIT FRAME' },
+      { quan: '1', size: '20"', material: 'METER PIT LID' },
+      { quan: '1', size: sizeStr, material: 'METER SETTER' },
+      { quan: '1', size: sizeStr, material: 'METER IDLER' },
+    ];
+    case 'MP': return [
+      { quan: '1', size: '20"-30"', material: 'PVC METER PIT' },
+      { quan: '1', size: '20"', material: 'METER PIT FRAME' },
+      { quan: '1', size: '20"', material: 'METER PIT LID' },
+      { quan: '1', size: sizeStr, material: 'METER SETTER' },
+      { quan: '1', size: sizeStr, material: 'METER IDLER' },
+    ];
+    case 'TP': // Test pit — defaults blank, inspector documents what was exposed
+    default: return [];
+  }
+}
+
 // ── field map ─────────────────────────────────────────────────
 // Each entry: {x, y, label?, get, size?, weight?, family?, color?, anchor?, suffix?, prefix?, underline?, multiline?, wrap?, maxLines?, static?}
 // Coordinates are normalized 0..1 against (VTC_W, VTC_H). Adjust freely.
@@ -4775,12 +4846,31 @@ function vtcRender(){
   out.push(`<text x="${(tblLeft+colQuanRight)/2}" y="${tblTop+11}" font-family="'Source Sans 3', sans-serif" font-size="8" font-weight="700" fill="#1a2434" text-anchor="middle" letter-spacing="0.6">QUAN.</text>`);
   out.push(`<text x="${(colQuanRight+colSizeRight)/2}" y="${tblTop+11}" font-family="'Source Sans 3', sans-serif" font-size="8" font-weight="700" fill="#1a2434" text-anchor="middle" letter-spacing="0.6">SIZE</text>`);
   out.push(`<text x="${(colSizeRight+tblRight)/2}" y="${tblTop+11}" font-family="'Source Sans 3', sans-serif" font-size="8" font-weight="700" fill="#1a2434" text-anchor="middle" letter-spacing="0.6">MATERIAL INSTALLED</text>`);
-  // 11 empty data rows (Unit 1 leaves blank; Unit 2 fills via extrapolation per service_type)
+  // Phase 2d-revision Unit 2: extrapolated rows from service_type. Empty for
+  // unknown service_type (inspector will type into materials grid form rows;
+  // future tickets may add a free-text materials_grid jsonb override).
   const rowCount = 11;
   const rowH = (tblBottom - hdrBottom) / rowCount;
-  for(let r = 1; r < rowCount; r++){
+  const rows = vtcMaterialsRows();
+  const tblFamilyMono = `'JetBrains Mono', ui-monospace, Consolas, monospace`;
+  for(let r = 0; r < rowCount; r++){
     const ry = hdrBottom + r * rowH;
-    out.push(`<line x1="${tblLeft}" y1="${ry}" x2="${tblRight}" y2="${ry}" stroke="#cfd6df" stroke-width="0.3"/>`);
+    if(r > 0){
+      out.push(`<line x1="${tblLeft}" y1="${ry}" x2="${tblRight}" y2="${ry}" stroke="#cfd6df" stroke-width="0.3"/>`);
+    }
+    const row = rows[r];
+    if(row){
+      const ty = ry + rowH * 0.65;
+      if(row.quan){
+        out.push(`<text x="${(tblLeft+colQuanRight)/2}" y="${ty}" font-family="${tblFamilyMono}" font-size="8" fill="#1a2434" text-anchor="middle">${vtcEsc(row.quan)}</text>`);
+      }
+      if(row.size){
+        out.push(`<text x="${(colQuanRight+colSizeRight)/2}" y="${ty}" font-family="${tblFamilyMono}" font-size="8" fill="#1a2434" text-anchor="middle">${vtcEsc(row.size)}</text>`);
+      }
+      if(row.material){
+        out.push(`<text x="${colSizeRight + 4}" y="${ty}" font-family="${tblFamilyMono}" font-size="8" fill="#1a2434" text-anchor="start">${vtcEsc(row.material)}</text>`);
+      }
+    }
   }
 
   // ── render VTC_FIELDS ──
@@ -4829,6 +4919,40 @@ function msMobileView(view){
   if(!modal) return;
   modal.dataset.mobileView = view;
   document.querySelectorAll('#ms-mobile-tabs .ms-mobile-tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
+}
+
+// Phase 2d-revision Unit 2: autopop wiring. One-time delegated listener
+// attachment on first modal open. ms-* form changes → 100ms-debounced
+// vtcRender; tc-co-* changes (Phase 2b tapcard form) → one-way binding
+// into the materials sheet visual tapcard (lands on next render). Hidden
+// chip/toggle/measure inputs don't fire 'input' events, so msSelectChip /
+// msToggleBoolean / msTogglePastCorner / msRecalcMeasure also call
+// vtcDebouncedRender directly.
+let _vtcListenersAttached = false;
+function vtcAttachAutopopListeners(){
+  if(_vtcListenersAttached) return;
+  _vtcListenersAttached = true;
+  // Materials sheet form: any visible input/textarea/select fires render
+  const msModal = document.getElementById('modal-materials-sheet');
+  if(msModal){
+    msModal.addEventListener('input', (e) => {
+      const t = e.target;
+      if(!t || t.type === 'hidden') return;
+      // date / select → immediate; text / number / textarea → debounced
+      if(t.tagName === 'SELECT' || t.type === 'date'){ vtcRender(); }
+      else { vtcDebouncedRender(); }
+    });
+    msModal.addEventListener('change', (e) => {
+      const t = e.target;
+      if(!t || t.type === 'hidden') return;
+      if(t.tagName === 'SELECT' || t.type === 'date' || t.type === 'number') vtcRender();
+    });
+  }
+  // Phase 2b tapcard form: tc-co-* one-way binding into materials sheet visual
+  document.querySelectorAll('#modal-tapcard input[id^="tc-co-"], #modal-tapcard textarea[id^="tc-co-"]').forEach(el => {
+    el.addEventListener('input', vtcDebouncedRender);
+    el.addEventListener('change', vtcDebouncedRender);
+  });
 }
 
 function tcSetFooterStatus(kind, message){
