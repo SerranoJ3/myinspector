@@ -1267,14 +1267,6 @@ html,body{overflow-x:hidden}
       </div>
     </div>
 
-    <!-- Phase 2d — mobile sub-tab toggle (Form / Visual Preview); hidden on >=768px -->
-    <div class="vtc-mobile-tabs">
-      <div class="vtc-mobile-tab active" data-view="form" onclick="vtcMobileTab('form')">Form</div>
-      <div class="vtc-mobile-tab" data-view="preview" onclick="vtcMobileTab('preview')">Visual Preview</div>
-    </div>
-
-    <!-- Phase 2d — flex wrapper: form pane left, visual preview right on >=768px -->
-    <div class="tc-mid">
     <div class="tc-body">
 
       <!-- Page 1: Materials Sheet — full scannable read of attached sheet -->
@@ -1408,10 +1400,6 @@ html,body{overflow-x:hidden}
         </div>
       </div>
 
-    </div>
-
-    <!-- Phase 2d — visual tapcard SVG renders here for NJ6_NORMAL sector only -->
-    <div id="visual-tapcard-preview-container"></div>
     </div>
 
     <div class="tc-footer">
@@ -4402,7 +4390,6 @@ async function openTapcardForProperty(propertyId){
   }
   const prop = propResult.data;
   currentTapcard.sector = prop.sector || 'NJ6_NORMAL';
-  currentTapcard.property = prop; // Phase 2d — stash for vtcRender's address/lot_block reads
 
   const sheets = sheetResult.data || [];
   const sheet = sheets.length ? sheets[0] : null;
@@ -4440,12 +4427,10 @@ async function openTapcardForProperty(propertyId){
   } else {
     tcSetFooterStatus('ready', `No Materials Sheet attached. Tapcard will save without materials_sheet_id.`);
   }
-  vtcInitOnOpen(); // Phase 2d — visual tapcard preview (NJ6_NORMAL only; sector dispatch in vtcRender)
 }
 
 function closeTapcardModal(){
   document.getElementById('modal-tapcard').classList.remove('open');
-  vtcReset(); // Phase 2d — clear visual preview state for next open
   currentTapcard = null;
   currentTapcardPartsCatalog = [];
 }
@@ -4578,39 +4563,10 @@ function vtcRender(){
 let _vtcDebounceT = null;
 function vtcDebouncedRender(){ if(_vtcDebounceT) clearTimeout(_vtcDebounceT); _vtcDebounceT = setTimeout(vtcRender, 100); }
 
-let _vtcListenersAttached = false;
-function vtcAttachListeners(){
-  if(_vtcListenersAttached) return;
-  const root = document.getElementById('modal-tapcard');
-  if(!root) return;
-  // Single delegated listener pair on the modal root — survives DOM mutations inside form pages.
-  root.addEventListener('input', vtcDebouncedRender, true);
-  root.addEventListener('change', vtcRender, true);
-  _vtcListenersAttached = true;
-}
-
-function vtcMobileTab(view){
-  const modal = document.getElementById('modal-tapcard');
-  if(!modal) return;
-  modal.dataset.mobileView = view;
-  document.querySelectorAll('.vtc-mobile-tab').forEach(el => el.classList.toggle('active', el.dataset.view === view));
-}
-
-function vtcInitOnOpen(){
-  const modal = document.getElementById('modal-tapcard');
-  if(!modal) return;
-  modal.dataset.mobileView = 'form';
-  document.querySelectorAll('.vtc-mobile-tab').forEach(el => el.classList.toggle('active', el.dataset.view === 'form'));
-  vtcAttachListeners();
-  vtcRender();
-}
-
-function vtcReset(){
-  const container = document.getElementById('visual-tapcard-preview-container');
-  if(container){ container.innerHTML = ''; container.classList.remove('vtc-active'); }
-  const modal = document.getElementById('modal-tapcard');
-  if(modal){ modal.classList.remove('vtc-disabled'); modal.removeAttribute('data-mobile-view'); }
-}
+// Phase 2d-revision Unit 1 Step 1 (2026-05-05): vtcAttachListeners / vtcMobileTab /
+// vtcInitOnOpen / vtcReset removed as vestigial. Visual tapcard preview is moving
+// off #modal-tapcard onto modal-materials-sheet in Unit 1 Step 2 (next session).
+// Render core preserved: VTC_FIELDS config, vtcRender, vtcDebouncedRender, helpers.
 
 function tcSetFooterStatus(kind, message){
   const el = document.getElementById('tc-footer-status');
