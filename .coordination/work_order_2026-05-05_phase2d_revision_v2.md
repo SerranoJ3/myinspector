@@ -6,6 +6,12 @@
 **Authority:** Jorge granted Buddy batch trust + Phase 2a → main merge authorization (5/5 evening, post-CC stop-and-ping caught documentation drift)
 **Supersedes:** `.coordination/work_order_2026-05-05_phase2d_revision_plus_audit3.md` (v1, drafted from priors before schema verification)
 
+**Status notes (2026-05-05 late evening, post MI-AUDIT-3 close + Unit 0 + Unit 1 Step 1 ship):**
+- **Unit 3 (doc drift correction): SHIPPED** in commit `f99b6f0` on demo-banner (MI-AUDIT-3 close batch). STATE.md, status.md, decisions.md all updated; new superseding decisions.md entry per append-only rule. `buddy_context.md` correction handled by Buddy in parallel (separate commit). Skip Unit 3 below.
+- **Unit 0 (Phase 2a → main merge): SHIPPED via Path C** as commit `9c446e7` on main (cherry-pick of `04fd6b1` + `a542d5a` onto current main on temp branch `mi101-phase2a-merge`, hand-resolved CSS + HTML modal conflicts, Vercel-preview verified by Jorge, then squash-merged to main). main → demo-banner merged forward as commit `553dea2` (4 conflicts: `.coordination/buddy_context.md` + `.coordination/decisions.md` + `.coordination/questions.md` resolved with `--ours` to keep demo-banner's tonight-state; `index.html` resolved with Phase 2c reconciliation — `ms-bar` + `pd-ms-history-section` moved INSIDE `pd-page-overview`).
+- **Unit 1 Step 1 (vestigial removal): SHIPPED** as commit `6b9a9d3` on demo-banner. Removed `vtc-mobile-tabs` + `tc-mid` wrapper + `visual-tapcard-preview-container` from `#modal-tapcard`; removed `vtcInitOnOpen` / `vtcReset` / `vtcAttachListeners` / `vtcMobileTab` functions + call sites + `currentTapcard.property = prop` stash. Preserved `VTC_FIELDS` config + `vtcRender` + `vtcDebouncedRender` + `vtcVal` / `vtcEsc` / `vtcWrap` helpers. CSS rules kept in place for Step 2 reuse on `modal-materials-sheet`.
+- **Unit 1 Step 2 (sub-steps C-G): QUEUED for next session.** Embed visual-tapcard-preview container in `modal-materials-sheet` (50/50 desktop split + 55/45 tablet + mobile sub-tab toggle), rewrite `VTC_FIELDS` against materials_sheets schema per v2 field map, rewrite `vtcRender` for paper-true NJAW Service Line Renewal Company Side layout (6 sections + Job Notes box), wire static render from `openMaterialsSheetForProperty`, sector dispatch (NJ6_NORMAL renders, ShortHills shows placeholder). ~60-90 min focused build.
+
 ---
 
 ## Why this revision exists
