@@ -4,8 +4,8 @@
 > **CLAUDE.md** holds locked principles. **STATE.md** holds live state.
 > Conflict with Claude memory: this file wins.
 
-**Last updated:** May 5, 2026 ~evening EDT (post Phase 2d ship)
-**Updated by:** Lead (Claude Code CLI) — Phase 2d Visual Tapcard Preview shipped on `demo-banner`; STATE refreshed with as-shipped state + 3 banked-discipline lessons from tonight
+**Last updated:** May 5, 2026 ~late evening EDT (post MI-AUDIT-3 ship)
+**Updated by:** Lead (Claude Code CLI) — MI-AUDIT-3 heartbeat trigger filter shipped on `demo-banner`; Phase 2a doc-drift corrected; closing pass on Path C scope
 
 ---
 
@@ -20,7 +20,7 @@
 
 ## Active gate: v0.1 Compliance Foundation
 
-**~62% of v1.0 scope complete by session count** (Saturday 5/2 close, no material change since — Sunday was verification + audit + ratification, tonight added Phase 2c scaffold + Phase 2d build, no new feature surface area beyond what was already queued).
+**~62% of v1.0 scope complete by session count** (Saturday 5/2 close, no material change since — Sunday was verification + audit + ratification, Mon 5/5 added Phase 2c scaffold + Phase 2d build + MI-AUDIT-3 trigger filter, no new feature surface area beyond what was already queued).
 
 | Ticket | Status | Notes |
 |---|---|---|
@@ -35,16 +35,17 @@
 | MI-203 step 3 (DROP POLICY `firms_read_anon`) | Closed Sun ~08:55 | Migration `mi203_step3_drop_firms_read_anon`, no main commit (MCP-only) |
 | MI-204 / MI-204b firm_id indexing | Closed Sat | 23 firm_id indexes total across schema |
 | MI-101 Phase 1a-1e (backend) | Closed | All 5 sub-phases shipped via prod migrations |
-| MI-101 Phase 2a (Materials Sheet UI + polish) | Closed Sat | PR `mi101-phase2a` merged |
+| MI-101 Phase 2a (Materials Sheet) | **Backend shipped; frontend NOT merged** | Backend migrations live (materials_sheets infra, via Supabase MCP). PR `mi101-phase2a` (frontend, HEAD `a542d5a`) never merged to main. Re-scoped into Phase 2d-revision per work order 2026-05-05. |
 | MI-101 Phase 2b refactor (Tapcard, 2 tabs, 41 fields) | Closed Sun 0:52 | `4d70901`. Real-shape verified Sun 17:50 (Jorge live submission) |
-| MI-101 Phase 2c lean scaffold (tabs + visual preview container) | **Closed Mon 5/5** | Commit `91f2af4` on `demo-banner`. No migrations. |
-| MI-101 Phase 2c-form pickup (Restoration form) | Queued — next session | 5 acceptance criteria, photo upload, sector dispatch, whiteboard requirement, Save Draft button per Q-7=C |
-| MI-101 Phase 2d (Visual Tapcard Preview) | **Shipped tonight on `demo-banner` — in flight pending Vercel verify** | Commit `79f8434`. SVG render mirrors `#modal-tapcard` form state for NJ6_NORMAL only. Q-2d-a/b/c ratified (mono / no PDF / gray underline). Acceptance #5 (no regression on Phase 2b form) requires browser verification on Vercel preview — Lead's environment has no dev server + Supabase creds wired |
+| MI-101 Phase 2c lean scaffold (tabs + visual preview container) | Closed Mon 5/5 | Commit `91f2af4` on `demo-banner`. No migrations. |
+| MI-101 Phase 2c-form pickup (Restoration form) | Queued — behind Phase 2d-revision | 5 acceptance criteria, photo upload, sector dispatch, whiteboard requirement, Save Draft button per Q-7=C |
+| MI-101 Phase 2d (Visual Tapcard Preview, original placement) | Shipped Mon 5/5 on `demo-banner` (`79f8434`); pending Vercel verify | Original placement on `#modal-tapcard`. Re-scoped into Phase 2d-revision (rebase onto materials_sheet modal). Acceptance #5 superseded by Phase 2d-revision Unit 1. |
+| **MI-101 Phase 2d-revision Units 1+2** | **Queued — next session** | Work order `.coordination/work_order_2026-05-05_phase2d_revision_v2.md`. Unit 1 = rebase visual tapcard onto materials_sheet modal + paper-true SVG layout. Unit 2 = autopop wiring + Materials Installed table extrapolation. |
 | MI-110 Phase 4 (Tapcard Diagram editor) | Brief drafted | Highest-risk surface in v1.0 (touch events on iPad). ~6 sessions. |
 | MI-302 Construction PM frontend | Brief drafted | Backend fully shipped. CP default project seeded Sun (`722f9db8...`). ~4–6 sessions. |
 | MI-AUDIT-1 (firm_id filter on `get_pending_destruction`) | Closed Sun ~17:35 | Migration `mi_audit_1_fix_get_pending_destruction` v `20260503172732`. Live function body contains `AND dn.firm_id = public.current_firm_id()` |
 | MI-AUDIT-2 (super_admin firm-crossing posture) | Informational, parked | Trigger to act: second firm beyond CP Engineers |
-| MI-AUDIT-3 (audit_log heartbeat noise — `last_client_sync_at`) | Filed Sun ~17:50 | P2. 3 fix approaches (A/B/C) in decisions.md. Touches audit chain plumbing — design before patch |
+| MI-AUDIT-3 (audit_log heartbeat noise — `last_client_sync_at`) | **Closed Mon 5/5 ~evening** | Migration `mi_audit_3_skip_heartbeat_audit` (approach A — trigger filter). Whitelist: `last_client_sync_at`. Pre-fix baseline 1101 rows / 916 heartbeat-only / 83% noise. TEST 1 heartbeat-skip PASSED (delta=0); TEST 2 real-state PASSED (delta=1). Chain intact: head `fd537e79...` linked to prior head `d9e39e64...`. |
 | Soft-delete view rebuild (CLAUDE.md principle #7) | Closed Sat | Migration `soft_delete_views_security_invoker_rebuild` |
 | `legal_holds` workflow | Backend exists, no UI | Table indexed + RLS-locked. No active ticket. |
 | Demo tenant + `firm_safe_to_display` | Closed Sat | Migrations `firms_safe_to_display_flag` + `demo_tenant_seed_data_v3` + `demo_inspector_binding` |
@@ -56,7 +57,7 @@
 | Ticket | What | Sessions | Status |
 |---|---|---|---|
 | MI-100 | Sector toggle (NJ6_NORMAL / NJAW_SHORT_HILLS) | 3 | Closed |
-| MI-101 | Normal Tapcard 3-page (CDM-Smith rules b, d, e) | 6 | Phases 1a-2b shipped; 2c lean scaffolded; 2d shipped tonight pending Vercel verify; 2c-form queued |
+| MI-101 | Normal Tapcard 3-page (CDM-Smith rules b, d, e) | 6 | Phases 1a-2b shipped; 2c lean scaffolded; 2d shipped 5/5 (re-scoped to Phase 2d-revision); 2c-form queued behind Phase 2d-revision |
 | MI-101.5 | Dual-mode entry (Type fields \| Photo notebook + Vision parse) | 4 | Queued post-Phase-4 |
 | MI-102 | ShortHills (Company + Restoration) | 5 | Placeholder tab tonight (Phase 2c); build queued post master-parts-list |
 | MI-103 | Vision parse refs DONE → build spec | 0 | Blocked on 3 reference images |
@@ -78,10 +79,11 @@
 - **Sector enum on `properties` (not `phase_submissions`).** Same CHECK on `restoration_grid_entries` and `parts_catalogs`.
 - **`inspections` table exists** with firm_id + RLS — not currently used; older surface or higher-level abstraction over `phase_submissions`. Worth a row-count + column-shape check next audit cycle.
 - **Phase 2b tapcard form field surface** — documented in `.coordination/PHASE2B_TAPCARD_FIELDS_REFERENCE.md` (Buddy, tonight). Ground-truth for MI-101 Phase 2d field map (`VTC_FIELDS` in index.html).
+- **`last_client_sync_at` is the only heartbeat field in schema** — survey 5/5 evening confirmed no `last_seen_at`, `client_session_id`, `device_metadata`, `last_active_at`, `last_heartbeat_at`, `last_ping_at`, `last_known_location`, `last_sync_at` anywhere across 18 public tables. MI-AUDIT-3 whitelist locked to single field.
 
 ---
 
-## Audit posture (post Sunday verification + security audit + tonight's Phase 2d ship)
+## Audit posture (post Sunday verification + security audit + Mon 5/5 ships)
 
 🟢 **Multi-tenant isolation: GREEN.** 22 tables with firm_id, all RLS-forced + ≥1 policy. 3 tables without firm_id are global by design (`firms`, `modules`, `parts_catalogs`).
 
@@ -89,7 +91,7 @@
 
 🟢 **26 SECURITY DEFINER functions audited.** 21 OK with explicit firm_id, 2 OK with auth.uid + verified scope, 1 super_admin-by-design (`release_legal_hold` → MI-AUDIT-2 informational), 1 fix shipped (`get_pending_destruction` → MI-AUDIT-1 closed Sun).
 
-🟡 **MI-AUDIT-3 filed.** `last_client_sync_at` heartbeat writes are firing audit triggers — ~50%+ of current 288/24h baseline is heartbeat noise, not state change. P2. Design before patch.
+🟢 **MI-AUDIT-3 closed.** Migration `mi_audit_3_skip_heartbeat_audit` shipped Mon 5/5 evening (approach A trigger filter; whitelist: `last_client_sync_at`). 83% pre-fix noise eliminated (916 of 1101 30d rows). Chain intact post-migration: head `fd537e79...` linked to prior head `d9e39e64...`. Verified via 2/2 tests (heartbeat-skip = 0 audit rows; real-state = 1 audit row).
 
 🟢 **Phase 2b real-shape verified Sunday 17:50.** Jorge live tapcard submission — tapcard_data jsonb has correct 3 keys; CHECK constraints satisfied; multi-tenant isolation honored; hash chain intact across the INSERT + 2 UPDATEs.
 
@@ -108,6 +110,9 @@
 - **Q-2d-a (Visual Tapcard font):** monospace (`'JetBrains Mono'` primary, system mono fallback).
 - **Q-2d-b (print-to-PDF):** deferred to v2. Trigger to un-defer: first compliance officer asks at demo/pilot.
 - **Q-2d-c (empty-field treatment):** thin gray underline (`#cfd6df`, 1px) at field anchor.
+- **Q-2d-revision-a (Diagram area in v1):** placeholder text per Buddy work order 2026-05-05; full dynamic diagram lands with MI-110 Phase 4.
+- **Q-2d-revision-b (Materials Installed autopop):** extrapolation from `materials_sheets.service_type` per Buddy work order 2026-05-05; mapping locked for FULL/KILL/M2C/H2C/TP.
+- **Q-AUDIT-3-a (`last_client_sync_at` future use):** preserve column; fix via approach A (trigger filter). Closed Mon 5/5.
 
 ## Deferred / parked
 
@@ -121,7 +126,7 @@
 
 **Sat 5/2:**
 - 4 migrations via Supabase MCP: `parts_catalogs_placeholder_seed`, `demo_inspector_binding`, `cs_replacement_auth_immutability_revoke_service_role`, `mi204b_firm_id_indexes`
-- 3 PR squash-merges: `mi203-step2`, `mi101-phase2a`, `mi101-phase2b` (original)
+- 2 PR squash-merges to main: `mi203-step2`, `mi101-phase2b` (original). `mi101-phase2a` was prepared but never merged — only Phase 2a backend migrations shipped via Supabase MCP. (Drift caught + corrected 2026-05-05; see decisions.md.)
 - BB-001 (AR auto-fill tapcard) parked, trigger = first paying non-CP customer
 
 **Sun 5/3 morning:**
@@ -144,20 +149,21 @@
 **Mon 5/5 (tonight):**
 - STATE.md 3-day reconciliation refresh (commit `91f2af4`)
 - Phase 2c lean scaffold shipped: Property Detail tab strip (Overview / Restoration / ShortHills) + empty `<div id="visual-tapcard-preview-container">` in `#modal-tapcard` (commit `91f2af4`)
-- Phase 2d Visual Tapcard Preview shipped tonight on `demo-banner` (commit `79f8434`): SVG mirror of `#modal-tapcard` form state for NJ6_NORMAL only; Q-2d-a/b/c ratified (mono / no PDF / gray underline); Acceptance #5 pending Vercel preview verify
+- Phase 2d Visual Tapcard Preview shipped tonight on `demo-banner` (commit `79f8434`): SVG mirror of `#modal-tapcard` form state for NJ6_NORMAL only; Q-2d-a/b/c ratified (mono / no PDF / gray underline); Acceptance #5 superseded by Phase 2d-revision Unit 1
 - Buddy parallel-track refresh on `buddy_context.md` + `questions.md` Q-2d resolutions (mid-session)
 - Buddy created `.coordination/PHASE2B_TAPCARD_FIELDS_REFERENCE.md` as ground-truth for the Phase 2d field map
+- **MI-AUDIT-3 heartbeat trigger filter shipped** via Supabase MCP migration `mi_audit_3_skip_heartbeat_audit` (Buddy applied via write-mode MCP; Lead drafted SQL + designed verification + ran read-only checks). Pre-fix 916 of 1101 30d audit rows were heartbeat noise (83%). Post-fix verified: heartbeat-only UPDATE = 0 new audit rows; real-state UPDATE = 1 new audit row; chain intact (head `fd537e79...` linked to prior head `d9e39e64...`). Phase 2d-revision Units 1+2 deferred per Path C; refreshed work order on disk for next pickup.
+- **Phase 2a doc-drift corrected** in STATE/status/decisions: `mi101-phase2a` frontend PR was NEVER merged — only backend migrations shipped via Supabase MCP. Drift had propagated through STATE/status for ~3 days. Buddy handled `buddy_context.md` correction in parallel.
 
 ---
 
 ## Open investigations / blockers
 
-- **MI-AUDIT-3** filed Sun 5/3 ~17:50. P2. Design before patch — survey other heartbeat-not-state fields before picking approach A/B/C.
 - **3 reference images** for MI-100 vision parsing — Jorge to provide. Still blocked.
 - **Whiteboard sample photos** for false-positive prompt tuning — Jorge to provide. Still blocked.
 - **Isolated test tenant** for MI-109.5 manual e2e walk — gated on SG-001 Node 2/3 unlock.
 - **`njaw-selector-v2`** push status — Jorge to verify on GitHub branches page.
-- **Phase 2d Acceptance #5 (no regression)** — needs browser verification on Vercel preview.
+- **Phase 2d original Acceptance #5 (no regression)** — superseded by Phase 2d-revision Unit 1 (visual rebases onto materials_sheet modal); original Acceptance #5 effectively closes when Phase 2d-revision Unit 1 ships.
 
 ## Decisions parked (not blockers)
 
@@ -188,15 +194,15 @@
 
 ## Last 3 sessions
 
-1. **Sun 5/3** — Buddy max-execution sprint. Saturday queue closed. Domain + email + marketing-site infrastructure stood up. Full prod verification + security audit. 3 spec briefs drafted. MI-AUDIT-1 shipped. CP default project seeded. 6 Q ratifications. Phase 2b real-shape verified via Jorge live submission. MI-AUDIT-3 filed.
-2. **Mon 5/5 early evening (commit `91f2af4`)** — STATE.md 3-day reconciliation refresh. Phase 2c lean scaffold (Property Detail tabs + visual-tapcard-preview-container scaffold). status.md full reconciliation. MI-AUDIT-1 confirmed already-shipped (no-op).
-3. **Mon 5/5 evening (commit `79f8434`)** — Phase 2d Visual Tapcard Preview shipped on `demo-banner`. 7 surgical edits to index.html (Phase 2c structural + Phase 2d build). Q-2d-a/b/c ratified via Buddy defaults during build. Buddy parallel-track refresh on buddy_context.md + questions.md mid-session. STATE refresh + 3 banked-discipline lessons (this commit).
+1. **Mon 5/5 evening (commit `91f2af4`)** — STATE.md 3-day reconciliation refresh. Phase 2c lean scaffold (Property Detail tabs + visual-tapcard-preview-container scaffold). status.md full reconciliation. MI-AUDIT-1 confirmed already-shipped (no-op).
+2. **Mon 5/5 evening (commits `79f8434` + `7c0e83b`)** — Phase 2d Visual Tapcard Preview shipped on `demo-banner` (`79f8434`): 7 surgical edits to index.html (Phase 2c structural + Phase 2d build). Q-2d-a/b/c ratified via Buddy defaults during build. Buddy parallel-track refresh on buddy_context.md + questions.md mid-session. Followed by docs commit `7c0e83b` (Buddy): STATE refresh + Buddy parallel-track sync + Phase 2b field reference banked.
+3. **Mon 5/5 late evening (MI-AUDIT-3 close commit)** — Path C ship: MI-AUDIT-3 trigger filter only; Phase 2d-revision Units 1+2 deferred to next session per refreshed work order. Schema survey confirmed only `last_client_sync_at` qualifies as heartbeat (no other candidates exist anywhere in 18 tables). Migration applied via Buddy direct Supabase MCP after Lead's MCP hit read-only block — Lead drafted SQL to disk fallback, Buddy applied direct + verified. 2/2 verification tests PASSED. Hash chain intact (head `fd537e79...` linked to prior head `d9e39e64...`). Phase 2a doc-drift caught + corrected (frontend PR `mi101-phase2a` was NEVER merged; only backend migrations shipped via MCP — drift had propagated through STATE/status for ~3 days). Buddy refreshed `buddy_context.md` Phase 2a correction in parallel.
 
-## Next session opens with — MI-101 Phase 2c-form pickup
+## Next session opens with — MI-101 Phase 2d-revision (Units 1+2)
 
-Restoration form ships clean: 5 acceptance criteria, photo upload (pre + post), sector dispatch (NJ6_NORMAL / NJAW_SHORT_HILLS), whiteboard requirement enforcement, Save Draft button (Q-7=C). Tab structure already exists from `91f2af4`'s lean scaffold.
+Work order: `.coordination/work_order_2026-05-05_phase2d_revision_v2.md` (Buddy refresh, 5/5 evening). Unit 1 = rebase visual tapcard onto `modal-materials-sheet` with paper-true SVG layout mirroring NJAW Service Line Renewal Company Side. Unit 2 = autopop wiring (100ms debounce text, immediate enums) + Materials Installed table extrapolation per `service_type` (FULL/KILL/M2C/H2C/TP mappings locked in work order). Both units land on `demo-banner`.
 
-After 2c-form: pick from MI-302 Construction PM frontend (FK target seeded), MI-110 Phase 4 (Diagram editor — highest risk), MI-AUDIT-3 fix (audit chain heartbeat patch), or main-merge of `demo-banner` if Track 2 demo work is ready for v0.1 cut.
+After Phase 2d-revision: MI-101 Phase 2c-form pickup (Restoration form per Q-7=C), then pick from MI-302 Construction PM frontend (FK target seeded), MI-110 Phase 4 (Diagram editor — highest risk), or main-merge of `demo-banner` if Track 2 demo work is ready for v0.1 cut.
 
 ---
 
@@ -248,3 +254,11 @@ Three locked discipline rules surfaced during tonight's session. Logged here at 
 **Why:** tonight's `git checkout main` (mid cherry-pick flow) aborted with *"Your local changes to the following files would be overwritten by checkout: .coordination/buddy_context.md, .coordination/questions.md"*. Buddy was actively refreshing both files via filesystem MCP while Lead was building Phase 2d in Claude Code — neither side had visibility into the other's writes until git status exposed them at the destructive-action boundary.
 
 **How to apply:** any session where Buddy is actively writing requires `git status` before every checkout-class operation. If parallel-track files are dirty and Buddy intent is unclear, surface to Jorge with options (stash / commit / pause) — don't guess. Once decided, the chosen path commits cleanly with no work lost.
+
+### Lesson 4 — When MCP is read-only, fall back to disk + handoff; do not bypass
+
+**Rule:** if a Supabase MCP write call returns "Cannot apply migration in read-only mode," stop and write the migration SQL to disk for handoff. Do not retry, do not seek alternate paths, do not attempt shell-level workarounds. Disk + handoff to a write-mode actor (Buddy MCP, Supabase Dashboard, supabase CLI) is the canonical fallback.
+
+**Why:** MI-AUDIT-3 ship Mon 5/5 evening — Lead's Supabase MCP returned read-only on `apply_migration`. Lead wrote migration to `.coordination/mi_audit_3_skip_heartbeat_audit.sql` and held for direction. Jorge confirmed Path B (disk handoff); Buddy applied via write-mode MCP. Verification ran clean: 2/2 tests PASSED, chain intact. Total elapsed ~5 min for blocked-to-applied handoff vs hours-of-debug if Lead had tried to bypass the read-only gate.
+
+**How to apply:** `apply_migration` read-only error = immediate disk write + ping Jorge with both options (flip MCP write-mode OR hand off via disk). Do not propose alternate-channel writes (`execute_sql` workarounds, etc.) — read-only is read-only by design and bypassing it would corrupt the audit trail.

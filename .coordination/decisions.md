@@ -348,3 +348,66 @@ Buddy lean: **B** is cleanest long-term (clean audit chain, isolated heartbeat d
 
 **Source:** Jorge live tapcard submission via Vercel preview on phone at ~13:43 EDT. Buddy verification via Supabase MCP `audit_log` diff query (jsonb_each comparing old_data vs new_data per row). Finding surfaced from the diff; not visible in the simpler shape-check.
 
+---
+
+## 2026-05-05 late evening EDT — MI-AUDIT-3 closed: approach A trigger filter shipped + verified
+
+**Decision:** MI-AUDIT-3 (audit_log heartbeat noise from `last_client_sync_at`) closed via approach A — trigger filter on `write_audit_log()`. Migration `mi_audit_3_skip_heartbeat_audit` applied to prod. Whitelist locked to `{last_client_sync_at}` (single field). 2/2 verification tests PASSED. Hash chain intact.
+
+**Path C scope:** Tonight's authorized scope was MI-AUDIT-3 only. Phase 2d-revision Units 1+2 (rebase visual tapcard onto materials_sheet modal + autopop wiring) deferred to next session per refreshed work order at `.coordination/work_order_2026-05-05_phase2d_revision_v2.md`.
+
+**Approach A chosen** (over B/C from 5/3 ~17:50 entry above):
+- **A vs B:** approach A ships in <30 min via single `CREATE OR REPLACE FUNCTION` with no schema migration. Approach B (move `last_client_sync_at` to separate non-audited table) would require a new table, FK migration on `phase_submissions`, client-side rewrite of the heartbeat write path, and a backfill of existing rows. Tonight's Path C scope explicitly excludes that breadth. A leaves the door open to B later if heartbeat needs grow.
+- **A vs C:** approach C (stop writing the field on every sync at the client level) moves the bug rather than fixing it; the trigger would still fire if any future client writes this field. A fixes it server-side regardless of client behavior — defensive against the next client-side regression.
+- **Q-AUDIT-3-a (preserve `last_client_sync_at` column?):** locked yes (preserve). The field has plausible future use (stale-draft warnings, offline reconciliation, supervisor "last seen inspector" indicators). Approach A is the only one of the three that lets us preserve the column AND eliminate the audit noise without a schema change.
+
+**Implementation:**
+- `write_audit_log()` UPDATE branch now computes the changed-keys set between OLD and NEW jsonb. If non-empty AND a subset of `v_heartbeat_whitelist := ARRAY['last_client_sync_at']`, the function `RETURN NEW`s before the `audit_log` INSERT — the audit row is never written.
+- INSERT and DELETE branches untouched.
+- `SECURITY DEFINER`, `search_path = 'public', 'extensions', 'pg_temp'`, firm_id resolution logic — all preserved verbatim from the prior function body.
+- `audit_log_chain_trigger` (BEFORE INSERT on `audit_log`) — untouched.
+- `COMMENT ON FUNCTION public.write_audit_log()` added with the migration name + heartbeat-whitelist documentation.
+
+**Schema survey results (read-only via Supabase MCP, 2026-05-05 ~21:55 EDT):**
+- Suggested heartbeat candidates `last_seen_at`, `client_session_id`, `device_metadata`, `last_active_at`, plus `last_heartbeat_at`, `last_ping_at`, `last_known_location`, `last_sync_at`: **none exist anywhere** in the 18 public tables.
+- Only `last_client_sync_at` exists, only on `phase_submissions` (and its view `phase_submissions_active`). Whitelist locked single-element. Future heartbeat fields can be added to the array as they appear.
+
+**Apply path (multi-actor coordination):**
+1. Lead drafted migration SQL + ran read-only schema survey + designed verification queries via Supabase MCP.
+2. Lead's `Supabase:apply_migration` returned `Cannot apply migration in read-only mode`.
+3. Per Path C handoff: Lead wrote migration to `.coordination/mi_audit_3_skip_heartbeat_audit.sql` and held for direction.
+4. Jorge confirmed Path B (disk handoff). Buddy applied via direct write-mode Supabase MCP. Buddy refreshed on-disk SQL with as-applied content (slight diff vs Lead's draft: bidirectional UNION on changed-keys computation; `$func$` dollar-quote tag per BUDDY_STANDARD; `COMMENT ON FUNCTION` marker added).
+
+**Verification (read by Buddy direct-MCP, results reported to Lead):**
+- **Pre-fix baseline (30d):** 1101 audit_log rows total. 916 are heartbeat-only UPDATEs on `phase_submissions` where the only changed key is `last_client_sync_at` — **83% of audit volume eliminated as noise.** Pre-test chain head: id 1393, row_hash `d9e39e64845db56920415367337c62626a76c74e83e2143bc41a7477b64bedf8`.
+- **TEST 1 — heartbeat-only UPDATE PASSED.** UPDATE on `phase_submissions` row `72183028-7d4f-4ad5-a35f-7a7a222d2dee` setting `last_client_sync_at = NOW()`: audit_log delta = 0. Heartbeat skip filter works.
+- **TEST 2 — real-state UPDATE PASSED.** UPDATE on same row setting notes field: audit_log delta = 1. New chain head: row_hash `fd537e792c6a279dc187b02b68250e5c8d3bad149b655c6d024dcf83ac5e280c`. prev_hash on new row links correctly to pre-test head `d9e39e64...`. **Hash chain integrity intact.**
+
+**Affects:** MI-AUDIT-3 closed. ~83% of go-forward audit_log volume from this trigger filter alone. `compliance_dashboard` audit panels become more readable (less noise). Q-7 Materials Sheet save cadence math (5/3 ~17:35 entry above) was modeled against the inflated 288/24h baseline; the post-fix real rate will be lower, but Q-7 = C decision stays locked (Save Draft was the right UX call regardless of volume).
+
+**Pattern banked for future heartbeat fields:** add the field name to `v_heartbeat_whitelist` array in `write_audit_log()` via a follow-up migration. Single-line change. No schema work needed. Cap on the array's growth: only fields where the client writes solely for liveness signaling, never for state semantics.
+
+**Source:** Jorge directive 2026-05-05 evening EDT ("Path C confirmed. Ship MI-AUDIT-3 trigger filter only tonight"). Lead drafted, Lead held on read-only block, Buddy applied + verified.
+
+**Affects (architectural):** Pattern locked for `write_audit_log()` future modifications — any change to its body must preserve `SECURITY DEFINER`, the `search_path` set, the firm_id resolution fallback, and the INSERT/DELETE branch behavior. Hash chain trigger (`audit_log_chain_trigger`) is the inviolate part: never modify it without an explicit MI-AUDIT ticket on chain integrity.
+
+---
+
+## 2026-05-05 late evening EDT — Correction: MI-101 Phase 2a frontend PR was NEVER merged
+
+**Decision:** Documentation drift caught and corrected during MI-AUDIT-3 closing pass. The 2026-05-02 ~23:00 EDT entry "Saturday session close (tapcard milestone reached)" listed `mi101-phase2a` among "3 PRs squash-merged: mi203-step2 + mi101-phase2a + mi101-phase2b ORIGINAL." That claim is wrong. Only Phase 2a **backend** migrations shipped (via Supabase MCP — `materials_sheets` table + related infrastructure). The Phase 2a **frontend** PR on branch `mi101-phase2a` (HEAD `a542d5a`) was prepared but never merged to main.
+
+**Why it matters:** Drift propagated into STATE.md "Active gate" table and status.md "Open PRs / branches" table for ~3 days, masking that Phase 2a frontend work is incomplete. Phase 2d-revision (work order 2026-05-05) is where the Materials Sheet frontend actually lands — the visual tapcard preview rebases onto `modal-materials-sheet`, which is the surface Phase 2a was supposed to ship.
+
+**Corrections shipped in MI-AUDIT-3 close commit:**
+- STATE.md "Active gate" Phase 2a row — backend shipped, frontend never merged, re-scoped into Phase 2d-revision.
+- STATE.md "Sat 5/2" recent-ships — 3 PR squash-merges corrected to 2.
+- `.coordination/status.md` "Open PRs / branches" `mi101-phase2a` row — NOT merged, branch stale.
+- `.coordination/status.md` "Recently closed" Sat 5/2 line — 3 PR squash-merges corrected to 2.
+- `.coordination/buddy_context.md` — handled by Buddy in parallel.
+
+**Supersedes:** Specifically the `mi101-phase2a` PR-merge claim in 2026-05-02 ~23:00 EDT entry "Saturday session close (tapcard milestone reached)." Per this file's append-only convention, that prior entry is preserved verbatim; this entry is the corrective superseding record.
+
+**Source:** Jorge directive 2026-05-05 evening EDT during MI-AUDIT-3 ship pass: "correct the Phase 2a documentation drift in STATE/status/decisions (frontend was NEVER merged, only backend migrations shipped)."
+
+**Affects:** Future Lead/Buddy reads of Phase 2a status. Truth is: backend live since 5/2, frontend pending Phase 2d-revision Unit 1 (rebasing visual tapcard onto materials_sheet modal per work order 2026-05-05).
