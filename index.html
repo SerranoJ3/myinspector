@@ -253,38 +253,40 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .tc-footer-status.saved{color:var(--green)}
 .tc-footer-status.error{color:var(--red)}
 
-/* PHASE 2D — VISUAL TAPCARD PREVIEW (NJ6_NORMAL only; sector dispatch in JS via vtcRender) */
-.tc-mid{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;background:var(--bg)}
-.tc-mid > .tc-body{flex:1 1 auto;min-height:0}
+/* PHASE 2D-revision Unit 1 Step 2 — VISUAL TAPCARD inside modal-materials-sheet (NJ6_NORMAL only) */
+.ms-split{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
 #visual-tapcard-preview-container{display:none;background:var(--bg)}
 #visual-tapcard-preview-container.vtc-active{display:block;padding:18px 22px;overflow-y:auto}
+#visual-tapcard-preview-container.vtc-shorthills{display:flex;align-items:center;justify-content:center;padding:40px;text-align:center}
 .vtc-svg{width:100%;height:auto;display:block;background:#ffffff;border:1px solid var(--border);border-radius:8px}
-.vtc-mobile-tabs{display:none;gap:4px;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
-.vtc-mobile-tab{flex:1;padding:7px 10px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);cursor:pointer;border:1px solid var(--border);background:transparent;text-align:center;transition:all .15s}
-.vtc-mobile-tab.active{background:rgba(27,58,107,0.4);color:var(--blue-light);border-color:rgba(74,124,196,0.3)}
+.vtc-shorthills-msg{font-family:'Rajdhani',sans-serif;color:var(--muted);font-size:14px;line-height:1.6;max-width:320px}
+.ms-mobile-tabs{display:none;gap:4px;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.ms-mobile-tab{flex:1;padding:7px 10px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);cursor:pointer;border:1px solid var(--border);background:transparent;text-align:center;transition:all .15s}
+.ms-mobile-tab.active{background:rgba(27,58,107,0.4);color:var(--blue-light);border-color:rgba(74,124,196,0.3)}
 @media(min-width:768px){
-  .tc-mid{flex-direction:row}
-  .tc-mid > .tc-body{flex:1 1 55%;overflow-y:auto}
+  .ms-split{flex-direction:row}
+  .ms-split > .ms-modal-body{flex:1 1 55%;min-height:0;overflow-y:auto;max-height:none}
   #visual-tapcard-preview-container.vtc-active{flex:1 1 45%;overflow-y:auto;border-left:1px solid var(--border)}
 }
 @media(min-width:1024px){
-  .tc-mid > .tc-body{flex:1 1 60%}
-  #visual-tapcard-preview-container.vtc-active{flex:1 1 40%}
+  .ms-split > .ms-modal-body{flex:1 1 50%}
+  #visual-tapcard-preview-container.vtc-active{flex:1 1 50%}
 }
 @media(max-width:767px){
-  .vtc-mobile-tabs{display:flex}
-  .tc-modal[data-mobile-view="preview"] .tc-body{display:none}
-  .tc-modal[data-mobile-view="preview"] #visual-tapcard-preview-container.vtc-active{display:block;flex:1 1 100%}
-  .tc-modal[data-mobile-view="form"] #visual-tapcard-preview-container.vtc-active{display:none}
+  .ms-mobile-tabs{display:flex}
+  .ms-modal[data-mobile-view="preview"] .ms-modal-body{display:none}
+  .ms-modal[data-mobile-view="preview"] #visual-tapcard-preview-container.vtc-active{display:block;flex:1 1 100%}
+  .ms-modal[data-mobile-view="form"] #visual-tapcard-preview-container.vtc-active{display:none}
 }
-.tc-modal.vtc-disabled .vtc-mobile-tabs{display:none !important}
-.tc-modal.vtc-disabled #visual-tapcard-preview-container{display:none !important}
+.ms-modal.vtc-disabled .ms-mobile-tabs{display:none !important}
+.ms-modal.vtc-disabled #visual-tapcard-preview-container{display:none !important}
+.ms-modal.vtc-disabled .ms-modal-body{flex:1 1 100% !important}
 /* MI-101 Phase 2a — Materials Sheet UI */
 .ms-bar{background:rgba(74,124,196,0.06);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .ms-bar-left{display:flex;flex-direction:column;gap:2px}
 .ms-bar-title{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--blue-light)}
 .ms-bar-meta{font-size:11px;color:var(--muted)}
-.ms-modal{max-width:1100px}
+.ms-modal{max-width:1400px;display:flex;flex-direction:column;max-height:90vh}
 .ms-modal-body{max-height:calc(90vh - 100px);overflow-y:auto;padding-right:6px}
 .ms-modal-body::-webkit-scrollbar{width:6px}
 .ms-modal-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
@@ -1419,6 +1421,11 @@ html,body{overflow-x:hidden}
       </div>
       <button class="modal-close" onclick="closeMaterialsSheetModal()">&#10005;</button>
     </div>
+    <div class="ms-mobile-tabs" id="ms-mobile-tabs">
+      <button class="ms-mobile-tab active" data-view="form" onclick="msMobileView('form')">Form</button>
+      <button class="ms-mobile-tab" data-view="preview" onclick="msMobileView('preview')">Visual Tapcard</button>
+    </div>
+    <div class="ms-split">
     <div class="ms-modal-body">
 
       <details class="ms-section" open>
@@ -1726,6 +1733,8 @@ html,body{overflow-x:hidden}
       </details>
 
     </div>
+    <div id="visual-tapcard-preview-container"></div>
+    </div><!-- /.ms-split -->
     <div class="ms-footer">
       <span class="ms-save-status" id="ms-save-status">Not saved</span>
       <div class="ms-actions">
@@ -1828,6 +1837,10 @@ let noWorkReason = '';
 // null id when NEW). currentPropertyDetailId tracks which property's detail modal is
 // open so the entry-point button can hand off propertyId to the form.
 let currentMaterialsSheet = null;
+// Phase 2d-revision Unit 1 Step 2: holds the joined property record while
+// modal-materials-sheet is open. Drives vtcRender's sector dispatch and
+// property-sourced fields (address, municipality, lot_block, mapcall_id, sector).
+let currentMaterialsSheetProperty = null;
 let currentPropertyDetailId = null;
 let msPastCorner = false;
 const MS_MEASURE_FIELDS = [
@@ -3781,19 +3794,35 @@ async function openMaterialsSheetForCurrentProperty(){
 
 async function openMaterialsSheetForProperty(propertyId){
   msClearForm();
-  // Try most-recent active sheet
-  const { data, error } = await sb
+  // Phase 2d-revision Unit 1 Step 2: fetch joined property record for visual tapcard
+  // sector dispatch + autopop. Run in parallel with materials_sheets fetch.
+  const propertyPromise = sb
+    .from('properties')
+    .select('id, address, city, municipality, state, zip, lot_block, mapcall_id, sector, current_phase')
+    .eq('id', propertyId)
+    .is('deleted_at', null)
+    .maybeSingle();
+  const sheetPromise = sb
     .from('materials_sheets')
     .select('*')
     .eq('property_id', propertyId)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .limit(1);
+  const [{ data: propData, error: propErr }, { data, error }] = await Promise.all([propertyPromise, sheetPromise]);
   if(error){
     console.error('openMaterialsSheetForProperty error:', error);
     showToast('Could not load materials sheet: ' + error.message, 'error');
     return;
   }
+  if(propErr){
+    console.error('openMaterialsSheetForProperty property load error:', propErr);
+    // Non-fatal — visual tapcard will skip render if property absent. Form still works.
+  }
+  currentMaterialsSheetProperty = propData || null;
+  // Reset mobile sub-tab to form view on each open (Visual Tapcard tab is opt-in)
+  const msModal = document.querySelector('#modal-materials-sheet .ms-modal');
+  if(msModal) msModal.dataset.mobileView = 'form';
   if(data && data.length){
     msPopulateForm(data[0]);
     currentMaterialsSheet = data[0];
@@ -3809,6 +3838,9 @@ async function openMaterialsSheetForProperty(propertyId){
     msSetSaveStatus('idle', 'Not saved');
   }
   document.getElementById('modal-materials-sheet').classList.add('open');
+  // Phase 2d-revision Unit 1 Step 2: static render of visual tapcard preview.
+  // Sector dispatch + paper-true layout. Unit 2 will wire autopop on form input.
+  vtcRender();
   // Phase 2a polish: lazy-load autocomplete suggestions for free-text fields
   loadMaterialsSheetAutocomplete().catch(() => {});
 }
@@ -3816,6 +3848,13 @@ async function openMaterialsSheetForProperty(propertyId){
 function closeMaterialsSheetModal(){
   document.getElementById('modal-materials-sheet').classList.remove('open');
   currentMaterialsSheet = null;
+  currentMaterialsSheetProperty = null;
+  // Clear preview container so next open starts clean
+  const container = document.getElementById('visual-tapcard-preview-container');
+  if(container){
+    container.innerHTML = '';
+    container.classList.remove('vtc-active','vtc-shorthills');
+  }
 }
 
 // Convert (ft, in) → total inches. Treats blanks as 0.
@@ -4254,11 +4293,22 @@ async function editMaterialsSheetById(sheetId){
     msClearForm();
     msPopulateForm(data);
     currentMaterialsSheet = data;
+    // Phase 2d-revision Unit 1 Step 2: fetch joined property for visual tapcard
+    const { data: propData } = await sb
+      .from('properties')
+      .select('id, address, city, municipality, state, zip, lot_block, mapcall_id, sector, current_phase')
+      .eq('id', data.property_id)
+      .is('deleted_at', null)
+      .maybeSingle();
+    currentMaterialsSheetProperty = propData || null;
+    const msModal2 = document.querySelector('#modal-materials-sheet .ms-modal');
+    if(msModal2) msModal2.dataset.mobileView = 'form';
     document.getElementById('ms-modal-title').textContent = 'Edit Materials Sheet';
     document.getElementById('ms-modal-sub').textContent = `Property — last saved ${new Date(data.created_at).toLocaleString()}`;
     document.getElementById('ms-delete-btn').style.display = data.deleted_at ? 'none' : 'inline-block';
     msSetSaveStatus('saved', data.deleted_at ? 'Loaded soft-deleted sheet (restore from history list)' : 'Loaded existing sheet');
     document.getElementById('modal-materials-sheet').classList.add('open');
+    vtcRender();
     loadMaterialsSheetAutocomplete().catch(() => {});
   } catch(err){
     showToast('Could not load sheet: ' + (err.message || 'unknown error'), 'error');
@@ -4446,49 +4496,214 @@ function pdSwitchTab(tab){
   document.querySelectorAll('.pd-page').forEach(el => el.classList.toggle('active', el.id === 'pd-page-' + tab));
 }
 
-// ── PHASE 2D — VISUAL TAPCARD PREVIEW ───────────────────────
-// Read-only SVG mirror of #modal-tapcard form state. Renders for NJ6_NORMAL sector only.
-// Field map tracks Phase 2b's actual tc-co-* / tc-cu-* IDs (not the brief's hypothetical
-// schema). Adjust VTC_FIELDS when Phase 2b form gains new inputs.
-const VTC_W = 800, VTC_H = 1000;
-const VTC_FIELDS = [
-  // Header band (y 0.02-0.10)
-  {x:0.5, y:0.055, get:()=>'NJAW Tapcard — Field Inspection Record', size:18, weight:700, anchor:'middle', static:true},
-  {x:0.5, y:0.085, get:()=>'MyInspector · NJ American Water', size:10, color:'muted', anchor:'middle', static:true},
-  // Identification row (y 0.11-0.18)
-  {x:0.06, y:0.135, label:'Address', get:()=>currentTapcard && currentTapcard.property ? currentTapcard.property.address : '', size:15, weight:700, underline:340},
-  {x:0.65, y:0.135, label:'Lot / Block', get:()=>currentTapcard && currentTapcard.property ? currentTapcard.property.lot_block : '', size:13, family:'mono', underline:200},
-  {x:0.06, y:0.17, label:'Inspector', get:()=>vtcVal('tc-co-completed_by') || vtcVal('tc-co-installed_by'), size:12, underline:280},
-  {x:0.65, y:0.17, label:'Date', get:()=>vtcVal('tc-co-date'), size:12, family:'mono', underline:160},
-  // Service codes (y 0.19-0.24)
-  {x:0.06, y:0.215, label:'Service #', get:()=>vtcVal('tc-co-service_number'), size:14, family:'mono', weight:700, underline:200},
-  {x:0.45, y:0.215, label:'Task #s', get:()=>vtcVal('tc-co-task_numbers'), size:13, family:'mono', underline:280},
-  // Company Side col 1 (y 0.27-0.45)
-  {x:0.06, y:0.285, label:'Tied In', get:()=>vtcVal('tc-co-tied_in'), size:14, underline:240},
-  {x:0.06, y:0.345, label:'Plug Lock', get:()=>vtcVal('tc-co-plug_lock'), size:14, underline:240},
-  {x:0.06, y:0.405, label:'Cust. Material', get:()=>vtcVal('tc-co-cust_mat'), size:14, underline:240},
-  // Company Side col 2 (y 0.27-0.45)
-  {x:0.55, y:0.285, label:'Size (in)', get:()=>vtcVal('tc-co-size'), suffix:'"', size:14, family:'mono', underline:200},
-  {x:0.55, y:0.345, label:'Date Installed', get:()=>vtcVal('tc-co-date_installed'), size:14, family:'mono', underline:200},
-  {x:0.55, y:0.405, label:'Installed By', get:()=>vtcVal('tc-co-installed_by'), size:14, underline:240},
-  // Customer Side header divider (y 0.49)
-  {x:0.06, y:0.49, get:()=>'— Customer Side —', size:11, color:'muted', weight:700, static:true},
-  // Customer Side row (y 0.53-0.65)
-  {x:0.06, y:0.55, label:'Material at Meter', get:()=>vtcVal('tc-cu-material_at_meter'), size:14, underline:240},
-  {x:0.55, y:0.55, label:'Dist. to Meter', get:()=>vtcVal('tc-cu-distance_to_meter'), suffix:' ft', size:14, family:'mono', underline:200},
-  {x:0.06, y:0.61, label:'Cust Service Material', get:()=>vtcVal('tc-cu-company_service_material'), size:14, underline:240},
-  {x:0.55, y:0.61, label:'Size (cu)', get:()=>vtcVal('tc-cu-size'), suffix:'"', size:14, family:'mono', underline:200},
-  // Notes block (y 0.70-0.86)
-  {x:0.06, y:0.71, get:()=>'Notes / Observations', size:11, color:'muted', weight:700, static:true},
-  {x:0.06, y:0.745, get:()=>vtcVal('tc-cu-notes'), size:11, multiline:true, wrap:78, maxLines:6, underline:680},
-  // Footer (y 0.88-0.98)
-  {x:0.06, y:0.91, get:()=>'Sector: ' + (currentTapcard && currentTapcard.sector ? currentTapcard.sector : '—'), size:9, family:'mono', color:'muted', static:true},
-  {x:0.06, y:0.935, get:()=>'Whiteboard: not required for tapcard phase', size:9, color:'muted', static:true},
-  {x:0.5, y:0.96, get:()=>'Signature: ___________________', size:10, family:'italic', color:'muted', static:true, anchor:'middle'},
-];
+// ── PHASE 2D-REVISION — VISUAL TAPCARD PREVIEW (paper-true NJAW Service Line Renewal Company Side) ─
+// Unit 1 Step 2 (2026-05-06): rebased onto modal-materials-sheet. Field map drives off
+// materials_sheets columns + properties columns + tc-co-* form overrides per v2 work
+// order. Schema verified via Supabase MCP introspection. Sector dispatch reads
+// currentMaterialsSheetProperty.sector — NJ6_NORMAL renders, NJAW_SHORT_HILLS shows
+// placeholder. Static render in Unit 1; Unit 2 wires autopop.
+const VTC_W = 800, VTC_H = 1100;
 
+// ── helpers ───────────────────────────────────────────────────
 function vtcVal(id){ const el = document.getElementById(id); return el ? el.value : ''; }
 function vtcEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function vtcMs(field){
+  // Read from materials sheet form (#ms-<field>). Form values mirror
+  // currentMaterialsSheet after msPopulateForm.
+  const el = document.getElementById('ms-' + field);
+  if(!el) return '';
+  return el.value || '';
+}
+function vtcProp(field){
+  return (currentMaterialsSheetProperty && currentMaterialsSheetProperty[field]) || '';
+}
+// Inches → "X FT. Y IN." / "X'Y\"" / "Z\"" — basic Unit 1 form. Unit 2 will
+// formalize as msInchesToFtIn(inches, format) with edge cases (negatives, blanks).
+function vtcInchesToFtIn(inches, format){
+  if(inches === '' || inches === null || inches === undefined) return '';
+  const n = Number(inches);
+  if(Number.isNaN(n)) return '';
+  const sign = n < 0 ? '-' : '';
+  const abs = Math.abs(n);
+  const ft = Math.floor(abs / 12);
+  const inn = abs - ft * 12;
+  if(format === 'compact') return `${sign}${ft}'${inn}"`;
+  if(format === 'inches') return `${sign}${Math.round(abs)}"`;
+  return { ft: sign === '-' ? -ft : ft, in: inn };
+}
+function vtcCurbBoxLocLabel(enumVal){
+  return ({city_strip:'City Strip', sidewalk:'Sidewalk', driveway:'Driveway', lawn:'Lawn'})[enumVal] || '';
+}
+function vtcSectorOpCenter(sector){
+  return sector === 'NJAW_SHORT_HILLS' ? 'Short Hills NJAW' : 'NJ6';
+}
+function vtcSectorDistrictId(sector){
+  return sector === 'NJAW_SHORT_HILLS' ? 'ShortHills' : '';
+}
+function vtcParseAddress(address){
+  if(!address) return { number:'', street:'' };
+  const m = String(address).match(/^\s*(\d+\S*)\s+(.+)$/);
+  return m ? { number:m[1], street:m[2] } : { number:'', street:String(address) };
+}
+function vtcParseLotBlock(lotBlock){
+  if(!lotBlock) return { lot:'', block:'' };
+  const m = String(lotBlock).match(/lot\s*([^\s/,]+)\s*[\/,]\s*block\s*([^\s,]+)/i);
+  if(m) return { lot:m[1], block:m[2] };
+  return { lot:String(lotBlock), block:'' };
+}
+function vtcParseTaskNumbers(taskStr){
+  if(!taskStr) return { parent:'', primary:'', secondary:'' };
+  const parts = String(taskStr).split(',').map(s => s.trim()).filter(Boolean);
+  return { parent: parts[0]||'', primary: parts[1]||'', secondary: parts[2]||'' };
+}
+function vtcServiceTypePurpose(st){
+  if(!st) return '';
+  return ({FULL:'STANDARD RENEWAL', KILL:'SERVICE ABANDONMENT', M2C:'MAIN-TO-CURB',
+           H2C:'CURB-TO-HOUSE', TP:'TEST PIT', MP:'METER PIT'})[st] || st;
+}
+
+// ── field map ─────────────────────────────────────────────────
+// Each entry: {x, y, label?, get, size?, weight?, family?, color?, anchor?, suffix?, prefix?, underline?, multiline?, wrap?, maxLines?, static?}
+// Coordinates are normalized 0..1 against (VTC_W, VTC_H). Adjust freely.
+const VTC_FIELDS = [
+  // ─── TAP ORDER block (top-left, x 0.02-0.42, y 0.02-0.30) ───
+  {x:0.04, y:0.025, get:()=>'TAP ORDER', size:12, weight:700, color:'header', static:true, family:'sans'},
+  {x:0.04, y:0.055, label:'Service Number', get:()=>vtcVal('tc-co-service_number'), size:13, family:'mono', weight:700, underline:240},
+  // Task #s (3 sub-fields)
+  {x:0.04, y:0.085, label:"Task No's — Parent", get:()=>vtcParseTaskNumbers(vtcVal('tc-co-task_numbers')).parent, size:11, family:'mono', underline:130},
+  {x:0.20, y:0.085, label:'Primary', get:()=>vtcParseTaskNumbers(vtcVal('tc-co-task_numbers')).primary, size:11, family:'mono', underline:130},
+  {x:0.04, y:0.110, label:'Secondary', get:()=>vtcParseTaskNumbers(vtcVal('tc-co-task_numbers')).secondary, size:11, family:'mono', underline:130},
+  {x:0.20, y:0.110, label:'Date', get:()=>vtcMs('sheet_date') || vtcVal('tc-co-date'), size:11, family:'mono', underline:130},
+  // SERVICE: composed
+  {x:0.04, y:0.145, get:()=>{
+    const sz = vtcMs('njaw_new_size_inches'); const mat = vtcMs('njaw_new_material');
+    if(!sz && !mat) return '';
+    return `SERVICE: ${sz||'__'} IN. MTR SET ${sz||'__'} IN ${mat||'_______'} PIPE`;
+  }, size:10, family:'mono', static:false, underline:300},
+  // OLD SERVICE: composed
+  {x:0.04, y:0.170, get:()=>{
+    const sz = vtcMs('njaw_old_size_inches'); const mat = vtcMs('njaw_old_material');
+    if(!sz && !mat) return '';
+    return `OLD SERVICE: ${sz||'__'} IN. TAP ${sz||'__'} IN ${mat||'_______'} PIPE`;
+  }, size:10, family:'mono', static:false, underline:300},
+  {x:0.04, y:0.195, label:'Old Service Installation Date', get:()=>'', size:10, family:'mono', underline:240},
+  // Checkboxes (paper rendering — blank squares)
+  {x:0.04, y:0.230, get:()=>'☐ ABANDONED   ☐ COMPANY OWNED   ☐ REMOVED', size:10, family:'mono', static:true, color:'muted'},
+  {x:0.04, y:0.265, label:'Data Furnished By', get:()=>'', size:10, family:'mono', underline:240},
+
+  // ─── LOCATION DATA block (top-right, x 0.42-0.98, y 0.02-0.30) ───
+  {x:0.70, y:0.025, get:()=>{
+    const m = vtcProp('municipality') || '___________';
+    return `New Jersey American Water, ${m}`;
+  }, size:11, weight:700, anchor:'middle', static:false},
+  {x:0.44, y:0.055, get:()=>'LOCATION DATA', size:11, weight:700, color:'header', static:true, family:'sans'},
+  // TOP OF [size] IN. [material] MAIN IS [ft] FT. [in] IN. BELOW SURFACE
+  {x:0.44, y:0.085, get:()=>{
+    const sz = vtcMs('size_of_main_inches'); const m = vtcMs('type_of_main');
+    const dep = vtcInchesToFtIn(vtcMs('corp_depth_inches'), 'verbose');
+    if(!sz && !m && !dep) return '';
+    const ft = (typeof dep === 'object') ? dep.ft : '__';
+    const inn = (typeof dep === 'object') ? dep.in : '__';
+    return `TOP OF ${sz||'__'} IN. ${m||'_______'} MAIN IS ${ft} FT. ${inn} IN. BELOW SURFACE`;
+  }, size:9, family:'mono', static:false, underline:380},
+  {x:0.44, y:0.110, get:()=>'AND ___ FT. ___ IN. OF CURB ON ___________', size:9, family:'mono', static:true, color:'muted'},
+  // TAP IS [ft] FT. [in] IN. FROM INTERSECTING CURB MEDIAN LINE ON [direction]
+  {x:0.44, y:0.135, get:()=>{
+    const dist = vtcInchesToFtIn(vtcMs('cs_far_curb_inches'), 'verbose');
+    if(typeof dist !== 'object') return 'TAP IS ___ FT. ___ IN. FROM INTERSECTING CURB MEDIAN LINE ON ____';
+    return `TAP IS ${dist.ft} FT. ${dist.in} IN. FROM INTERSECTING CURB MEDIAN LINE ON ____`;
+  }, size:9, family:'mono', static:false, underline:380},
+  // DISTANCE, TAP TO CURB STOP
+  {x:0.44, y:0.160, get:()=>{
+    const d = vtcInchesToFtIn(vtcMs('cs_corp_inches'), 'verbose');
+    if(typeof d !== 'object') return 'DISTANCE, TAP TO CURB STOP ___ FT. ___ IN.';
+    return `DISTANCE, TAP TO CURB STOP ${d.ft} FT. ${d.in} IN.`;
+  }, size:9, family:'mono', static:false},
+  // DISTANCE, CURB TO CURB STOP
+  {x:0.44, y:0.185, get:()=>{
+    const d = vtcInchesToFtIn(vtcMs('cs_near_curb_inches'), 'verbose');
+    if(typeof d !== 'object') return 'DISTANCE, CURB TO CURB STOP ___ FT. ___ IN.';
+    return `DISTANCE, CURB TO CURB STOP ${d.ft} FT. ${d.in} IN.`;
+  }, size:9, family:'mono', static:false},
+  // LOCATION OF CURB BOX [feet] FROM HOUSE in the [Curb Box Location]
+  {x:0.44, y:0.210, get:()=>{
+    const dist = vtcInchesToFtIn(vtcMs('cs_house_inches'), 'compact') || '___';
+    const loc = vtcCurbBoxLocLabel(vtcMs('curb_box_location')) || '____________';
+    return `LOCATION OF CURB BOX ${dist} FROM HOUSE in the ${loc}`;
+  }, size:9, family:'mono', static:false},
+  // METER PIT LOCATION [size]" [side] OF CURB STOP
+  {x:0.44, y:0.235, get:()=>{
+    const inches = vtcMs('cs_mp_inches');
+    const sz = inches ? `${inches}"` : '___"';
+    return `METER PIT LOCATION ${sz} ____ OF CURB STOP`;
+  }, size:9, family:'mono', static:false},
+  {x:0.44, y:0.270, label:'Data Furnished By', get:()=>vtcMs('foreman_name'), size:10, family:'mono', underline:240},
+
+  // ─── OWNER block (mid-left, x 0.02-0.42, y 0.31-0.45) ───
+  {x:0.04, y:0.310, get:()=>'OWNER', size:11, weight:700, color:'header', static:true, family:'sans'},
+  {x:0.04, y:0.335, label:'Owner', get:()=>'', size:11, family:'mono', underline:280},
+  {x:0.04, y:0.365, label:'Location', get:()=>vtcProp('address'), size:11, family:'mono', underline:280},
+  {x:0.04, y:0.395, label:'Lot / Block', get:()=>vtcProp('lot_block'), size:11, family:'mono', underline:140},
+  {x:0.22, y:0.395, label:'Cross Street', get:()=>'', size:11, family:'mono', underline:140},
+  {x:0.04, y:0.425, label:'Municipality', get:()=>vtcProp('municipality'), size:11, family:'mono', underline:140},
+  {x:0.22, y:0.425, label:'Town Section', get:()=>vtcProp('municipality'), size:11, family:'mono', underline:140},
+  {x:0.04, y:0.455, label:'Development', get:()=>'', size:11, family:'mono', underline:280},
+
+  // ─── MATERIALS INSTALLED table (mid-left, x 0.02-0.42, y 0.48-0.79) ───
+  // Headers + empty rows. Unit 2 wires extrapolation per service_type.
+  {x:0.04, y:0.480, get:()=>'MATERIALS INSTALLED', size:11, weight:700, color:'header', static:true, family:'sans'},
+  // Column headers handled inline in vtcRender (table grid is structural, not field-based)
+  // 11 empty rows are drawn structurally in vtcRender.
+
+  // ─── DIAGRAM area (mid-right, x 0.42-0.98, y 0.31-0.85) ───
+  // Placeholder per Q-2d-revision-a=(b)
+  {x:0.70, y:0.580, get:()=>'Diagram populated from MI-110 Phase 4 — ships next ticket', size:11, family:'sans', anchor:'middle', static:true, color:'muted', italic:true},
+
+  // ─── FOOTER (bottom span, x 0.02-0.98, y 0.86-0.95) ───
+  // DATE INSTALLED [date] BY [contractor]
+  {x:0.04, y:0.860, get:()=>{
+    const date = vtcVal('tc-co-date_installed') || vtcMs('sheet_date');
+    const by = vtcVal('tc-co-installed_by') || vtcMs('contractor_name');
+    if(!date && !by) return '';
+    return `DATE INSTALLED ${date||'________'} BY ${by||'________'}`;
+  }, size:10, family:'mono', static:false, underline:380},
+  // Clerical (blank in v1)
+  {x:0.04, y:0.885, get:()=>'POSTED BY ________   STOCK ENTERED BY ________   FAXED/SCANNED BY ________', size:9, family:'mono', static:true, color:'muted'},
+  // TIED IN / PLUG LOCK
+  {x:0.04, y:0.905, label:'Tied In', get:()=>vtcVal('tc-co-tied_in'), size:11, family:'mono', underline:120},
+  {x:0.20, y:0.905, label:'Plug Lock Installed', get:()=>vtcVal('tc-co-plug_lock'), size:11, family:'mono', underline:120},
+  // CUSTOMER SERVICE MATERIAL [material] SIZE [size] IN
+  {x:0.04, y:0.925, get:()=>{
+    const mat = vtcVal('tc-co-cust_mat') || vtcMs('customer_new_material');
+    const sz = vtcVal('tc-co-size') || vtcMs('customer_new_size_inches');
+    if(!mat && !sz) return '';
+    return `CUSTOMER SERVICE MATERIAL ${mat||'_______'} SIZE ${sz||'__'} IN`;
+  }, size:10, family:'mono', static:false, underline:380},
+  // COMPLETED DIAGRAM BY / PURPOSE OF INSTALLATION
+  {x:0.04, y:0.945, label:'Completed Diagram By', get:()=>vtcVal('tc-co-completed_by'), size:10, family:'mono', underline:200},
+  {x:0.50, y:0.945, label:'Purpose of Installation', get:()=>vtcServiceTypePurpose(vtcMs('service_type')), size:10, family:'mono', underline:200},
+
+  // ─── JOB NOTES / OFFICIAL USE box (very bottom, x 0.02-0.98, y 0.96-1.0) ───
+  // Compact 2-line label band mirroring paper. Job Notes content + clerical fields.
+  {x:0.04, y:0.965, get:()=>{
+    const sec = vtcProp('sector');
+    const dist = vtcSectorDistrictId(sec);
+    const oc = vtcSectorOpCenter(sec);
+    const muni = vtcProp('municipality') || '____';
+    const svc = vtcVal('tc-co-service_number') || '____';
+    const addr = vtcParseAddress(vtcProp('address'));
+    const lb = vtcParseLotBlock(vtcProp('lot_block'));
+    const mc = vtcProp('mapcall_id') || '____';
+    const date = vtcMs('sheet_date') || vtcVal('tc-co-date_installed') || '____';
+    return `District ID: ${dist||'__'}   OC: ${oc}   Muni: ${muni}   Svc#: ${svc}   Premise#: ${svc}   Street#: ${addr.number||'__'}   Street Name: ${addr.street||'__'}   Lot: ${lb.lot||'__'}   Block: ${lb.block||'__'}   MapCall: ${mc}   Date: ${date}`;
+  }, size:7.5, family:'mono', static:false, color:'muted'},
+  {x:0.04, y:0.980, get:()=>{
+    const notes = vtcMs('notes');
+    return `Job Notes: ${notes || '________________________________________________________________________________________'}`;
+  }, size:7.5, family:'mono', static:false, color:'muted', multiline:true, wrap:140, maxLines:1},
+  {x:0.50, y:0.995, get:()=>'THIS BOX FOR OFFICIAL USE ONLY. DO NOT WRITE WITHIN THIS BOX.', size:7, family:'sans', anchor:'middle', static:true, color:'muted', italic:true},
+];
+
 function vtcWrap(text, n){
   if(!text) return [];
   const words = String(text).split(/\s+/).filter(Boolean);
@@ -4503,56 +4718,102 @@ function vtcWrap(text, n){
 
 function vtcRender(){
   const container = document.getElementById('visual-tapcard-preview-container');
-  const modal = document.getElementById('modal-tapcard');
+  const modal = document.getElementById('modal-materials-sheet');
   if(!container || !modal) return;
-  // Sector dispatch — Q-2c locked: visual tapcard is NJ6_NORMAL only.
-  if(!currentTapcard || currentTapcard.sector !== 'NJ6_NORMAL'){
+  const prop = currentMaterialsSheetProperty;
+
+  // Sector dispatch — Q-2c locked: visual tapcard renders for NJ6_NORMAL only.
+  if(!prop){
     container.innerHTML = '';
-    container.classList.remove('vtc-active');
+    container.classList.remove('vtc-active','vtc-shorthills');
     modal.classList.add('vtc-disabled');
     return;
   }
-  modal.classList.remove('vtc-disabled');
+  if(prop.sector === 'NJAW_SHORT_HILLS'){
+    container.innerHTML = '<div class="vtc-shorthills-msg">Visual tapcard unavailable for ShortHills sector — paper format differs from NJ6 Normal.</div>';
+    container.classList.add('vtc-active','vtc-shorthills');
+    modal.classList.remove('vtc-disabled');
+    return;
+  }
+  // NJ6_NORMAL render
+  container.classList.remove('vtc-shorthills');
   container.classList.add('vtc-active');
+  modal.classList.remove('vtc-disabled');
+
   const W = VTC_W, H = VTC_H;
   const out = [];
   out.push(`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" class="vtc-svg" preserveAspectRatio="xMidYMin meet" role="img" aria-label="Visual Tapcard Preview">`);
-  out.push(`<rect x="2" y="2" width="${W-4}" height="${H-4}" fill="#ffffff" stroke="#cfd6df" stroke-width="1" rx="6"/>`);
-  out.push(`<line x1="40" y1="${H*0.105}" x2="${W-40}" y2="${H*0.105}" stroke="#cfd6df" stroke-width="1"/>`);
-  out.push(`<line x1="40" y1="${H*0.475}" x2="${W-40}" y2="${H*0.475}" stroke="#e6ebf1" stroke-width="1"/>`);
-  out.push(`<line x1="40" y1="${H*0.88}" x2="${W-40}" y2="${H*0.88}" stroke="#e6ebf1" stroke-width="1"/>`);
+  // Outer paper border
+  out.push(`<rect x="2" y="2" width="${W-4}" height="${H-4}" fill="#ffffff" stroke="#1a2434" stroke-width="1.5" rx="4"/>`);
+
+  // Section borders mirroring paper
+  // Top half vertical divider (Tap Order | Location Data) at x=0.42, y 0.02-0.30
+  out.push(`<line x1="${W*0.42}" y1="${H*0.02}" x2="${W*0.42}" y2="${H*0.30}" stroke="#1a2434" stroke-width="1"/>`);
+  // Top-half/mid divider
+  out.push(`<line x1="2" y1="${H*0.30}" x2="${W-2}" y2="${H*0.30}" stroke="#1a2434" stroke-width="1"/>`);
+  // Mid-section vertical (Owner+Materials | Diagram)
+  out.push(`<line x1="${W*0.42}" y1="${H*0.30}" x2="${W*0.42}" y2="${H*0.85}" stroke="#1a2434" stroke-width="1"/>`);
+  // Owner / Materials horizontal split at y=0.47
+  out.push(`<line x1="2" y1="${H*0.47}" x2="${W*0.42}" y2="${H*0.47}" stroke="#1a2434" stroke-width="0.8"/>`);
+  // Mid/footer divider
+  out.push(`<line x1="2" y1="${H*0.85}" x2="${W-2}" y2="${H*0.85}" stroke="#1a2434" stroke-width="1"/>`);
+  // Footer/Job Notes divider
+  out.push(`<line x1="2" y1="${H*0.955}" x2="${W-2}" y2="${H*0.955}" stroke="#1a2434" stroke-width="1"/>`);
+
+  // Materials Installed table grid (within mid-left, y 0.50-0.79)
+  const tblTop = H*0.495, tblBottom = H*0.795, tblLeft = W*0.04, tblRight = W*0.40;
+  out.push(`<rect x="${tblLeft}" y="${tblTop}" width="${tblRight-tblLeft}" height="${tblBottom-tblTop}" fill="none" stroke="#1a2434" stroke-width="0.6"/>`);
+  // Column dividers: QUAN | SIZE | MATERIAL INSTALLED
+  const colQuanRight = tblLeft + (tblRight-tblLeft) * 0.18;
+  const colSizeRight = tblLeft + (tblRight-tblLeft) * 0.40;
+  out.push(`<line x1="${colQuanRight}" y1="${tblTop}" x2="${colQuanRight}" y2="${tblBottom}" stroke="#1a2434" stroke-width="0.4"/>`);
+  out.push(`<line x1="${colSizeRight}" y1="${tblTop}" x2="${colSizeRight}" y2="${tblBottom}" stroke="#1a2434" stroke-width="0.4"/>`);
+  // Header row separator
+  const hdrBottom = tblTop + 16;
+  out.push(`<line x1="${tblLeft}" y1="${hdrBottom}" x2="${tblRight}" y2="${hdrBottom}" stroke="#1a2434" stroke-width="0.6"/>`);
+  // Column headers
+  out.push(`<text x="${(tblLeft+colQuanRight)/2}" y="${tblTop+11}" font-family="'Source Sans 3', sans-serif" font-size="8" font-weight="700" fill="#1a2434" text-anchor="middle" letter-spacing="0.6">QUAN.</text>`);
+  out.push(`<text x="${(colQuanRight+colSizeRight)/2}" y="${tblTop+11}" font-family="'Source Sans 3', sans-serif" font-size="8" font-weight="700" fill="#1a2434" text-anchor="middle" letter-spacing="0.6">SIZE</text>`);
+  out.push(`<text x="${(colSizeRight+tblRight)/2}" y="${tblTop+11}" font-family="'Source Sans 3', sans-serif" font-size="8" font-weight="700" fill="#1a2434" text-anchor="middle" letter-spacing="0.6">MATERIAL INSTALLED</text>`);
+  // 11 empty data rows (Unit 1 leaves blank; Unit 2 fills via extrapolation per service_type)
+  const rowCount = 11;
+  const rowH = (tblBottom - hdrBottom) / rowCount;
+  for(let r = 1; r < rowCount; r++){
+    const ry = hdrBottom + r * rowH;
+    out.push(`<line x1="${tblLeft}" y1="${ry}" x2="${tblRight}" y2="${ry}" stroke="#cfd6df" stroke-width="0.3"/>`);
+  }
+
+  // ── render VTC_FIELDS ──
   for(const f of VTC_FIELDS){
     const cx = f.x * W, cy = f.y * H;
     let v = '';
     try { v = (f.get() || '').toString(); } catch(e) { v = ''; }
-    const family = f.family === 'mono' ? `'JetBrains Mono', ui-monospace, Consolas, monospace`
-      : f.family === 'italic' ? `'Source Sans 3', sans-serif`
-      : `'JetBrains Mono', ui-monospace, Consolas, monospace`; // Q-2d-a: mono default
-    const fStyle = f.family === 'italic' ? 'italic' : 'normal';
-    const size = f.size || 12;
+    const family = f.family === 'sans' ? `'Source Sans 3', sans-serif`
+      : f.family === 'mono' ? `'JetBrains Mono', ui-monospace, Consolas, monospace`
+      : `'JetBrains Mono', ui-monospace, Consolas, monospace`;
+    const fStyle = f.italic ? 'italic' : 'normal';
+    const size = f.size || 11;
     const weight = f.weight || 400;
-    const color = f.color === 'muted' ? '#7d8a9c' : '#1a2434';
+    const color = f.color === 'muted' ? '#7d8a9c' : f.color === 'header' ? '#1a2434' : '#1a2434';
     const anchor = f.anchor || 'start';
     if(f.label){
-      out.push(`<text x="${cx}" y="${cy - 14}" font-family="'Source Sans 3', sans-serif" font-size="9" font-weight="700" fill="#7d8a9c" letter-spacing="1.2" text-anchor="${anchor}">${vtcEsc(f.label.toUpperCase())}</text>`);
+      out.push(`<text x="${cx}" y="${cy - 11}" font-family="'Source Sans 3', sans-serif" font-size="8" font-weight="700" fill="#7d8a9c" letter-spacing="1" text-anchor="${anchor}">${vtcEsc(f.label.toUpperCase())}</text>`);
     }
     if(v || f.static){
       const display = (f.prefix || '') + v + (f.suffix || '');
       if(f.multiline){
         const lines = vtcWrap(v, f.wrap || 60).slice(0, f.maxLines || 5);
         if(lines.length === 0 && f.underline){
-          // Q-2d-c: thin gray underline for empty multiline
           out.push(`<line x1="${cx}" y1="${cy + 4}" x2="${cx + f.underline}" y2="${cy + 4}" stroke="#cfd6df" stroke-width="1"/>`);
         } else {
           lines.forEach((line, i) => {
-            out.push(`<text x="${cx}" y="${cy + i * (size + 5)}" font-family="${family}" font-size="${size}" font-weight="${weight}" font-style="${fStyle}" fill="${color}" text-anchor="${anchor}">${vtcEsc(line)}</text>`);
+            out.push(`<text x="${cx}" y="${cy + i * (size + 4)}" font-family="${family}" font-size="${size}" font-weight="${weight}" font-style="${fStyle}" fill="${color}" text-anchor="${anchor}">${vtcEsc(line)}</text>`);
           });
         }
       } else {
         out.push(`<text x="${cx}" y="${cy}" font-family="${family}" font-size="${size}" font-weight="${weight}" font-style="${fStyle}" fill="${color}" text-anchor="${anchor}">${vtcEsc(display)}</text>`);
       }
     } else if(f.underline){
-      // Q-2d-c: thin gray underline at anchor for empty single-line fields
       out.push(`<line x1="${cx}" y1="${cy + 4}" x2="${cx + f.underline}" y2="${cy + 4}" stroke="#cfd6df" stroke-width="1"/>`);
     }
   }
@@ -4563,10 +4824,12 @@ function vtcRender(){
 let _vtcDebounceT = null;
 function vtcDebouncedRender(){ if(_vtcDebounceT) clearTimeout(_vtcDebounceT); _vtcDebounceT = setTimeout(vtcRender, 100); }
 
-// Phase 2d-revision Unit 1 Step 1 (2026-05-05): vtcAttachListeners / vtcMobileTab /
-// vtcInitOnOpen / vtcReset removed as vestigial. Visual tapcard preview is moving
-// off #modal-tapcard onto modal-materials-sheet in Unit 1 Step 2 (next session).
-// Render core preserved: VTC_FIELDS config, vtcRender, vtcDebouncedRender, helpers.
+function msMobileView(view){
+  const modal = document.querySelector('#modal-materials-sheet .ms-modal');
+  if(!modal) return;
+  modal.dataset.mobileView = view;
+  document.querySelectorAll('#ms-mobile-tabs .ms-mobile-tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
+}
 
 function tcSetFooterStatus(kind, message){
   const el = document.getElementById('tc-footer-status');
