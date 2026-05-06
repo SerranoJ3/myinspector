@@ -411,3 +411,37 @@ Buddy lean: **B** is cleanest long-term (clean audit chain, isolated heartbeat d
 **Source:** Jorge directive 2026-05-05 evening EDT during MI-AUDIT-3 ship pass: "correct the Phase 2a documentation drift in STATE/status/decisions (frontend was NEVER merged, only backend migrations shipped)."
 
 **Affects:** Future Lead/Buddy reads of Phase 2a status. Truth is: backend live since 5/2, frontend pending Phase 2d-revision Unit 1 (rebasing visual tapcard onto materials_sheet modal per work order 2026-05-05).
+
+---
+
+## 2026-05-06 ~23:30 EDT — MI-101 Phase 2d-revision Unit 1 Step 2 + Unit 2 shipped
+
+**Decision:** Phase 2d-revision visual tapcard preview rebased onto `modal-materials-sheet` per v2 work order (`work_order_2026-05-05_phase2d_revision_v2.md`). Two commits on `demo-banner`: `52adf8a` (Unit 1 Step 2 — split layout, paper-true 6-section + Job Notes box SVG, sector dispatch, helpers) and `7018493` (Unit 2 — autopop wiring + Materials Installed extrapolation per service_type). Vercel preview deployment `dpl_BbarAjj9...` from sha `7018493` confirmed READY on demo-banner alias. Schema verified pre-build via Supabase MCP (no drift). All §17 acceptance criteria met. Field map verified against ground-truth `properties` (19 cols) + `materials_sheets` (48 cols, was spec'd at 39 — drift caught) schemas.
+
+**Reasoning:** Original Phase 2d (commit `79f8434`) embedded the visual tapcard inside `#modal-tapcard`, which Q-2d-revision flagged as wrong surface — the visual is paper-true tapcard rendering driven by `materials_sheets` data, not Phase 2b form data. Unit 1 Step 1 (commit `6b9a9d3`, 5/5 evening) removed the vestigial scaffolding from `#modal-tapcard`. Unit 1 Step 2 + Unit 2 (this commit pair) embed the preview in the correct modal + wire autopop. Edit pattern: `vtcAttachAutopopListeners` is idempotent (one-time delegated input listener on first modal open), chip/toggle/recalc helpers fire `vtcRender` directly since hidden inputs don't emit `'input'` events, `tc-co-*` form fields one-way bind into the visual via debounced render. Materials Installed extrapolation maps `FULL` (11 rows) / `KILL` (3) / `M2C` (5) / `H2C` (6) / `MP` (5) / `TP` (blank — inspector documents).
+
+**Affects:** Materials Sheet modal now renders a full-paper-true visual tapcard preview side-pane on desktop ≥768px (50/50 split), 55/45 on tablet, mobile sub-tab toggle. Pitch-day demo for Jeff (5/14 or 5/15) will see real-time form-to-paper rendering. Property #1 (12 Maple Ridge Ave) seed data mirrors the 44 Dunnell paper example for QA.
+
+**Source:** Lead executed v2 work order under Jorge's "ship through to Vercel preview verify without checkpoints" batch trust. Schema verified via Supabase MCP execute_sql against information_schema.columns; chip/toggle helpers patched + delegated listener added; autopop tested via property #9 cs_replacement gate render.
+
+---
+
+## 2026-05-06 ~23:50 EDT — MI-DEMO seed shipped (12 migrations + Edge Function deployed-but-broken)
+
+**Decision:** MI-DEMO sample-data seed bootstrap shipped to prod Supabase via Buddy direct MCP (Lead's MCP read-only). 12 migrations applied; demo firm now has 12 properties (10 NJ6_NORMAL + 2 NJAW_SHORT_HILLS), 25 phase_submissions covering all 9 phase enum values + all 6 NJAW work order codes + 1 KILL with subtype, 5 materials_sheets, 1 cs_replacement_authorization (CDM-Smith rule c exercise), 6 daily_reports, 3 documents, 2 RFIs, 2 Luis conversations, 5 demo `auth.users` + matching profiles. Spec authored at `.coordination/MI-DEMO_seed_spec_2026-05-06.md` (Lead reconciled v3 with §24 stop conditions). Buddy reconciliation note at `.coordination/buddy_demo_seed_sync_2026-05-06.md`. Branch `mi-demo-seed` off `demo-banner` (sync commit `08fac2d`); per §22 demo-tenant policy, **NEVER MERGE TO MAIN** — merge target is `demo-banner` only.
+
+**Three side decisions banked during the run:**
+
+1. **`pg_net` extension installed** (migration `20260506224906_enable_pg_net.sql`). Originally added to support Edge Function invocation from triggers (forward capability for MI-107 rule engine architecture). Stays installed. Trade-off: small attack surface (HTTP from SQL); offset by no service-role exposure in trigger paths.
+
+2. **`profiles.email` column added** (migration `20260506230138_mi_demo_seed_03_add_profiles_email.sql`). Required by spec §7 + Edge Function code + migrations 05-13 which lookup profiles by email. Spec assumed it existed; it didn't. Backfilled from `auth.users.email` for existing rows. Denormalized convenience — `auth.users` is the unique source of truth. Future ticket can add a sync trigger if email mutations need to propagate.
+
+3. **`seed-demo-users` Edge Function admin SDK bug — function deployed but functionally broken.** Source preserved at `supabase/functions/seed-demo-users/index.ts`. `auth.admin.listUsers` SDK call threw "Database error finding users" on all 5 invocations (5/5 errors, 0 created). Buddy bypassed via direct SQL migration `20260506230158_mi_demo_seed_04_create_demo_auth_users_via_sql.sql` writing to `auth.users` + `auth.identities` + `public.profiles` directly. Function stays deployed for future SDK-version retry (supabase-js@2.49.x or gotrue-admin-API skew suspected). Low priority — SQL bypass is the de-facto seed path going forward.
+
+**§16a actor coverage outcome:** Spec target was ~91% audit attribution from ~1,000 cascade rows. Actual: 36.5% from ~58 cascade rows. Spec drift — cascade was much smaller than estimated because per-table audit triggers fire once per INSERT row, not per column touched. Demo-firm `audit_log` final state: 159 total, 58 attributed (36.5%), 101 NULL legacy. Defensible under audit; legacy 101 rows untouched per §16a option (a) (UPDATE on existing breaks chain hash, so leave alone).
+
+**Spec drifts caught + corrected against ground-truth schema:** materials_sheets 48 cols (spec said 39); phase_submissions 28 cols (spec said 24); daily_reports = KPI rollup, not free text; documents = `name` not `file_name`, requires `file_url`; cs_replacement_authorizations RPC signature = `(uuid, text, timestamptz, text)` not split date+time; luis_conversations = `user_id` not `submitted_by`. All corrected in applied migration bodies; spec needs v4 patch tracked separately.
+
+**Affects:** Demo-banner branch can ship a meaningful pitch-day demo. Jeff demo (5/14 or 5/15) will land with pre-seeded NJ6_NORMAL + NJAW_SHORT_HILLS properties, full phase + tapcard + materials sheet flows, CDM-Smith rule a/b/c exercises, and visual tapcard rendering against property #1 (12 Maple Ridge Ave) which mirrors the 44 Dunnell paper example. Branch `mi-demo-seed` merges forward to `demo-banner`. Companion specs MI-DEMO-UI v2 (banner copy + write suppression) + MI-DEMO-DEPLOY (pitch-day deploy ritual) tracked separately.
+
+**Source:** Lead drafted spec; Buddy reconciled in parallel; Jorge reviewed diffs and green-lit incrementally; Buddy applied 12 migrations to prod via direct MCP write (Lead's MCP read-only blocked apply); Lead synced local repo to prod state via filename rename + content fix on migration 08; Lead committed sync as `08fac2d` on `mi-demo-seed`; pushed to origin.
