@@ -75,6 +75,13 @@ body{display:flex;flex-direction:column}
 .demo-banner-tag{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;background:var(--orange);color:#0A0E14;padding:2px 8px;border-radius:99px}
 .demo-banner-text{color:rgba(244,168,32,0.95)}
 .demo-banner-meta{color:var(--muted);font-size:10px;font-weight:500}
+.demo-banner-toggle{background:transparent;border:1px solid rgba(244,168,32,0.6);color:var(--orange);font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;cursor:pointer;font-family:'Rajdhani',sans-serif;letter-spacing:.08em;text-transform:uppercase;margin-left:6px}
+.demo-banner-toggle:hover{background:rgba(244,168,32,0.15)}
+.demo-banner.pitch-active{background:linear-gradient(90deg,rgba(200,74,74,0.24),rgba(244,168,32,0.18));border-bottom-color:rgba(200,74,74,0.55)}
+.demo-banner.pitch-active .demo-banner-tag{background:#c84a4a;color:#fff}
+.demo-banner.pitch-active .demo-banner-text{color:rgba(255,210,210,0.96)}
+.demo-banner.pitch-active .demo-banner-toggle{border-color:rgba(255,210,210,0.65);color:#ffd2d2}
+.demo-banner.pitch-active .demo-banner-toggle:hover{background:rgba(255,210,210,0.12)}
 @media(max-width:768px){
   .demo-banner.visible{flex-wrap:wrap;font-size:10px;padding:6px 10px}
   .demo-banner-meta{display:none}
@@ -797,6 +804,7 @@ html,body{overflow-x:hidden}
   <span class="demo-banner-tag">Demo Mode</span>
   <span class="demo-banner-text">Sample tenant data — illustrative records only.</span>
   <span class="demo-banner-meta">No real customer firms or live compliance writes affected.</span>
+  <button type="button" class="demo-banner-toggle" id="demo-pitch-toggle" onclick="togglePitchMode()">Pitch mode: OFF</button>
 </div>
 
 <!-- AUTH SCREEN -->
@@ -2240,6 +2248,64 @@ function applyDemoBannerVisibility(){
   const banner = document.getElementById('demo-banner');
   if(!banner) return;
   banner.classList.toggle('visible', currentFirmIsDemo === true);
+  // MI-DEMO-UI v2: pitch-mode toggle is demo-firm-only. When the banner becomes
+  // visible, also reapply pitch mode (handles the case where pitch was ON in
+  // localStorage from a prior session).
+  applyPitchMode();
+}
+
+// ── MI-DEMO-UI v2 ─ PITCH MODE WRITE SUPPRESSION ────────────────────────
+// Pitch mode lets Jorge lock the demo tenant into a read-only state during a
+// live prospect call (Jeff demo 5/14-5/15). When ON: banner shifts to red,
+// every wired write entry point checks pitchModeBlocked() and bails with a
+// toast instead of writing. When OFF: normal demo edits resume.
+//
+// Persistence: localStorage key 'mi_pitch_mode' = 'on' | 'off'. Survives
+// reload + re-login. Clears nothing automatically — Jorge toggles manually.
+// Scope: only applies when currentFirmIsDemo === true. Real firm sessions
+// are unaffected (defense in depth — even if the key gets stuck 'on').
+
+let pitchModeActive = false;
+
+function applyPitchMode(){
+  const stored = (typeof localStorage !== 'undefined') ? localStorage.getItem('mi_pitch_mode') : null;
+  pitchModeActive = (stored === 'on');
+  const banner = document.getElementById('demo-banner');
+  const toggle = document.getElementById('demo-pitch-toggle');
+  const textEl = banner?.querySelector('.demo-banner-text');
+  const metaEl = banner?.querySelector('.demo-banner-meta');
+  if(banner) banner.classList.toggle('pitch-active', pitchModeActive && currentFirmIsDemo);
+  document.body.classList.toggle('pitch-mode-active', pitchModeActive && currentFirmIsDemo);
+  if(toggle) toggle.textContent = 'Pitch mode: ' + (pitchModeActive ? 'ON' : 'OFF');
+  if(textEl){
+    textEl.textContent = pitchModeActive
+      ? 'Pitch mode active — all writes suppressed.'
+      : 'Sample tenant data — illustrative records only.';
+  }
+  if(metaEl){
+    metaEl.textContent = pitchModeActive
+      ? 'Toggle off in the banner to resume edits.'
+      : 'No real customer firms or live compliance writes affected.';
+  }
+}
+
+function togglePitchMode(){
+  if(!currentFirmIsDemo){
+    showToast('Pitch mode is only available on demo-tenant sessions.', 'error');
+    return;
+  }
+  const next = !pitchModeActive;
+  try { localStorage.setItem('mi_pitch_mode', next ? 'on' : 'off'); } catch(e){}
+  applyPitchMode();
+  showToast(next ? 'Pitch mode ON — all writes suppressed' : 'Pitch mode OFF — writes resume', 'success');
+}
+
+function pitchModeBlocked(actionLabel){
+  if(!pitchModeActive) return false;
+  if(!currentFirmIsDemo) return false;
+  const verb = actionLabel || 'this action';
+  showToast(`Pitch mode is ON — ${verb} suppressed. Toggle off in the demo banner to resume.`, 'error');
+  return true;
 }
 
 function showAuthError(msg){
@@ -2586,6 +2652,7 @@ function selectPropSector(value){
 }
 
 async function saveProperty(){
+  if(pitchModeBlocked('property add')) return;
   const address = document.getElementById('prop-address').value.trim();
   const city    = document.getElementById('prop-city').value.trim();
   const zip     = document.getElementById('prop-zip').value.trim();
@@ -3138,6 +3205,7 @@ function onNoWorkReasonInput(){
 }
 
 async function submitNoWorkPhase(propId){
+  if(pitchModeBlocked('No-Work submit')) return;
   // Read latest reason directly (oninput state may lag if submit fires before the next event tick).
   const reasonEl = document.getElementById('nw-reason');
   if(reasonEl) noWorkReason = reasonEl.value;
@@ -3194,6 +3262,7 @@ async function submitNoWorkPhase(propId){
 }
 
 async function submitPhase(){
+  if(pitchModeBlocked('phase submit')) return;
   const propId = document.getElementById('submit-property-select').value;
   if(!propId){ showToast('Please select a property','error'); return; }
   if(!currentServiceType){ showToast('Please select a service type','error'); return; }
@@ -3604,6 +3673,7 @@ function renderBulkPreview(){
 }
 
 async function confirmBulkImport(){
+  if(pitchModeBlocked('bulk import')) return;
   const valid = bulkParsedRows.filter(r => !r.skip);
   if(!valid.length) return;
 
@@ -4192,6 +4262,7 @@ function msSetSaveStatus(state, message){
 }
 
 async function saveMaterialsSheet(){
+  if(pitchModeBlocked('materials sheet save')) return;
   if(!currentMaterialsSheet){
     showToast('No materials sheet context — close and reopen.', 'error');
     return;
@@ -4464,6 +4535,7 @@ function cancelSectorEdit(){
 }
 
 async function confirmSectorEdit(){
+  if(pitchModeBlocked('sector edit')) return;
   if(!pendingSectorEdit || !pendingSectorEdit.propId || !pendingSectorEdit.target) return;
   const { propId, currentSector, target } = pendingSectorEdit;
   if(target === currentSector){
@@ -4813,6 +4885,7 @@ function rgSetStatus(type, msg, kind){
 }
 
 async function rgSaveDraft(type){
+  if(pitchModeBlocked('restoration save')) return;
   if(!rgMaterialsSheetId){ rgSetStatus(type, 'No materials sheet attached', 'err'); return; }
   if(!currentFirmId){ rgSetStatus(type, 'No firm context', 'err'); return; }
 
@@ -6086,6 +6159,7 @@ function tcReadForm(){
 }
 
 async function submitTapcard(){
+  if(pitchModeBlocked('tapcard submit')) return;
   if(!currentTapcard || !currentTapcard.property_id){
     showToast('No tapcard context — close and reopen.', 'error');
     return;
