@@ -107,7 +107,7 @@ Postgres views default to `security_invoker = false`, which runs the view as def
 - **Pipe:** 3/4" – 2"
 - **Maplewood special case:** customer side already in spec = street-only relocate
 
-## CDM-Smith compliance rules (4/30/26 client email — Jeff Longberg)
+## CDM-Smith compliance rules (4/30/26 client email)
 1. **No-work submission** = house photo + whiteboard photo with reason text (MI-108)
 2. **Existing MP** must be noted on submission (MI-101 field add)
 3. **CS replacement** = Carlo authorization (date + time + reason) — **NO EXCEPTION** (MI-109)
@@ -139,7 +139,7 @@ Use this for ALL timeline estimates.
 ---
 
 ## Firm codes
-- **CP Engineers:** `QUIET-RIVER-58`
+- **CP Engineers:** `<rotated 2026-05-07 — see gitignored sync note>`
 - **Serrano Group:** `SERRANO-ADMIN-ONLY`
 
 ## Key accounts
