@@ -680,3 +680,25 @@ Buddy lean: **B** is cleanest long-term (clean audit chain, isolated heartbeat d
 **Source:** Lead autonomous build off Buddy work order `.coordination/work_order_MI404_herald_tab.md` + Buddy backend handoff. Lead committed + pushed + FF merged to `mi-demo-seed`.
 
 **Affects:** The Herald tab is live for demo. When Jorge demos to Jeff, opening the tab → August 2025 issue renders as hero card with Photo of the Month tile reading the Schmitz Tank caption with Jeff's name. Warm-room landing as planned in the work order strategic angle. Pre-demo prerequisite: Jorge uploads the actual PDF via the super_admin modal so the Read CTA renders the embed instead of the placeholder message.
+
+---
+
+## 2026-05-07 ~06:30 EDT — MI-DEMO-UI v3: firm_safe_to_display gate on user-role chrome + signup toast
+
+**Decision:** MI-DEMO-UI v3 shipped as commit `ec1f981` on `demo-banner` (FF-merged to `mi-demo-seed`). +19/-3 lines on `index.html` across 5 surgical Lead Edit-tool calls. Two firm-name display surfaces gated on `firms.firm_safe_to_display`:
+1. **Sidebar `.user-role` line:** firm name renders only when `currentFirmSafeToDisplay === true`; otherwise '—'. super_admin badge ("⚡ SUPER ADMIN — All Firms") is independent and always renders for super_admin sessions.
+2. **Signup confirmation toast:** "Welcome to [firm name]" copy dropped; replaced with generic "Account created! Check your email to confirm and sign in."
+
+**New global:** `currentFirmSafeToDisplay`, default false. Captured in `initApp` from `profile.firms.firm_safe_to_display`, reset in `logout`. Default-false means any pre-login and post-logout chrome stays redacted regardless of caching state.
+
+**Why two variables for the same column?** `currentFirmIsDemo` (existing) drives the demo banner visibility + pitch mode scope guard. `currentFirmSafeToDisplay` (new) drives the firm-name display gate. Same DB column today (both pull from `firms.firm_safe_to_display`); semantically different. When CP eventually wants their name to surface in chrome, flipping `firm_safe_to_display = true` on their row will *also* turn the demo banner on for their sessions unless the variables get split. Keeping them separate now makes the future banner-vs-name-display split a one-line change rather than a refactor.
+
+**Signup toast — why generic instead of gated?** The flag isn't fetchable at signup time. The `lookup_firm_by_code` RPC return shape is `(firm_id, firm_name)` — doesn't include `firm_safe_to_display`. Anon read access to `firms` was dropped in MI-203 step 3 (no-info-leak posture). Gating would require either modifying the RPC (backend change, out of scope for this UI ticket) or a follow-up authenticated query post-signin (no longer the same code path). Default-redact is the safe v3 baseline; richening to a real check is a future ticket if needed.
+
+**Architectural pattern locked in code comments:** canonical "redact firm identity in UI" gate. New customer onboards → single-row UPDATE `firms.firm_safe_to_display = true` on their row → name surfaces in sidebar. CP currently false; `.user-role` shows '—' on CP sessions until they explicitly opt in. Defense-in-depth posture for any shared-screen demo or sanitized public deployment.
+
+**Acceptance:** Visually verifiable via Vercel preview at `myinspector-git-demo-banner-jserranojr340-9100s-projects.vercel.app` — login as demo-tenant inspector → user-role shows demo firm name; login as CP inspector (firm with flag=false) → user-role shows '—'; super_admin badge always shows regardless of flag; signup flow shows generic toast.
+
+**Source:** Jorge directive ("ship as MI-DEMO-UI v3 on demo-banner. extra credit: also gate any 'Welcome to [firm name]' headers, dashboard chrome, etc. anywhere that pulls .name from the firms table on render"). Lead build off existing `firm_safe_to_display` query already in `initApp` (verified via grep — only 2 firm-name display sites in the file). Lead committed + pushed + FF merged to `mi-demo-seed`. Vercel preview READY both branches (`dpl_8VPFLG8...` demo-banner / `dpl_prt2pENu...` mi-demo-seed).
+
+**Affects:** Demo and prospect-facing privacy. CP's name no longer leaks in shoulder-to-shoulder demo scenarios. Once a real customer is onboarded publicly (case study, multi-tenant demo, etc.), single-row UPDATE flips it on for that firm without a code change. Sets the convention: any future firm-name display site checks `currentFirmSafeToDisplay` before rendering `firmName`.
