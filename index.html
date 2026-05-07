@@ -254,6 +254,28 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .pd-diagram-embed{position:relative;margin-top:10px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:#0a1220}
 .pd-diagram-pill{position:absolute;top:6px;right:6px;background:rgba(244,168,32,0.92);color:#1a1a1a;font-size:9px;font-weight:700;padding:3px 8px;border-radius:99px;font-family:'Rajdhani',sans-serif;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 2px 6px rgba(0,0,0,0.4);max-width:75%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2}
 .pd-diagram-svg{display:block;width:100%;height:auto;max-height:280px}
+.rg-meta{font-size:11px;color:var(--muted);margin-bottom:12px;font-style:italic}
+.rg-fieldset{border:1px solid var(--border);border-radius:var(--radius);padding:14px;background:var(--surface);margin-bottom:14px;min-width:0}
+.rg-legend{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--blue-light);padding:0 8px;display:inline-flex;gap:8px;align-items:baseline}
+.rg-legend-desc{font-family:inherit;font-weight:500;font-size:10px;color:var(--muted);text-transform:none;letter-spacing:0}
+.rg-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.rg-field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.rg-label{font-size:10px;color:var(--muted);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.rg-input{background:var(--surface2);border:1px solid var(--border);color:var(--white);font-size:13px;padding:7px 9px;border-radius:5px;font-family:inherit;width:100%}
+.rg-input:focus{border-color:var(--blue-light);outline:none}
+.rg-toggles{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0;padding:10px;background:var(--surface2);border-radius:6px}
+.rg-toggle{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--white);cursor:pointer;user-select:none}
+.rg-toggle input{margin:0;cursor:pointer}
+.rg-actions{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap}
+.rg-status{font-size:11px;font-style:italic;color:var(--muted);flex:1}
+.rg-status.rg-status-ok{color:var(--green);font-style:normal}
+.rg-status.rg-status-err{color:var(--red);font-style:normal}
+.rg-status.rg-status-warn{color:var(--orange);font-style:normal}
+.rg-empty{padding:30px 20px;text-align:center;color:var(--muted);font-size:13px;background:var(--surface2);border:1px dashed var(--border);border-radius:var(--radius);line-height:1.6}
+.rg-banner-shorthills{background:rgba(244,168,32,0.08);border:1px solid rgba(244,168,32,0.4);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--orange);margin-bottom:14px;line-height:1.55}
+.rg-banner-shorthills strong{color:var(--orange);font-weight:700;display:block;margin-bottom:2px;font-family:'Rajdhani',sans-serif;letter-spacing:.04em;text-transform:uppercase;font-size:11px}
+.rg-btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted);font-size:12px;padding:6px 12px;border-radius:5px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-weight:600;letter-spacing:.04em}
+.rg-btn-ghost:hover{border-color:var(--blue-light);color:var(--white)}
 .tc-ms-readout{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;font-size:12px}
 .tc-ms-readout > div{background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px}
 .tc-ms-readout-label{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px}
@@ -1253,10 +1275,11 @@ html,body{overflow-x:hidden}
       </div>
     </div>
     <div class="pd-page" id="pd-page-restoration">
-      <div class="pd-placeholder">
-        <strong>Restoration</strong>
-        Tab structure scaffolded in MI-101 Phase 2c. Form ships next session as Phase 2c-form pickup — 5 acceptance criteria, photo upload, sector dispatch, whiteboard requirement.
+      <div id="rg-shorthills-banner" class="rg-banner-shorthills" style="display:none;">
+        <strong>ShortHills role inversion</strong>
+        Inspector dictates dimensions and material spec. Confirm with contractor before submit.
       </div>
+      <div id="rg-form-container"></div>
     </div>
     <div class="pd-page" id="pd-page-shorthills">
       <div class="pd-placeholder">
@@ -4563,6 +4586,180 @@ function tcSwitchPage(page){
 function pdSwitchTab(tab){
   document.querySelectorAll('.pd-tab').forEach(el => el.classList.toggle('active', el.dataset.page === tab));
   document.querySelectorAll('.pd-page').forEach(el => el.classList.toggle('active', el.id === 'pd-page-' + tab));
+  // MI-101 Phase 2c-form Unit 1: lazy-init the Restoration form on tab open
+  if(tab === 'restoration'){
+    rgInit().catch(err => console.error('rgInit error:', err));
+  }
+}
+
+// ── PHASE 2C-FORM RESTORATION GRID (MI-101) ────────────────────────────
+// Form for documenting restoration work (City Strip / Street / Sidewalk) per
+// CDM-Smith spec. Persists rows to restoration_grid_entries. Multiple entries
+// per restoration_type allowed (Q-2c-d=YES); each Save Draft inserts one row.
+//
+// Photo upload + Submit Phase wiring deferred to Unit 2 — photos tie to
+// phase_submissions.photo_restoration_url, not to grid entries. Schema
+// verified via Supabase MCP 2026-05-07 ~01:30 EDT (17 cols, RLS-locked,
+// firm_id required by policy).
+
+const RG_TYPES = [
+  { key: 'city_strip', label: 'City Strip', desc: 'Curb-side strip restoration' },
+  { key: 'street',     label: 'Street',     desc: 'Roadway pavement patch' },
+  { key: 'sidewalk',   label: 'Sidewalk',   desc: 'Pedestrian sidewalk patch' }
+];
+const RG_MATERIALS = ['asphalt', 'concrete', 'topsoil_seed', 'pavers', 'other'];
+
+let rgMaterialsSheetId = null;
+let rgSector = 'NJ6_NORMAL';
+
+async function rgInit(){
+  const propertyId = currentPropertyDetailId;
+  const banner = document.getElementById('rg-shorthills-banner');
+  if(banner) banner.style.display = 'none';
+
+  if(!propertyId){
+    rgRenderEmpty('No property loaded.');
+    rgMaterialsSheetId = null;
+    return;
+  }
+
+  // Sector dispatch
+  try {
+    const { data: prop } = await sb.from('properties').select('sector').eq('id', propertyId).maybeSingle();
+    rgSector = prop?.sector || 'NJ6_NORMAL';
+  } catch(e){ rgSector = 'NJ6_NORMAL'; }
+  if(rgSector === 'NJAW_SHORT_HILLS' && banner) banner.style.display = 'block';
+
+  // Find most-recent active materials_sheet for this property (same pattern
+  // as refreshMaterialsSheetBar)
+  try {
+    const { data: sheets, error } = await sb
+      .from('materials_sheets')
+      .select('id, sheet_date, foreman_name, contractor_name, created_at')
+      .eq('property_id', propertyId)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if(error) throw error;
+    const sheet = sheets?.[0];
+    if(!sheet){
+      rgRenderEmpty('Restoration entries require an active Materials Sheet. Open the Materials Sheet from the Overview tab to create one first.');
+      rgMaterialsSheetId = null;
+      return;
+    }
+    rgMaterialsSheetId = sheet.id;
+    rgRenderForm(sheet);
+  } catch(err){
+    console.error('rgInit materials_sheets fetch error:', err);
+    rgRenderEmpty('Could not load materials sheet. Try again or check connection.');
+    rgMaterialsSheetId = null;
+  }
+}
+
+function rgRenderEmpty(msg){
+  const container = document.getElementById('rg-form-container');
+  if(!container) return;
+  container.innerHTML = `<div class="rg-empty">${msg}</div>`;
+}
+
+function rgRenderForm(sheet){
+  const container = document.getElementById('rg-form-container');
+  if(!container) return;
+  const sheetMeta = sheet.sheet_date || (sheet.created_at ? new Date(sheet.created_at).toLocaleDateString() : '—');
+  const foreman = sheet.foreman_name || sheet.contractor_name || 'unsigned';
+  let html = `<div class="rg-meta">Linked to active Materials Sheet · ${sheetMeta} · ${foreman}</div>`;
+  RG_TYPES.forEach(t => {
+    html += `
+      <fieldset class="rg-fieldset" id="rg-fs-${t.key}">
+        <legend class="rg-legend">${t.label}<span class="rg-legend-desc">${t.desc}</span></legend>
+        <div class="rg-row">
+          <div class="rg-field"><label class="rg-label">Dimension</label>
+            <input class="rg-input" type="text" id="rg-${t.key}-dimension" placeholder="e.g. 4x6 ft"></div>
+          <div class="rg-field"><label class="rg-label">Material</label>
+            <select class="rg-input" id="rg-${t.key}-material">
+              <option value="">Select…</option>
+              ${RG_MATERIALS.map(m => `<option value="${m}">${m.replace(/_/g,' ')}</option>`).join('')}
+            </select></div>
+        </div>
+        <div class="rg-row">
+          <div class="rg-field"><label class="rg-label">Quantity</label>
+            <input class="rg-input" type="number" step="0.01" min="0" id="rg-${t.key}-quantity" placeholder="0"></div>
+          <div class="rg-field"><label class="rg-label">Notes</label>
+            <input class="rg-input" type="text" id="rg-${t.key}-notes" placeholder="Optional"></div>
+        </div>
+        <div class="rg-toggles">
+          <label class="rg-toggle"><input type="checkbox" id="rg-${t.key}-rpr"> Recently paved road</label>
+          <label class="rg-toggle"><input type="checkbox" id="rg-${t.key}-b8"> 8&#8243; base by company</label>
+          <label class="rg-toggle"><input type="checkbox" id="rg-${t.key}-sc"> Saw cut by company</label>
+          <label class="rg-toggle"><input type="checkbox" id="rg-${t.key}-cu"> Concrete under paving</label>
+        </div>
+        <div class="rg-actions">
+          <button type="button" class="btn-sm btn-orange" onclick="rgSaveDraft('${t.key}')">Save Draft</button>
+          <button type="button" class="rg-btn-ghost" onclick="rgClearFieldset('${t.key}')">Clear</button>
+          <span class="rg-status" id="rg-status-${t.key}"></span>
+        </div>
+      </fieldset>
+    `;
+  });
+  container.innerHTML = html;
+}
+
+function rgClearFieldset(type){
+  const fs = document.getElementById(`rg-fs-${type}`);
+  if(!fs) return;
+  fs.querySelectorAll('input[type="text"], input[type="number"]').forEach(el => el.value = '');
+  fs.querySelectorAll('select').forEach(el => el.selectedIndex = 0);
+  fs.querySelectorAll('input[type="checkbox"]').forEach(el => el.checked = false);
+  rgSetStatus(type, '');
+}
+
+function rgSetStatus(type, msg, kind){
+  const el = document.getElementById(`rg-status-${type}`);
+  if(!el) return;
+  el.textContent = msg || '';
+  el.className = 'rg-status' + (kind ? ' rg-status-' + kind : '');
+}
+
+async function rgSaveDraft(type){
+  if(!rgMaterialsSheetId){ rgSetStatus(type, 'No materials sheet attached', 'err'); return; }
+  if(!currentFirmId){ rgSetStatus(type, 'No firm context', 'err'); return; }
+
+  const text = id => { const el = document.getElementById(id); const v = el?.value; return (v == null || v === '') ? null : String(v).trim() || null; };
+  const num  = id => { const el = document.getElementById(id); const v = el?.value; if(v == null || v === '') return null; const n = Number(v); return Number.isFinite(n) ? n : null; };
+  const bool = id => !!document.getElementById(id)?.checked;
+
+  const dimension = text(`rg-${type}-dimension`);
+  const material  = text(`rg-${type}-material`);
+  const quantity  = num(`rg-${type}-quantity`);
+  const entry_notes = text(`rg-${type}-notes`);
+
+  const allEmpty = !dimension && !material && quantity == null && !entry_notes;
+  if(allEmpty){ rgSetStatus(type, 'Nothing to save', 'warn'); return; }
+
+  const payload = {
+    materials_sheet_id: rgMaterialsSheetId,
+    sector: rgSector,
+    restoration_type: type,
+    dimension, material, quantity, entry_notes,
+    recently_paved_road: bool(`rg-${type}-rpr`),
+    base_8inch_by_company: bool(`rg-${type}-b8`),
+    saw_cut_by_company: bool(`rg-${type}-sc`),
+    concrete_under_paving: bool(`rg-${type}-cu`),
+    firm_id: currentFirmId,
+    submitted_by: currentUser?.id || null
+  };
+
+  rgSetStatus(type, 'Saving…');
+  const { error } = await sb.from('restoration_grid_entries').insert(payload);
+  if(error){
+    console.error('rgSaveDraft error:', error);
+    rgSetStatus(type, 'Save failed: ' + (error.message || 'unknown'), 'err');
+    showToast('Restoration save failed: ' + (error.message || 'unknown'), 'error');
+    return;
+  }
+  rgSetStatus(type, `Saved at ${new Date().toLocaleTimeString()}`, 'ok');
+  showToast(`${type.replace(/_/g,' ')} entry saved`, 'success');
+  // Don't auto-clear — inspector may want to add a follow-up entry with similar values
 }
 
 // ── PHASE 2D-REVISION — VISUAL TAPCARD PREVIEW (paper-true NJAW Service Line Renewal Company Side) ─
