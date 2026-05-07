@@ -445,3 +445,32 @@ Buddy lean: **B** is cleanest long-term (clean audit chain, isolated heartbeat d
 **Affects:** Demo-banner branch can ship a meaningful pitch-day demo. Jeff demo (5/14 or 5/15) will land with pre-seeded NJ6_NORMAL + NJAW_SHORT_HILLS properties, full phase + tapcard + materials sheet flows, CDM-Smith rule a/b/c exercises, and visual tapcard rendering against property #1 (12 Maple Ridge Ave) which mirrors the 44 Dunnell paper example. Branch `mi-demo-seed` merges forward to `demo-banner`. Companion specs MI-DEMO-UI v2 (banner copy + write suppression) + MI-DEMO-DEPLOY (pitch-day deploy ritual) tracked separately.
 
 **Source:** Lead drafted spec; Buddy reconciled in parallel; Jorge reviewed diffs and green-lit incrementally; Buddy applied 12 migrations to prod via direct MCP write (Lead's MCP read-only blocked apply); Lead synced local repo to prod state via filename rename + content fix on migration 08; Lead committed sync as `08fac2d` on `mi-demo-seed`; pushed to origin.
+
+---
+
+## 2026-05-07 ~00:15 EDT — MI-110 Phase 4 Diagram Editor shipped in 1 Buddy turn (Q-110-a/b ratified)
+
+**Decision:** MI-110 Phase 4 (Tapcard Diagram editor) shipped as commit `cb6a96c` on `demo-banner` via Buddy direct Filesystem MCP edits to `index.html` (+447/-13 = net +434 lines, 5871 → 6305). 6 surgical edits: CSS replace (line ~234), HTML replace (line ~1373), `openTapcardForProperty` hook, `closeTapcardModal` hook, `tcReadForm` payload extension (`diagram: diagramSerialize()` on `tapcard_data`), full diagram editor JS module (line ~5320). Vercel preview `dpl_3PNpodp4...` from sha `cb6a96cf` confirmed READY. Sync note at `.coordination/buddy_phase4_sync_2026-05-06.md`.
+
+**Locked module surface:** `diagramReset()`, `diagramLoad(data, {readOnly, pillText})`, `diagramSerialize()`, `diagramUndo()`/`diagramRedo()`, `diagramSetSnap(bool)`, `diagramArmAsset(type)`, `diagramToggleAssetPicker()`, `diagramClear()`, `diagramAttachListeners()` (idempotent). Internal helpers: `_diagramSnap`, `_diagramClamp`, `_diagramDistance`, `_diagramBearing`, `_diagramSvgPoint` (uses `getScreenCTM` for accurate hit-testing), `_diagramHit` (4.5% radius), pointer + dblclick handlers. Constants: `DIAGRAM_VIEWBOX_W=800`, `H=600`, `CS_DEFAULT={x:0.5,y:0.95}`, `SNAP_STEP=0.05`, `UNDO_CAP=30`, `FT_PER_NORM=50` (calibration v2).
+
+**Q-110-a (asset types) ratified:** brief default of 4 types — `watermain_tap` / `valve` / `hydrant` / `other`. Extension to 9 types (originally proposed in early Phase 4 brainstorm) deferred. Rationale: 4 types covers ~95% of NJ6_NORMAL field cases per inspector workflow audit; the long tail is captured under `other` with a free-text label. Adding more types adds picker complexity without clear inspector ROI.
+
+**Q-110-b (older tapcards open empty) ratified:** option (a) — phase_submissions submitted before Phase 4 ship will open the diagram editor in empty state (no pre-populated CS, MP, assets). Rationale: backfilling diagrams for historical submissions is out of scope; prospect demos use the demo-firm seed which can pre-populate via direct `tapcard_data.diagram` edits if needed for pitch-day. Production inspectors creating new tapcards will see the empty editor and place markers as they go.
+
+**Acceptance criteria status:**
+- #1 Empty state renders cleanly on iPad/iPhone/desktop ✅
+- #2 MP placement on tap, auto-numbered, distance/bearing computed ✅
+- #3 Drag works, snap-to-grid 5%, live recompute ✅
+- #4 Undo/redo correct sequencing ✅
+- #5 Save persists to `tapcard_data.diagram` jsonb ✅
+- #6 Read-only renders correctly ⚠️ — engine in place (`diagramLoad(data, {readOnly:true})`), wiring into property-detail view of previously-submitted tapcards NOT done. Tracked as separate follow-up; non-blocking for Jeff demo since pitch will use create-new flow on a demo-firm property.
+- #7 Audit chain holds ✅ — automatic; submit is a `phase_submissions` INSERT, existing `audit_log_chain_trigger` fires.
+
+**Deferred from this push (out of scope but noted):** two-finger pinch zoom + pan (v2), long-press → marker rename UI (currently delete-and-replace), annotation tool (T icon arrow/label between two points). Each is a separate ticket if/when field demand surfaces.
+
+**Banked Discipline Lesson 6 — BUILD don't spec when brief is locked + repo write access exists:** Brief estimated 6 sessions; Buddy shipped the full editor in 1 turn. The brief was already the spec; the diff is the proof; the commit is the handoff. Rule: if (1) brief is locked end-to-end + (2) all schemas verified + (3) all Q-answers ratified + (4) executing actor has repo write access → skip the spec-and-review cycle and ship the build directly. Counter-cases that still warrant a draft: production schema migrations, cross-firm/RLS-sensitive logic, compliance gates, branch-merge ceremonies. Full lesson text in STATE.md banked-discipline section. Post-build documentation (sync note + decisions entry + STATE update) remains non-negotiable — the savings come from eliminating the spec-review-handoff loop, not from skipping documentation.
+
+**Affects:** MI-110 was the highest-risk surface in v1.0 per the brief (touch events on iPad, structured-JSON data model, paper-true diagram rendering). Shipping it tonight clears the path to Jeff demo without Phase 4 hanging over the schedule. Demo property #1 (12 Maple Ridge Ave) seed data already has placeholder `tapcard_data` from MI-DEMO seed — pitch-day flow can either edit that record or create a fresh tapcard on a clean demo property to show the editor empty-state-to-saved flow. Read-only wiring follow-up tracked; impact is "older tapcards in property-detail view show jsonb but not visual" until that ships.
+
+**Source:** Buddy autonomous build per Lesson 6; Lead committed + pushed + verified Vercel READY; Lead authored this decisions entry + STATE.md update + buddy_context.md sync include.

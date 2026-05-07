@@ -4,8 +4,8 @@
 > **CLAUDE.md** holds locked principles. **STATE.md** holds live state.
 > Conflict with Claude memory: this file wins.
 
-**Last updated:** May 6, 2026 ~late evening EDT (post Phase 2d-revision Unit 1 Step 2 + Unit 2 ship + MI-DEMO seed bootstrap)
-**Updated by:** Lead (CC) on `mi-demo-seed` branch; doc commit follows Buddy's seed-apply sync as commit `08fac2d`. Tonight's session shipped both the Phase 2d-revision visual tapcard (commits `52adf8a` + `7018493` on `demo-banner`) and the MI-DEMO seed (12 migrations applied via Buddy direct MCP write; Lead's MCP read-only).
+**Last updated:** May 7, 2026 ~00:30 EDT (post Phase 2d-revision Unit 1 Step 2 + Unit 2 ship + MI-DEMO seed bootstrap + MI-110 Phase 4 diagram editor ship)
+**Updated by:** Lead (CC) on `demo-banner` branch. Tonight's session shipped: (1) Phase 2d-revision visual tapcard (`52adf8a` + `7018493`), (2) MI-DEMO seed (12 migrations via Buddy direct MCP, sync commit `08fac2d` on `mi-demo-seed`, merged to `demo-banner` as `ea2d957`), (3) MI-110 Phase 4 diagram editor (`cb6a96c` — Buddy shipped in 1 turn vs 6-session brief estimate; Lesson 6 banked).
 
 ---
 
@@ -42,7 +42,7 @@
 | MI-101 Phase 2d (Visual Tapcard Preview, original placement) | Shipped Mon 5/5 on `demo-banner` (`79f8434`); superseded by Phase 2d-revision | Original placement on `#modal-tapcard`. Vestigial scaffolding removed in Phase 2d-revision Unit 1 Step 1 (commit `6b9a9d3`). VTC config + helpers preserved for Step 2 reuse on `modal-materials-sheet`. |
 | **MI-101 Phase 2d-revision Unit 1 Step 1 (vestigial removal)** | **Closed Mon 5/5 ~late evening** | Commit `6b9a9d3` on `demo-banner`. Removed `vtc-mobile-tabs` + `tc-mid` wrapper + `visual-tapcard-preview-container` from `#modal-tapcard`; removed `vtcInitOnOpen` / `vtcReset` / `vtcAttachListeners` / `vtcMobileTab` functions + call sites + `currentTapcard.property = prop` stash. Preserved `VTC_FIELDS` config + `vtcRender` + `vtcDebouncedRender` + `vtcVal` / `vtcEsc` / `vtcWrap` helpers + CSS rules. |
 | **MI-101 Phase 2d-revision Unit 1 Step 2 + Unit 2** | **Closed Wed 5/6 ~evening** | Two commits on `demo-banner`: `52adf8a` (Unit 1 Step 2 — split layout 50/50 desktop / 55/45 tablet / mobile sub-tab toggle, paper-true 6-section + Job Notes box SVG, sector dispatch via `currentMaterialsSheetProperty.sector`, helpers `vtcMs`/`vtcProp`/`vtcInchesToFtIn`/parsers) and `7018493` (Unit 2 — `vtcAttachAutopopListeners` idempotent delegated input listener, chip/toggle/recalc helper patches fire `vtcRender` directly, `tc-co-*` one-way binding, `vtcMaterialsRows` extrapolation FULL/KILL/M2C/H2C/MP/TP). Vercel preview `dpl_BbarAjj9...` from sha `7018493` confirmed READY. Schema verified pre-build (no drift; spec said `materials_sheets` 39 cols, actual 48 — caught + adjusted). |
-| MI-110 Phase 4 (Tapcard Diagram editor) | Brief drafted | Highest-risk surface in v1.0 (touch events on iPad). ~6 sessions. |
+| **MI-110 Phase 4 (Tapcard Diagram editor)** | **Closed Wed 5/6 ~late evening — pending read-only wiring** | Commit `cb6a96c` on `demo-banner` (+447/-13 net +434 in `index.html`). Buddy shipped in 1 turn vs the 6-session brief estimate (see Lesson 6). SVG-based interactive editor: tap-to-place MP, drag-with-snap (5% grid), 4 asset markers (watermain_tap/valve/hydrant/other per Q-110-a), undo/redo (cap 30 states), `tapcard_data.diagram` jsonb persistence. Acceptance #1-5+#7 ✅; #6 (read-only mode wiring into property-detail view of previously-submitted tapcards) engine in place via `diagramLoad(data, {readOnly:true})` but NOT wired to property-detail surface — separate ticket. Deferred from this push: pinch-zoom/pan, long-press rename UI, annotation tool. Vercel preview `dpl_3PNpodp4...` from sha `cb6a96cf` confirmed READY. |
 | MI-302 Construction PM frontend | Work order on disk (Buddy 5/5 evening) | Backend fully shipped. CP default project seeded Sun (`722f9db8...`). Q-302-b/c/d/e ratified. Patent-claim module per Bill. ~4 sessions. |
 | MI-luis-1 Luis AI v1 (Water Utility) | Work order on disk (Buddy 5/5 evening) | `luis_conversations` table shipped. Haiku 4.5 via Anthropic API + `luis-ask` Edge Function + brand-palette chat panel + citation chips. Demo-target for Jeff (5/14-5/15). ~2 sessions. |
 | MI-401 GIS List Tab | Work order on disk | Paper-replacement workflow. ~3 sessions. |
@@ -195,6 +195,7 @@
 - **Three side decisions banked during seed run:** `pg_net` extension installed (forward capability for trigger-based Edge Function calls); `profiles.email` column added with backfill from `auth.users` (denormalized convenience for email-based lookups); `seed-demo-users` Edge Function deployed but functionally broken (`auth.admin.listUsers` SDK call fails — SQL bypass migration `20260506230158_mi_demo_seed_04_create_demo_auth_users_via_sql.sql` replaces it). Function source preserved at `supabase/functions/seed-demo-users/index.ts` for future SDK-version retry.
 - **§16a actor coverage outcome:** Spec target was ~91% audit attribution from ~1,000 cascade rows. Actual: 36.5% from ~58 cascade rows. Spec drift — cascade was much smaller than estimated. Demo-firm `audit_log` final state: 159 total, 58 attributed (36.5%), 101 NULL legacy (untouched per §16a option a). Defensible under audit.
 - **Companion specs queued (out of scope of seed):** MI-DEMO-UI v2 (banner copy + write suppression), MI-DEMO-DEPLOY (pitch-day deploy ritual + post-demo wipe schedule). Both pending separate spec drafts before pitch day.
+- **MI-110 Phase 4 SHIPPED in 1 Buddy turn** (commit `cb6a96c` on `demo-banner`, +447/-13 net +434 in `index.html`). SVG-based interactive Tapcard Diagram editor: tap-to-place MP, drag-with-snap (5% grid), 4 asset markers (Q-110-a default), undo/redo, `tapcard_data.diagram` jsonb persistence. Acceptance #1-5+#7 ✅; #6 read-only mode wiring deferred to separate ticket (engine in place via `diagramLoad(data, {readOnly:true})`). Deferred from this push: pinch-zoom/pan, long-press rename UI, annotation tool. Vercel preview READY. **Lesson 6 banked:** brief was 6-session estimate, shipped in 1 turn — when brief is locked + repo write access exists, BUILD don't spec.
 
 ---
 
@@ -265,9 +266,9 @@ Post-demo: MI-302 Construction PM frontend (4 sessions, patent claim), Module 2 
 
 ## Completion percentages (per progress_report_2026-05-05.md, +deltas Wed 5/6)
 
-- v0.1 Compliance Foundation: ~70% (was ~67% Mon 5/5 close, +3% Wed 5/6)
-- v1.0 (commercial-ready Water Utility): ~57% (was ~55%, +2%)
-- Full 7-module platform: ~27% (was ~26%, +1%)
+- v0.1 Compliance Foundation: ~72% (was ~67% Mon 5/5 close, +5% Wed 5/6 across Phase 2d-rev finish + MI-DEMO seed + MI-110 Phase 4)
+- v1.0 (commercial-ready Water Utility): ~62% (was ~55%, +7% — MI-110 was the highest-risk remaining v1.0 ticket)
+- Full 7-module platform: ~29% (was ~26%, +3%)
 - Full architected vision (incl. integrations, mobile native, all 7 modules, Luis cross-discipline, residential): ~13%
 
 ---
@@ -284,9 +285,9 @@ Post-demo: MI-302 Construction PM frontend (4 sessions, patent claim), Module 2 
 
 ---
 
-## Banked discipline lessons (Mon 5/5 session — 5 lessons total)
+## Banked discipline lessons (Mon 5/5 session + Wed 5/6 addition — 6 lessons total)
 
-Five locked discipline rules surfaced during tonight's session. Logged here at end of STATE.md so future Lead/Buddy reads see them at the bottom of the standing-state digest.
+Six locked discipline rules surfaced. Lessons 1-5 from the Mon 5/5 session; Lesson 6 added Wed 5/6 after MI-110 Phase 4 shipped in 1 Buddy turn vs the 6-session brief estimate. Logged at end of STATE.md so future Lead/Buddy reads see them at the bottom of the standing-state digest.
 
 ### Lesson 1 — Stop-and-ping when a brief contradicts the codebase
 
@@ -327,3 +328,13 @@ Five locked discipline rules surfaced during tonight's session. Logged here at e
 **Why:** during tonight's MI-AUDIT-3 + Phase 2a merge work (Lead-active for ~5 hours), Buddy was operating as auditor + next-pickup drafter (Lucy + Jeff combined per the named-crew model) but anchored to the 4 already-formalized feature tickets (MI-401/402/403/404) as the pre-load limit. In reality, Phase 2c-form, MI-302, MI-110, Module 2 schema, and Luis v1 were all drafted-but-not-formalized and could ship as work orders in parallel without disrupting Lead's thread. Jorge surfaced the under-utilization explicitly: "i'm so confused why you refuse to push the envelope and get things accomplished when their clearly open and ready to be worked on."
 
 **How to apply:** when Lead is on a focused multi-hour build, Buddy actively scans for: (1) backend-shipped tickets without frontend work orders, (2) schemas referenced in old briefs that haven't been verified against current DB state, (3) cross-module foundations (e.g., Module 2 Wastewater backend) that unlock platform breadth, (4) AI-augmented surfaces (e.g., Luis v1) that are demo-critical but not yet formalized. Buddy drafts these as work orders with verified ground-truth footers, lands them on disk, surfaces a brief end-of-push status to Jorge. The principle: parallel agency is the leverage, not the disruption — Buddy's leverage is precisely that 5 work orders can ship in parallel to Lead's 1 ticket.
+
+### Lesson 6 — When brief is locked + repo write access exists, BUILD don't spec
+
+**Rule:** if a feature brief is fully locked (acceptance criteria explicit, schema verified, Q-answers ratified, no outstanding ambiguity) AND the actor has repo write access, skip the spec-and-review-and-handoff cycle and ship the build directly. The spec exists in the brief; the review is the diff; the handoff is the commit.
+
+**Why:** MI-110 Phase 4 brief (`MI110_PHASE4_BRIEF.md`) was drafted Sunday afternoon with 7 acceptance criteria, structured-JSON data model locked (`tapcard_data.diagram` jsonb, normalized 0-1 coordinates), Q-110-a/b ratified, no schema migrations needed. Brief estimated 6 sessions. Buddy shipped the full editor in 1 turn (~434 net new lines in index.html, 6 surgical edits via Filesystem MCP) Wed 5/6 evening — the brief was already the spec, the diff was the proof, the commit was the handoff. Estimate was 6× too conservative because it assumed a spec-draft + review + handoff loop that wasn't needed.
+
+**How to apply:** before drafting a work order, check: (1) is the brief locked end-to-end? (2) are all schemas verified? (3) are all Q-answers ratified? (4) does the executing actor have repo write access (filesystem MCP for Buddy, edit tools for CC)? If all four = yes, skip the work-order step and ship the build. If any = no, draft the work order. Trade-off: builds shipped this way still need a sync note documenting what was applied + what was deferred (acceptance #6 read-only-wiring for MI-110), so post-build documentation is non-negotiable. The savings come from eliminating the spec-review-handoff loop, not from skipping documentation.
+
+**Counter-cases (still draft a work order):** any feature touching production schema migrations (audit chain side-effects), any cross-firm or cross-tenant logic where RLS can drift, any compliance gate (Carlo authorization, no_work invariants), any branch-merge ceremony where §22 or similar policy gates apply. For those: spec-first is still correct because the cost of a wrong build is higher than the cost of a draft.

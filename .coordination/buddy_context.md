@@ -1,131 +1,138 @@
 # Buddy Context — Bootstrap Digest
 
-**Generated:** 2026-05-05 ~19:30 EDT (tonight, post-Phase-2c-scaffold)
+**Generated:** 2026-05-05 ~21:35 EDT (refreshed post-CC-stop-and-ping caught documentation drift)
 **Stale after:** next session-close OR next major commit on main
+**v1 of this digest had errors — see "Banked discipline" section for what changed**
 
 ---
 
 ## Where we are
 
-- **MyInspector v0.1 Compliance Foundation** — ~62% through v1.0 scope by session count (Saturday 5/2 close, no material change since — Sunday was verification + audit + ratification, tonight was lean scaffolding).
-- **Saturday's three PR merges + Sunday's Phase 2b refactor** all live and verified on prod via Sunday afternoon shape-checks (`SUNDAY_VERIFICATION_5-3-26.md`):
-  - `mi101-phase2a` (Materials Sheet UI + polish stack)
-  - `mi101-phase2b` (original) → superseded same-day by `mi101-phase2b-refactor` Sunday 0:52 (`4d70901`) — kill Customer Side tab + expand Materials view + role-gated Office Fill
-  - `mi203-step2` (`lookup_firm_by_code` SECURITY DEFINER RPC for pre-auth firm lookup)
-- **MI-203 step 3 closed Sunday morning** — `firms_read_anon` policy dropped via Supabase MCP migration `mi203_step3_drop_firms_read_anon`. Anonymous firm-read attack surface fully closed.
-- **MI-AUDIT-1 closed Sunday evening** — migration `mi_audit_1_fix_get_pending_destruction` (v `20260503172732`) shipped via Supabase MCP. Live function body contains `AND dn.firm_id = public.current_firm_id()`. Cross-firm metadata leak on destruction notices — closed.
-- **CP Engineers default project seeded Sunday evening** — `722f9db8-a484-46a1-8142-ea6cc4bc672c` (NJAW LCRI Program 2026) via migration `seed_cp_engineers_default_project`. Closes the FK gate that was blocking MI-302 Construction PM frontend pickup.
-- **Phase 2b real-shape verified Sunday evening** — Jorge live tapcard submission `1b37d77c-...`: tapcard_data jsonb has correct 3 keys; CHECK constraints satisfied; multi-tenant isolation honored; hash chain intact across the INSERT + 2 UPDATEs.
-- **Tonight (Mon 5/5):** Phase 2c lean scaffold landed on `demo-banner` (5 surgical edits to index.html + STATE.md refresh + status.md reconciliation). Property Detail modal now has Overview / Restoration / ShortHills tab strip; `#modal-tapcard` got an empty `<div id="visual-tapcard-preview-container">` for Phase 2d. No migrations. Phase 2d Visual Tapcard build is in flight on demo-banner (CC grinding now).
+- **MyInspector v0.1 Compliance Foundation** — ~62% through v1.0 scope by session count.
+- **Saturday's PR merges + Sunday's Phase 2b refactor** — backend everywhere, frontend partial. Specifically:
+  - `mi203-step2` merged Sat (`001af69`) — `lookup_firm_by_code` SECURITY DEFINER RPC for pre-auth firm lookup
+  - `mi101-phase2a` **PR opened Sat — backend migrations shipped, FRONTEND NEVER MERGED.** Lives on `mi101-phase2a` branch. Backend table `materials_sheets` is live in prod (3 rows from Phase 2a preview testing). The editable `modal-materials-sheet` UI is NOT on main. Documentation across STATE.md / status.md / buddy_context.md (v1) / decisions.md asserted "merged" — caught and corrected 2026-05-05 ~21:20 EDT by CC.
+  - `mi101-phase2b` (original, 3-tab structure) merged Sat (`f51c61f`) — superseded same-day
+  - `mi101-phase2b-refactor` merged Sun 0:52 (`4d70901`) — kill Customer Side tab + expand Materials view + role-gated Office Fill. **This is what's on prod main today as the Tapcard surface.**
+  - `mi100-frontend` (sector toggle) merged Sat (`0327abd`)
+  - `mi108-frontend` (No-Work workflow) merged Sat (`8a971eb`)
+- **MI-203 step 3 closed Sunday morning** — `firms_read_anon` policy dropped via Supabase MCP migration `mi203_step3_drop_firms_read_anon`.
+- **MI-AUDIT-1 closed Sunday evening** — migration `mi_audit_1_fix_get_pending_destruction` v 20260503172732 shipped.
+- **CP Engineers default project seeded Sunday evening** — `722f9db8-...` (NJAW LCRI Program 2026) — closes MI-302 FK gate.
+- **Phase 2b real-shape verified Sunday evening** — Jorge live tapcard submission `1b37d77c-...`.
+- **Tonight (Mon 5/5):**
+  - Phase 2c lean scaffold landed on `demo-banner` (`91f2af4`) — Property Detail tab strip + empty visual-tapcard container
+  - Phase 2d original landed on `demo-banner` (`79f8434`) — autopop wiring inside `#modal-tapcard`. **This is the wrong surface per revised Q-2d.** Will be undone in Phase 2d-revision Unit 1.
+  - 3 Sunday docs commits cherry-picked to main + pushed (`e0b00c6` / `2183e84` / `99692d0`)
+  - Buddy doc parallel-track sync committed on demo-banner (`7c0e83b`) — questions.md Q-7 + Q-2d resolutions, PHASE2B_TAPCARD_FIELDS_REFERENCE.md, buddy_context.md v1
+  - Phase 2d-revision v1 work order drafted by Buddy + caught with errors by CC (Phase 2a merge state, schema field names) — v2 work order on disk at `work_order_2026-05-05_phase2d_revision_v2.md`
+  - 4 new feature briefs + work orders on disk: MI-401 GIS List Tab, MI-402 Towns/Contractors, MI-403 Field Guides, MI-404 Herald Tab
 
-## What just shipped (last 5 commits on origin/main + Sunday's MCP migrations)
+## Documentation drift caught tonight (2026-05-05 ~21:20 EDT)
 
-- `4d70901` (Sun 0:52 EDT) — Phase 2b refactor squash merge
-- `001af69` (Sat) — mi203-step2 squash merge
-- `f51c61f` (Sat) — mi101-phase2b original squash merge (#6, superseded next morning by refactor)
-- `0327abd` (Sat) — MI-100 sector toggle (#5)
-- `8a971eb` (Sat) — MI-108 No-Work workflow (#4)
+CC's stop-and-ping during Phase 2d-revision Session 1 kickoff caught:
 
-**Migrations applied via Supabase MCP since last main commit:**
-- `mi203_step3_drop_firms_read_anon` (Sun ~08:55)
-- `mi_audit_1_fix_get_pending_destruction` v 20260503172732 (Sun ~17:35)
-- `seed_cp_engineers_default_project` (Sun ~17:35)
+1. **Phase 2a frontend never merged.** STATE.md, status.md, buddy_context.md v1, decisions.md all asserted "Phase 2a closed Sat — PR merged." Verified via git: `git show main:index.html | grep modal-materials-sheet` returns 0. Cross-branch verification: only `mi101-phase2a` and `origin/mi101-phase2a` contain the modal. Backend migrations DID ship Saturday (verified — materials_sheets table has 3 rows, 39 columns). Frontend modal lives on the unmerged branch.
 
-**Active branch state:**
-- `main` HEAD: `4d70901` (local can be 1 behind origin/main if `git pull` not run)
-- `demo-banner` HEAD: `52d79c6` plus tonight's uncommitted edits (STATE.md + index.html Phase 2c scaffold + Phase 2d build in flight)
-- `demo-banner` is 5 ahead of main: 3 Buddy docs commits (`52d79c6`, `2c81a9d`, `dcd977c` — Sunday work) + 2 demo-feature commits (`685f4c1`, `64df4f2`)
+2. **Schema field map drift.** v1 Phase 2d-revision work order referenced `properties.address_number`, `address_street`, `cross_street`, `lot`, `block`, `apt_bldg`, `owner_name`, `county` — none of those columns exist. Actual `properties` schema (verified via Supabase MCP `list_tables` 2026-05-05 21:25 EDT): `id, address (single string), city, municipality, state, zip, lot_block (concatenated), lat, lng, mapcall_id, company_material, customer_material, current_phase, firm_id, created_at, deleted_at, deleted_by, sector, project_id`. 19 columns total. `materials_sheets` schema: 39 columns, flat NJAW/customer old/new (no service_materials_grid jsonb).
 
-**Trapped commit alert:** the 3 Buddy docs commits (`52d79c6 2c81a9d dcd977c`) live on `demo-banner` only. If `demo-banner` doesn't merge (or gets thrown away), main loses the Sunday verification + audit + ratification record. Cherry-pick recommended:
-```bash
-git fetch origin && git checkout main && git pull
-git cherry-pick dcd977c 2c81a9d 52d79c6
-git push
-```
-Pure `.coordination/` docs — zero conflict risk. ~30 seconds.
+3. **Implication:** Production today — inspectors cannot create materials_sheets via UI on main. The 3 existing rows came from Phase 2a preview deployment testing. Phase 2d-revision v2 work order adds Unit 0 (Phase 2a → main merge) as precondition.
 
-## What's pending (priority-ordered)
+## What's pending (priority-ordered, post-correction)
 
-**Buddy verification queue (passive — auto-triggers on inspector activity):**
-1. Real `tapcard_data.materials_sheet_id_at_submit = uuid` write on first user submission with both Materials Sheet AND Tapcard filled. (Sunday's verified submission had it null because Jorge didn't fill a Materials Sheet first — correct fallback, but the with-sheet path is unverified live.)
-2. Real `njaw_work_order_code` write on first service_work submission. CHECK constraint locked (M2C/H2C/FULL/MP/TP/KILL).
-3. Real Materials Sheet 48-column row + audit_log delta on first Materials Sheet save.
+**Tonight (CC, in flight):** Path C — MI-AUDIT-3 trigger filter only. Phase 2d-revision held for v2 work order pickup next session.
 
-**Lead's queue (after tonight's Phase 2d build commits):**
-1. **MI-101 Phase 2c-form** (Restoration form) — picks up next session. 5 acceptance criteria, photo upload, sector dispatch, whiteboard requirement enforcement, Save Draft button (Q-7=C). Tab structure already in place from tonight.
-2. **MI-101 Phase 2d** (Visual Tapcard auto-population) — IN BUILD on demo-banner tonight. CC's option-(a) lean: render only fields that exist in Phase 2b. Field reference at `.coordination/PHASE2B_TAPCARD_FIELDS_REFERENCE.md`.
-3. **MI-302 Construction PM frontend** — brief drafted at `MI302_CONSTRUCTION_PM_FRONTEND_BRIEF.md`. Backend fully shipped, CP project seeded. ~4–6 sessions.
-4. **MI-110 Phase 4 (Diagram editor)** — brief drafted. Highest-risk surface in v1.0 (touch on iPad). ~6 sessions. Lead may want a 1-day spike branch first.
-5. **MI-AUDIT-3 fix (audit_log heartbeat noise)** — design before patch. Survey other heartbeat-not-state fields first. 3 fix approaches in decisions.md (A trigger filter / B separate heartbeat table / C client-side stop).
+**Next session (CC, from `work_order_2026-05-05_phase2d_revision_v2.md`):**
+- Unit 0: Phase 2a → main merge (~30-45 min, rebase + conflict resolution + Vercel verify + squash-merge)
+- Unit 1: Phase 2d-revision Session 1 — rebase visual tapcard onto `modal-materials-sheet` (now exists post-Unit-0)
+- Unit 2: Phase 2d-revision Session 2 — autopop wiring + materials installed extrapolation
+- Unit 3: Documentation drift correction across STATE.md / status.md / buddy_context.md / decisions.md
+
+**Lead's queue post-Phase-2d-revision:**
+1. **MI-101 Phase 2c-form** (Restoration form) — 5 acceptance criteria, photo upload, sector dispatch, whiteboard requirement, Save Draft button (Q-7=C). Tab structure already scaffolded in `91f2af4`.
+2. **MI-401 GIS List Tab** — paper-replacement workflow. ~3 sessions. Work order on disk.
+3. **MI-404 Herald Tab** — Jeff is in the August 2025 issue (Schmitz Tank, NICET cert mention). Demo strategic. ~2 sessions. Work order on disk.
+4. **MI-402 Towns/Contractors** — smallest, ~30 min backend + optional frontend. Work order on disk.
+5. **MI-403 Field Guides Tab** — fittings reference library. ~2 sessions. Work order on disk.
+6. **MI-302 Construction PM frontend** — backend fully shipped, CP project seeded. ~4-6 sessions.
+7. **MI-110 Phase 4 Diagram editor** — highest-risk surface. ~6 sessions.
 
 **Open questions:**
-- **Q-110-a** open — Phase 4 asset type enum scope (4 default vs 9 Buddy-suggested). Not blocking near-term; Jorge's call when Phase 4 build is closer (~week of 5/11+).
-- All other Q's resolved as of tonight (Q-2, Q-7, Q-2c-c, Q-302-b, Q-302-c, Q-110-b answered Sunday; Q-2d-a/b/c answered tonight).
+- **Q-110-a** open — Phase 4 asset type enum scope. Not blocking near-term.
+- All other Q's resolved.
 
 **Jorge's clicks (residual):**
-- Verify `njaw-selector-v2` push status on GitHub branches page; if pushed → open PR + Vercel verify + squash-merge.
-- Cloudflare Pages custom domain retry for `serranogroup.org` (failed Sun ~14:00, queued post-propagation; should be ready now 48+ hours later).
+- `serranogroup.org` Cloudflare Pages custom domain retry (verified failing tonight, NXDOMAIN — DNS not wired post-propagation, retry needed)
+- `njaw-selector-v2` PR — verified pushed and Vercel-deployed; STALE re: Phase 2b refactor 3-tab → 2-tab structure. Re-port the dropdown to a fresh branch off current main rather than merge stale branch.
 
 ## Files to read at session open (in order)
 
 1. `CLAUDE.md` — locked principles
-2. `STATE.md` — slow-moving authoritative state (refreshed tonight)
+2. `STATE.md` — slow-moving authoritative state
 3. `BUDDY_STANDARD.md` — working style
-4. `.coordination/status.md` — Lead's fast-moving working snapshot (refreshed tonight)
+4. `.coordination/status.md` — Lead's fast-moving working snapshot
 5. `.coordination/buddy_context.md` (this file) — Buddy's bootstrap digest
-6. `.coordination/decisions.md` tail — recent resolved calls (full read recommended; head: 100 truncations have caused misses)
+6. `.coordination/decisions.md` (FULL READ — head: 100 truncations have caused misses; banked discipline)
 7. `.coordination/questions.md` — open Q queue
-8. `.coordination/SUNDAY_VERIFICATION_5-3-26.md` — most recent prod verification (skip after first read; reference)
-9. `.coordination/SUNDAY_SECURITY_AUDIT_5-3-26.md` — security audit + MI-AUDIT-1/2 spec
-10. `.coordination/PHASE2B_TAPCARD_FIELDS_REFERENCE.md` — Phase 2b form ground-truth field map (Buddy reference, written 5/5 evening)
+8. `.coordination/work_order_2026-05-05_phase2d_revision_v2.md` — next-session pickup work order
+9. `.coordination/SUNDAY_VERIFICATION_5-3-26.md` — most recent prod verification
+10. `.coordination/SUNDAY_SECURITY_AUDIT_5-3-26.md` — security audit + MI-AUDIT-1/2 spec
+11. Source PDFs at `/mnt/user-data/uploads/`: `Field_Data_Template.pdf` (blank tapcard) + `Tapcard__1_.pdf` (filled-in 44 Dunnell example)
 
-If conflict: STATE.md > status.md > buddy_context.md for authoritative state. CLAUDE.md > decisions.md for principles.
+If conflict: STATE.md > status.md > buddy_context.md for authoritative state. CLAUDE.md > decisions.md for principles. **For branch merge state and schema columns: live verification via git + Supabase MCP wins over any documentation.**
 
 ## Working pattern that's locked
 
 - **Code edits (>3 lines):** full-file replace, not surgical (BUDDY_STANDARD §7).
-- **Rule #9:** file-write gate. Relaxation in effect for low-risk markdown writes when batch trust granted by Jorge ("get it all done", "yup it"). Per-file gate stays in force for SQL, code, security-sensitive, irreversible. Tonight Jorge granted batch trust for the questions.md / docs writes — explicitly noted in chat.
-- **Rule #10:** `.coordination/` channel as canonical Buddy ↔ Lead handoff. Files are the message bus, not chat. Live since SG-001 Node 2 (5/2 13:15 EDT).
-- **Tagged dollar-quotes (`$TESTBODY$`)** preferred over `$$` in any SQL file Buddy edits — filesystem MCP `edit_file` mangles `$$`.
-- **Avoid `edit_file` for content with em-dashes** — Saturday 5/2 incident on decisions.md required full-file recovery via `write_file`. Default to `write_file` for Buddy markdown writes.
-- **Read full files when verifying state.** Truncated reads (head: 100, tail: 50) caused 3 sloppy Buddy mistakes on 5/5 (missed Sunday files in `.coordination/`, missed Q-7 resolution in decisions.md, missed Phase 2b actual field set when drafting Phase 2d brief). Lesson banked: read full file before drafting any output that depends on the file's content.
+- **Rule #9:** file-write gate. Relaxation in effect for low-risk markdown writes when batch trust granted by Jorge. Per-file gate stays in force for SQL, code, security-sensitive, irreversible.
+- **Rule #10:** `.coordination/` channel as canonical Buddy ↔ Lead handoff. Files are the message bus, not chat.
+- **Tagged dollar-quotes (`$TESTBODY$`)** preferred over `$$` in any SQL file Buddy edits.
+- **Avoid `edit_file` for content with em-dashes** — default to `write_file` for Buddy markdown writes.
+- **Read full files when verifying state.** No `head: 100` / `tail: 50` truncations.
+- **Long instructions → file, not chat paste.** Any work order or brief over ~200 words goes to disk via filesystem MCP. Three-sentence chat handoff: "Read .coordination/[filename] and execute. Buddy has batch trust, Q-answers locked in file. Stop conditions in file." Tonight's truncated paste failures (CC saw "ush hash" mid-word and "f spec" mid-word) prove the chat-paste failure mode is real.
 
-## Schema state surprises (banked Sunday — refresh from stale memory)
+## Schema state surprises — verified ground truth
 
-- **23 firm_id indexes** across the schema (memory had said "7 from MI-204b"). Sequential scan risk on RLS predicates: zero across owner-data tables.
-- **Construction PM backend fully shipped** — `contractor_arrival_log` (16 cols), `contractor_departure_log` (17 cols, with arrival_log_id FK linking back), `contractor_assignments` (15 cols). All RLS-locked, all firm_id indexed.
-- **Restoration backend partial** — `restoration_grid_entries` exists, RLS-locked, sector enum CHECK present (NJ6_NORMAL or NJAW_SHORT_HILLS).
-- **`legal_holds`, `destruction_notices`, `photo_rescue`, `supervisor_alerts`, `projects`** also exist + indexed + RLS-locked. Future tickets can build on them without new migrations.
-- **`phase` enum has 9 values** (not 8 — memory was stale). MI-108's `no_work` is included.
-- **Sector enum lives on `properties` (not `phase_submissions`)**. Values: `NJ6_NORMAL`, `NJAW_SHORT_HILLS`. Property-scoped, not submission-scoped.
-- **`inspections` table exists** with firm_id + RLS. Not in active v0.1 UI — older surface or higher-level abstraction over phase_submissions. Worth row-count + column-shape check next audit cycle.
+**Verified via Supabase MCP `list_tables` 2026-05-05 21:25 EDT:**
 
-## Phase 2b tapcard form ground truth (banked tonight after sloppy Phase 2d brief)
+- **`properties` (19 columns):** id, address (single string), city, municipality, state, zip, lot_block (concatenated), lat, lng, mapcall_id, company_material, customer_material, current_phase, firm_id, created_at, deleted_at, deleted_by, sector, project_id. **NO** address_number, address_street, cross_street, lot (separate), block (separate), apt_bldg, owner_name, county, town_section, development.
+- **`materials_sheets` (39 columns):** flat schema, NJAW/customer old/new size+material+amount as separate columns (NOT a service_materials_grid jsonb). Measurements stored as `*_inches` smallint. Inspector-recognizable column names: `foreman_name` (not foreman), `temperature_f` (not temp_f), `sky_condition` (enum: sunny/cloudy/rain/snow/other), `curb_box_location` (enum: city_strip/sidewalk/driveway/lawn), `service_side` (enum: long/short).
+- **`phase_submissions` (24 columns):** includes `materials_sheet_id` FK, `tapcard_data` jsonb, `njaw_work_order_code` enum (M2C/H2C/FULL/MP/TP/KILL).
+- **23 firm_id indexes** across schema (memory had said 7).
+- **Construction PM backend fully shipped:** `contractor_arrival_log`, `contractor_departure_log`, `contractor_assignments` — all RLS-locked, all firm_id indexed.
+- **Restoration backend partial:** `restoration_grid_entries` exists, RLS-locked, sector enum CHECK present.
+- **`legal_holds`, `destruction_notices`, `photo_rescue`, `supervisor_alerts`, `projects`** all exist + indexed + RLS-locked.
+- **`phase` enum has 9 values** (test_pit, assessment, work_order, service_work, gis_docs, restoration, out_of_order, tapcard, no_work).
+- **Sector enum lives on `properties`.** Values: NJ6_NORMAL, NJAW_SHORT_HILLS.
+- **`parts_catalogs` has 16 NJ6_NORMAL rows.** ShortHills catalog still empty.
+- **`inspections` table exists** (40 columns) — older surface or higher-level abstraction. Not in active v0.1 UI.
+- **`audit_log` at 1101 rows.** ~50%+ heartbeat noise per MI-AUDIT-3 finding (last_client_sync_at). Approach A trigger filter is what CC's shipping tonight.
 
-The Phase 2b tapcard form is structured around **service installation + material identification**, NOT triangulation measurements. CS depth, MP horn copper, distances etc. are NOT on the Phase 2b front — those belong to MI-110 Phase 4 (the diagram editor on the *back* of the tapcard).
+## Phase 2b tapcard form ground truth
 
-**16 effective inspector-input fields** across two pages (Company Side: 10, Customer Side: 8 with 2 readonly mirrors).
+The Phase 2b tapcard form is structured around **service installation + material identification**. CS depth, MP horn copper, distances etc. live on the materials sheet (Phase 2a backend shipped, frontend pending Unit 0 merge).
 
-Full field map at `.coordination/PHASE2B_TAPCARD_FIELDS_REFERENCE.md`. Phase 2d Visual Tapcard Preview mirrors against this list, not against the original Phase 2d brief's NJAW-vocabulary draft (which assumed CS depth / MP horn copper would be there).
+**Phase 2b inspector inputs (16 fields):** `tc-co-service_number`, `tc-co-task_numbers`, `tc-co-date`, `tc-co-tied_in`, `tc-co-plug_lock`, `tc-co-cust_mat`, `tc-co-size`, `tc-co-completed_by`, `tc-co-date_installed`, `tc-co-installed_by`, plus 6 customer-side fields (some readonly mirrors).
+
+Full field map at `.coordination/PHASE2B_TAPCARD_FIELDS_REFERENCE.md`. Phase 2d-revision v2 work order has the full materials_sheets → visual tapcard map.
 
 ## Active investigations / side tracks
 
-- **MI-AUDIT-3 (audit_log heartbeat noise)** — `last_client_sync_at` UPDATE writes are firing audit triggers, ~50%+ of current 288/24h baseline. Touches hot trigger plumbing — wants design, not a quick patch. Survey other heartbeat-not-state fields (`last_seen_at`, `client_session_id`, `device_metadata` if present) first. 3 fix approaches in decisions.md.
-- **`compliance_events` id continuity** — closed Saturday (rolled-back-tx sequence advance + `cleanup_build_test_data` self-log; not a chain breach).
+- **MI-AUDIT-3** — IN FLIGHT tonight (CC). Approach A: trigger filter for heartbeat-only UPDATEs. Whitelist starts with `last_client_sync_at`.
+- **`compliance_events` id continuity** — closed Saturday.
 - **3 reference images** for MI-100 vision parsing — Jorge to provide. Still blocked.
 - **Whiteboard sample photos** for false-positive prompt tuning — Jorge to provide. Still blocked.
 - **Isolated test tenant** for MI-109.5 manual e2e walk — gated on SG-001 Node 2/3 isolated-tenant unlock.
-- **Cloudflare Pages custom domain** for `serranogroup.org` — wiring failed Sun ~14:00, retry queued post-propagation.
+- **Cloudflare Pages custom domain** for `serranogroup.org` — confirmed NXDOMAIN tonight, DNS still not wired post-propagation. Retry needed.
 
-## Capital deployed in Serrano Group LLC (running tally; ops/expenses.csv source-of-truth)
+## Capital deployed in Serrano Group LLC
 
 - LLC formation + EIN: ~$200–370
 - MacBook Air M4 Pro: ~$1,000–1,400 (Section 179 eligible)
 - Asus laptop (primary dev): pre-existing
 - Claude Max 20x plan: $200 (5/2)
-- Cloudflare Registrar (`serranogroup.org`): $7.50 first year, $10.13/yr renewal
-- Vercel + Supabase + Mercury: $0 (free tiers)
-- NJ State Bar lawyer (5/4): ~$300 budgeted
+- Cloudflare Registrar: $7.50 first year, $10.13/yr renewal
+- NJ State Bar lawyer: ~$300 budgeted
 - USPTO trademark filings: ~$1,400 budgeted (~4 marks × $350)
 
 **Total deployed YTD: ~$1,508–2,508, largely tax-deductible.**
@@ -133,12 +140,23 @@ Full field map at `.coordination/PHASE2B_TAPCARD_FIELDS_REFERENCE.md`. Phase 2d 
 ## Calendar context
 
 - **Founded:** April 20, 2026, 4:20 PM EDT (16 days in as of 5/5 evening).
-- **Jeff demo:** Thursday 5/14 or Friday 5/15 (9–10 days out).
+- **Jeff demo:** Thursday 5/14 or Friday 5/15 (9-10 days out).
 - **Lawyer outreach:** in flight via warm intro (PI attorney → IP attorney; Wilentz Goldman Spitzer or McCarter & English / Friscia).
 
 ---
 
-**Buddy banked discipline (5/5 lessons):**
-1. Read full files (not `head: 100`) when verifying state — three misses today rooted in truncation.
-2. Read actual UI source before drafting any frontend brief — Phase 2d brief was wrong about field names because Buddy wrote from priors not source.
-3. Honest reads about who can do what — Buddy can't reach github.com / Cloudflare dashboard / Supabase MCP from chat. Some "queue items" are Jorge-actions or Lead-actions, not Buddy-actions. Don't stack them onto Buddy's plate.
+## Buddy banked discipline (lessons)
+
+1. **Read full files** when verifying state. No `head: 100` / `tail: 50` truncations on `decisions.md`, `status.md`, `STATE.md`, or any file under `.coordination/`. (5/5 mistake: missed Q-7 resolution and 3 Sunday files via truncated reads.)
+
+2. **Read actual UI source before drafting any frontend brief.** (5/5 mistake: Phase 2d brief used NJAW workflow vocabulary not Phase 2b form fields.)
+
+3. **Verify branch merge state via git/Filesystem MCP before referencing any branch as merged.** (5/5 mistake: Phase 2d-revision v1 work order assumed Phase 2a frontend was on main when it lives on an unmerged branch. CC caught.)
+
+4. **Verify schema columns via Supabase MCP `list_tables` before writing any field-to-column map.** (5/5 mistake: v1 work order referenced 8 properties columns that don't exist. CC caught + Buddy verified post-catch.)
+
+5. **Long instructions → file, not chat paste.** Work orders or briefs over ~200 words go to disk; chat handoff is three sentences. (5/5 mistake: 1,200-word CC prompts truncated mid-word — CC saw "ush hash" and "f spec".)
+
+6. **Honest reads about who can do what.** Buddy CAN reach Filesystem MCP, Supabase MCP, Vercel MCP, Cloudflare MCP, Gmail MCP, image_search, web_search, web_fetch. Buddy CANNOT directly run `git` commands or browse arbitrary URLs without prior fetch results. Some "queue items" require Lead/Jorge action — but most schema/file/deployment verification is in-reach for Buddy via the MCPs already loaded. **Use them BEFORE drafting, not after CC catches the mistake.**
+
+The pattern across all 5 lessons is the same: **verify ground truth before writing any output that depends on the truth.** Tools exist. Use them.
