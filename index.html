@@ -290,6 +290,39 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .rg-submit-btn{background:linear-gradient(135deg,var(--orange) 0%,#d18820 100%);color:#1a1a1a;border:none;font-size:13px;font-weight:700;padding:10px 18px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
 .rg-submit-btn:hover{filter:brightness(1.08)}
 .rg-submit-btn:disabled{opacity:0.5;cursor:not-allowed;filter:grayscale(0.5)}
+/* Phase 2c-form Unit 3: history view + edit + recently_paved banner */
+.rg-history-section{margin-bottom:14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);overflow:hidden}
+.rg-history-header{padding:10px 14px;background:var(--surface2);font-family:'Rajdhani',sans-serif;font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--blue-light);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.rg-history-count{color:var(--muted);font-weight:500;font-size:11px;text-transform:none;letter-spacing:0}
+.rg-history-list{max-height:280px;overflow-y:auto}
+.rg-history-empty{padding:18px 14px;color:var(--muted);font-size:12px;font-style:italic;text-align:center}
+.rg-history-row{border-bottom:1px solid var(--border);padding:0}
+.rg-history-row:last-child{border-bottom:none}
+.rg-history-summary{padding:9px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;font-size:12px;color:var(--white);transition:background 0.15s}
+.rg-history-summary:hover{background:var(--surface2)}
+.rg-history-summary-text{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rg-history-summary-text strong{color:var(--blue-light);font-weight:600;margin-right:6px}
+.rg-history-summary-meta{color:var(--muted);font-size:10px;white-space:nowrap}
+.rg-history-chev{color:var(--muted);font-size:10px;transition:transform 0.15s}
+.rg-history-row.rg-expanded .rg-history-chev{transform:rotate(90deg)}
+.rg-history-detail{display:none;padding:10px 14px 14px 14px;background:var(--surface2);border-top:1px solid var(--border);font-size:11px;color:var(--muted);line-height:1.6}
+.rg-history-row.rg-expanded .rg-history-detail{display:block}
+.rg-history-detail strong{color:var(--white);font-weight:600}
+.rg-history-detail-grid{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin-bottom:8px}
+.rg-history-detail-grid dt{color:var(--muted);font-weight:600}
+.rg-history-detail-grid dd{color:var(--white);margin:0}
+.rg-history-edit-btn{background:transparent;border:1px solid rgba(74,124,196,0.5);color:var(--blue-light);font-size:10px;font-weight:700;padding:4px 10px;border-radius:4px;cursor:pointer;font-family:'Rajdhani',sans-serif;letter-spacing:.06em;text-transform:uppercase;margin-top:4px}
+.rg-history-edit-btn:hover{background:rgba(74,124,196,0.15);border-color:var(--blue-light)}
+.rg-fieldset.rg-editing{border-color:var(--blue-light);box-shadow:0 0 0 2px rgba(74,124,196,0.18)}
+.rg-fieldset.rg-editing .rg-action-save,
+.rg-fieldset.rg-editing .rg-action-clear{display:none}
+.rg-action-update,
+.rg-action-cancel{display:none}
+.rg-fieldset.rg-editing .rg-action-update,
+.rg-fieldset.rg-editing .rg-action-cancel{display:inline-block}
+.rg-edit-banner{background:rgba(74,124,196,0.12);border:1px solid rgba(74,124,196,0.4);border-radius:5px;padding:8px 12px;font-size:11px;color:var(--blue-light);margin-bottom:10px;line-height:1.5}
+.rg-rpr-banner{display:none;margin:8px 0 0 0;padding:8px 12px;background:rgba(244,168,32,0.1);border:1px solid rgba(244,168,32,0.4);border-radius:5px;font-size:11px;color:var(--orange);line-height:1.5}
+.rg-rpr-banner.visible{display:block}
 .tc-ms-readout{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;font-size:12px}
 .tc-ms-readout > div{background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px}
 .tc-ms-readout-label{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px}
@@ -1889,6 +1922,7 @@ let currentUser = null;
 // preserves). Production-main branch starts this at false.
 let currentFirmIsDemo = true;
 let currentUserIsSuperAdmin = false; // promoted from initApp-local for role-gated UI (Phase 2b refactor: Office Fill on Tapcard)
+let currentUserRole = null; // raw role string from profiles.role; used by Phase 2c-form Unit 3 edit gate (super_admin / supervisor / author)
 let currentServiceType = null;
 let wbCurbstop = false;
 let wbWatermain = false;
@@ -2346,6 +2380,7 @@ async function initApp(user){
       currentFirmId = profile.firm_id;
       firmName = profile.firms?.name || null;
       isSuperAdmin = profile.role === 'super_admin';
+      currentUserRole = profile.role || null;
       // firm_safe_to_display TRUE = this firm is the demo tenant; drives the demo-mode banner above topnav.
       // Production firms keep firm_safe_to_display=false and never see it.
       currentFirmIsDemo = profile.firms?.firm_safe_to_display === true;
@@ -4690,6 +4725,9 @@ const RG_MATERIALS = ['asphalt', 'concrete', 'topsoil_seed', 'pavers', 'other'];
 
 let rgMaterialsSheetId = null;
 let rgSector = 'NJ6_NORMAL';
+let rgEditingEntryId = null;        // Unit 3: id of entry currently being edited (null = insert mode)
+let rgEntriesCache = [];             // Unit 3: last-loaded entries list, used by edit start to find the row
+const RG_MATERIAL_LABELS = { asphalt:'asphalt', concrete:'concrete', topsoil_seed:'topsoil + seed', pavers:'pavers', other:'other' };
 
 async function rgInit(){
   const propertyId = currentPropertyDetailId;
@@ -4747,6 +4785,11 @@ function rgRenderForm(sheet){
   const sheetMeta = sheet.sheet_date || (sheet.created_at ? new Date(sheet.created_at).toLocaleDateString() : '—');
   const foreman = sheet.foreman_name || sheet.contractor_name || 'unsigned';
   let html = `<div class="rg-meta">Linked to active Materials Sheet · ${sheetMeta} · ${foreman}</div>`;
+  // Unit 3: history section above fieldsets (populated by rgRefreshHistory)
+  html += `<div class="rg-history-section" id="rg-history-section">
+    <div class="rg-history-header">Previous Entries <span class="rg-history-count" id="rg-history-count">loading…</span></div>
+    <div class="rg-history-list" id="rg-history-list"></div>
+  </div>`;
   RG_TYPES.forEach(t => {
     html += `
       <fieldset class="rg-fieldset" id="rg-fs-${t.key}">
@@ -4767,14 +4810,19 @@ function rgRenderForm(sheet){
             <input class="rg-input" type="text" id="rg-${t.key}-notes" placeholder="Optional"></div>
         </div>
         <div class="rg-toggles">
-          <label class="rg-toggle"><input type="checkbox" id="rg-${t.key}-rpr"> Recently paved road</label>
+          <label class="rg-toggle"><input type="checkbox" id="rg-${t.key}-rpr" onchange="rgRprToggle('${t.key}')"> Recently paved road</label>
           <label class="rg-toggle"><input type="checkbox" id="rg-${t.key}-b8"> 8&#8243; base by company</label>
           <label class="rg-toggle"><input type="checkbox" id="rg-${t.key}-sc"> Saw cut by company</label>
           <label class="rg-toggle"><input type="checkbox" id="rg-${t.key}-cu"> Concrete under paving</label>
         </div>
+        <div class="rg-rpr-banner" id="rg-rpr-banner-${t.key}">
+          <strong>Recently paved road —</strong> municipality may require extended saw cut + thicker base coat. Confirm spec with town engineer before submit.
+        </div>
         <div class="rg-actions">
-          <button type="button" class="btn-sm btn-orange" onclick="rgSaveDraft('${t.key}')">Save Draft</button>
-          <button type="button" class="rg-btn-ghost" onclick="rgClearFieldset('${t.key}')">Clear</button>
+          <button type="button" class="btn-sm btn-orange rg-action-save" onclick="rgSaveDraft('${t.key}')">Save Draft</button>
+          <button type="button" class="rg-btn-ghost rg-action-clear" onclick="rgClearFieldset('${t.key}')">Clear</button>
+          <button type="button" class="btn-sm btn-orange rg-action-update" onclick="rgUpdateEntry()">Update Entry</button>
+          <button type="button" class="rg-btn-ghost rg-action-cancel" onclick="rgCancelEdit()">Cancel</button>
           <span class="rg-status" id="rg-status-${t.key}"></span>
         </div>
       </fieldset>
@@ -4790,6 +4838,8 @@ function rgRenderForm(sheet){
   container.innerHTML = html;
   // Kick off async entry-count refresh now that elements exist
   rgRefreshEntryCount().catch(err => console.warn('rgRefreshEntryCount error:', err));
+  // Unit 3: load history list
+  rgRefreshHistory().catch(err => console.warn('rgRefreshHistory error:', err));
 }
 
 async function rgRefreshEntryCount(){
@@ -4926,7 +4976,216 @@ async function rgSaveDraft(type){
   showToast(`${type.replace(/_/g,' ')} entry saved`, 'success');
   // Refresh entry count + re-enable Submit button if this was the first save
   rgRefreshEntryCount().catch(err => console.warn('rgRefreshEntryCount error:', err));
+  // Unit 3: refresh history list so the new entry shows up immediately
+  rgRefreshHistory().catch(err => console.warn('rgRefreshHistory error:', err));
   // Don't auto-clear — inspector may want to add a follow-up entry with similar values
+}
+
+// ── PHASE 2C-FORM UNIT 3 ─ HISTORY VIEW + EDIT GATE ───────────────────────
+
+// Toggle the "recently paved road" advisory banner inside a fieldset based on
+// whether the matching checkbox is checked. Banner content explains the
+// municipality spec implications (extended saw cut + thicker base coat).
+function rgRprToggle(type){
+  const cb = document.getElementById(`rg-${type}-rpr`);
+  const banner = document.getElementById(`rg-rpr-banner-${type}`);
+  if(!banner) return;
+  banner.classList.toggle('visible', !!cb?.checked);
+}
+
+// Permission gate for editing an existing entry. Allowed if:
+//   - current user is super_admin (full god mode), OR
+//   - current user is supervisor (firm-scoped supervisor role), OR
+//   - current user authored the entry (submitted_by === currentUser.id)
+// RLS independently enforces firm scope; this gate is UI-level only.
+function rgCanEdit(entry){
+  if(!entry) return false;
+  if(currentUserIsSuperAdmin) return true;
+  if(currentUserRole === 'supervisor') return true;
+  if(currentUser && entry.submitted_by === currentUser.id) return true;
+  return false;
+}
+
+async function rgRefreshHistory(){
+  const list = document.getElementById('rg-history-list');
+  const countEl = document.getElementById('rg-history-count');
+  if(!list || !rgMaterialsSheetId) return;
+  try {
+    const { data: rows, error } = await sb
+      .from('restoration_grid_entries')
+      .select('id, restoration_type, dimension, material, quantity, entry_notes, recently_paved_road, base_8inch_by_company, saw_cut_by_company, concrete_under_paving, sector, submitted_by, created_at')
+      .eq('materials_sheet_id', rgMaterialsSheetId)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false });
+    if(error) throw error;
+    rgEntriesCache = rows || [];
+    rgRenderHistory(rgEntriesCache);
+    if(countEl) countEl.textContent = `(${rgEntriesCache.length})`;
+  } catch(err){
+    console.error('rgRefreshHistory error:', err);
+    if(countEl) countEl.textContent = '(error)';
+    list.innerHTML = '<div class="rg-history-empty">Could not load history</div>';
+  }
+}
+
+function rgRenderHistory(entries){
+  const list = document.getElementById('rg-history-list');
+  if(!list) return;
+  if(!entries || entries.length === 0){
+    list.innerHTML = '<div class="rg-history-empty">No previous entries on this materials sheet yet</div>';
+    return;
+  }
+  const escapeHtml = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  let html = '';
+  entries.forEach(e => {
+    const typeLabel = (RG_TYPES.find(t => t.key === e.restoration_type)?.label) || e.restoration_type || 'Entry';
+    const matLabel = e.material ? (RG_MATERIAL_LABELS[e.material] || e.material) : '—';
+    const dim = e.dimension || '—';
+    const qty = (e.quantity != null) ? e.quantity : '—';
+    const dt = e.created_at ? new Date(e.created_at).toLocaleString() : '';
+    const canEdit = rgCanEdit(e);
+    const flags = [];
+    if(e.recently_paved_road) flags.push('recently paved');
+    if(e.base_8inch_by_company) flags.push("8″ base by company");
+    if(e.saw_cut_by_company) flags.push('saw cut by company');
+    if(e.concrete_under_paving) flags.push('concrete under paving');
+    html += `
+      <div class="rg-history-row" id="rg-hist-${escapeHtml(e.id)}">
+        <div class="rg-history-summary" onclick="rgToggleEntryExpand('${escapeHtml(e.id)}')">
+          <div class="rg-history-summary-text">
+            <strong>${escapeHtml(typeLabel)}</strong>${escapeHtml(dim)} · ${escapeHtml(matLabel)}${qty !== '—' ? ' · qty ' + escapeHtml(qty) : ''}
+          </div>
+          <div class="rg-history-summary-meta">${escapeHtml(dt)}</div>
+          <div class="rg-history-chev">▶</div>
+        </div>
+        <div class="rg-history-detail">
+          <dl class="rg-history-detail-grid">
+            <dt>Dimension</dt><dd>${escapeHtml(dim)}</dd>
+            <dt>Material</dt><dd>${escapeHtml(matLabel)}</dd>
+            <dt>Quantity</dt><dd>${qty !== '—' ? escapeHtml(qty) : '—'}</dd>
+            <dt>Sector</dt><dd>${escapeHtml(e.sector || '—')}</dd>
+            <dt>Notes</dt><dd>${escapeHtml(e.entry_notes || '—')}</dd>
+            <dt>Flags</dt><dd>${flags.length ? escapeHtml(flags.join(', ')) : '—'}</dd>
+          </dl>
+          ${canEdit
+            ? `<button type="button" class="rg-history-edit-btn" onclick="rgStartEdit('${escapeHtml(e.id)}')">Edit Entry</button>`
+            : '<span style="font-size:10px;color:var(--muted);font-style:italic">Edit reserved for super_admin, supervisor, or original author</span>'}
+        </div>
+      </div>
+    `;
+  });
+  list.innerHTML = html;
+}
+
+function rgToggleEntryExpand(entryId){
+  const row = document.getElementById(`rg-hist-${entryId}`);
+  if(row) row.classList.toggle('rg-expanded');
+}
+
+function rgStartEdit(entryId){
+  if(pitchModeBlocked('edit entry')) return;
+  const entry = rgEntriesCache.find(e => e.id === entryId);
+  if(!entry){ showToast('Entry not found in cache, refresh and try again', 'error'); return; }
+  if(!rgCanEdit(entry)){ showToast('You don\'t have permission to edit this entry', 'error'); return; }
+
+  rgEditingEntryId = entryId;
+  const targetType = entry.restoration_type;
+
+  // Show only the matching fieldset, hide others; mark as editing
+  RG_TYPES.forEach(t => {
+    const fs = document.getElementById(`rg-fs-${t.key}`);
+    if(!fs) return;
+    if(t.key === targetType){
+      fs.style.display = '';
+      fs.classList.add('rg-editing');
+      // Prefill
+      const set = (id, val) => { const el = document.getElementById(id); if(el && val != null) el.value = val; };
+      set(`rg-${t.key}-dimension`, entry.dimension);
+      set(`rg-${t.key}-material`, entry.material);
+      set(`rg-${t.key}-quantity`, entry.quantity);
+      set(`rg-${t.key}-notes`, entry.entry_notes);
+      const cb = (id, v) => { const el = document.getElementById(id); if(el) el.checked = !!v; };
+      cb(`rg-${t.key}-rpr`, entry.recently_paved_road);
+      cb(`rg-${t.key}-b8`, entry.base_8inch_by_company);
+      cb(`rg-${t.key}-sc`, entry.saw_cut_by_company);
+      cb(`rg-${t.key}-cu`, entry.concrete_under_paving);
+      rgRprToggle(t.key); // sync banner with the now-checked state
+      rgSetStatus(t.key, `Editing entry from ${entry.created_at ? new Date(entry.created_at).toLocaleString() : ''}`, 'warn');
+      // Inject an edit-mode banner at the top of the fieldset (idempotent)
+      let editBanner = fs.querySelector('.rg-edit-banner');
+      if(!editBanner){
+        editBanner = document.createElement('div');
+        editBanner.className = 'rg-edit-banner';
+        editBanner.innerHTML = `<strong>Edit mode</strong> — changes save as an update to this entry, not a new row. Cancel to exit without saving.`;
+        fs.insertBefore(editBanner, fs.querySelector('.rg-row'));
+      }
+    } else {
+      fs.style.display = 'none';
+    }
+  });
+  // Hide history + footer during edit so focus is on the form
+  const hist = document.getElementById('rg-history-section');
+  if(hist) hist.style.display = 'none';
+  const footer = document.querySelector('.rg-footer');
+  if(footer) footer.style.display = 'none';
+  // Scroll the editing fieldset into view
+  const targetFs = document.getElementById(`rg-fs-${targetType}`);
+  if(targetFs) setTimeout(() => targetFs.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+}
+
+function rgCancelEdit(){
+  rgEditingEntryId = null;
+  RG_TYPES.forEach(t => {
+    const fs = document.getElementById(`rg-fs-${t.key}`);
+    if(!fs) return;
+    fs.style.display = '';
+    fs.classList.remove('rg-editing');
+    const editBanner = fs.querySelector('.rg-edit-banner');
+    if(editBanner) editBanner.remove();
+    rgClearFieldset(t.key);
+    rgRprToggle(t.key);
+  });
+  const hist = document.getElementById('rg-history-section');
+  if(hist) hist.style.display = '';
+  const footer = document.querySelector('.rg-footer');
+  if(footer) footer.style.display = '';
+}
+
+async function rgUpdateEntry(){
+  if(pitchModeBlocked('restoration update')) return;
+  if(!rgEditingEntryId){ showToast('Not in edit mode', 'error'); return; }
+  const entry = rgEntriesCache.find(e => e.id === rgEditingEntryId);
+  if(!entry){ showToast('Entry context lost, refresh and try again', 'error'); rgCancelEdit(); return; }
+  if(!rgCanEdit(entry)){ showToast('You don\'t have permission to update this entry', 'error'); return; }
+
+  const type = entry.restoration_type;
+  const text = id => { const el = document.getElementById(id); const v = el?.value; return (v == null || v === '') ? null : String(v).trim() || null; };
+  const num  = id => { const el = document.getElementById(id); const v = el?.value; if(v == null || v === '') return null; const n = Number(v); return Number.isFinite(n) ? n : null; };
+  const bool = id => !!document.getElementById(id)?.checked;
+
+  const patch = {
+    dimension: text(`rg-${type}-dimension`),
+    material: text(`rg-${type}-material`),
+    quantity: num(`rg-${type}-quantity`),
+    entry_notes: text(`rg-${type}-notes`),
+    recently_paved_road: bool(`rg-${type}-rpr`),
+    base_8inch_by_company: bool(`rg-${type}-b8`),
+    saw_cut_by_company: bool(`rg-${type}-sc`),
+    concrete_under_paving: bool(`rg-${type}-cu`)
+  };
+
+  rgSetStatus(type, 'Updating…');
+  const { error } = await sb.from('restoration_grid_entries').update(patch).eq('id', rgEditingEntryId);
+  if(error){
+    console.error('rgUpdateEntry error:', error);
+    rgSetStatus(type, 'Update failed: ' + (error.message || 'unknown'), 'err');
+    showToast('Update failed: ' + (error.message || 'unknown'), 'error');
+    return;
+  }
+  showToast(`${type.replace(/_/g,' ')} entry updated`, 'success');
+  rgCancelEdit();
+  rgRefreshHistory().catch(err => console.warn('rgRefreshHistory error:', err));
+  rgRefreshEntryCount().catch(err => console.warn('rgRefreshEntryCount error:', err));
 }
 
 // ── PHASE 2D-REVISION — VISUAL TAPCARD PREVIEW (paper-true NJAW Service Line Renewal Company Side) ─
