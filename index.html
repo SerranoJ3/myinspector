@@ -2142,6 +2142,12 @@ let currentUser = null;
 // driven by `.demo-banner.visible` class which initApp / applyDemoBannerVisibility
 // preserves). Production-main branch starts this at false.
 let currentFirmIsDemo = true;
+// MI-DEMO-UI v3: canonical "redact firm identity in UI" gate. firm_safe_to_display=true
+// means the firm's name is safe to surface in chrome. Default false so any pre-login
+// render shows '—' instead of leaking a name. Currently held in lockstep with
+// currentFirmIsDemo (same DB column); the two will diverge if the demo banner ever
+// needs its own gate.
+let currentFirmSafeToDisplay = false;
 let currentUserIsSuperAdmin = false; // promoted from initApp-local for role-gated UI (Phase 2b refactor: Office Fill on Tapcard)
 let currentUserRole = null; // raw role string from profiles.role; used by Phase 2c-form Unit 3 edit gate (super_admin / supervisor / author)
 let currentServiceType = null;
@@ -2482,7 +2488,10 @@ async function signup(){
     await sb.auth.signOut();
   }
 
-  showToast('Account created! Welcome to '+firm.firm_name+'. Check your email to confirm.','success');
+  // MI-DEMO-UI v3: generic toast at signup — firm_safe_to_display flag isn't fetchable
+  // here (lookup_firm_by_code RPC doesn't return it; anon access to firms was dropped
+  // in MI-203 step 3). Default-redact to avoid leaking a firm name to onlookers.
+  showToast('Account created! Check your email to confirm and sign in.','success');
   showLogin();
 }
 
@@ -2490,6 +2499,7 @@ async function logout(){
   await sb.auth.signOut();
   currentUser = null;
   currentFirmIsDemo = false; // reset banner state on logout so a re-login as a different firm rerenders correctly
+  currentFirmSafeToDisplay = false; // MI-DEMO-UI v3: reset display gate on logout so pre-login chrome stays redacted
   applyDemoBannerVisibility();
   document.getElementById('app').style.display='none';
   document.getElementById('auth-screen').style.display='flex';
@@ -2605,6 +2615,7 @@ async function initApp(user){
       // firm_safe_to_display TRUE = this firm is the demo tenant; drives the demo-mode banner above topnav.
       // Production firms keep firm_safe_to_display=false and never see it.
       currentFirmIsDemo = profile.firms?.firm_safe_to_display === true;
+      currentFirmSafeToDisplay = profile.firms?.firm_safe_to_display === true; // MI-DEMO-UI v3: gates firm name in user-role + signup toast
       currentUserIsSuperAdmin = isSuperAdmin; // global mirror for role-gated UI (Tapcard Office Fill, etc.)
     }
   } catch(e) {
@@ -2620,14 +2631,19 @@ async function initApp(user){
   document.getElementById('sidebar-avatar').textContent = initials;
   document.getElementById('sidebar-name').textContent = name;
 
-  // Sidebar role line: real firm name OR super_admin badge
+  // Sidebar role line: super_admin badge, OR firm name only when firm_safe_to_display=true
+  // (MI-DEMO-UI v3 — canonical redact-firm-identity gate. New customer onboards →
+  // flip firms.firm_safe_to_display = true on their row → name surfaces here.)
   const roleEl = document.querySelector('.user-role');
   if(roleEl){
     if(isSuperAdmin){
       roleEl.innerHTML = '⚡ SUPER ADMIN — All Firms';
       roleEl.style.color = 'var(--orange)';
-    } else if(firmName){
+    } else if(firmName && currentFirmSafeToDisplay){
       roleEl.textContent = firmName;
+      roleEl.style.color = '';
+    } else {
+      roleEl.textContent = '—';
       roleEl.style.color = '';
     }
   }
