@@ -530,3 +530,109 @@ Buddy lean: **B** is cleanest long-term (clean audit chain, isolated heartbeat d
 **Affects:** Luis is now demo-ready for Jeff (5/14-5/15). Multi-turn + context grounds the chat in NJAW field workflow + property-specific data. RLS fix means demo conversations actually persist for post-demo audit. Lesson 7 applies forward to all future RLS-protected client INSERTs (immediate audit candidates: any other client INSERT in `index.html` against tables with `firm_id`-scoped WITH CHECK policies — not yet swept).
 
 **Source:** Buddy autonomous build after MI-110 acceptance #6; surgical edit ~30 min after diagram embed ship. Lead committed + pushed as part of Thu 5/7 triple-ship `be48774`.
+
+---
+
+## 2026-05-07 ~01:35 EDT — Phase 2c-form Unit 1: Restoration form scaffold + Save Draft + sector dispatch
+
+**Decision:** MI-101 Phase 2c-form Unit 1 shipped as commit `d871f73` on `demo-banner` via Buddy direct Filesystem MCP edits to `index.html` (+200/-3 = net +197 lines). Three surgical edits: CSS additions (~24 new rules for `.rg-*` classes), HTML replace of the `pd-page-restoration` placeholder div with a ShortHills banner (hidden default) + dynamic `<div id="rg-form-container">`, and a JS module (~190 lines) wiring `rgInit` / `rgRenderEmpty` / `rgRenderForm` / `rgClearFieldset` / `rgSetStatus` / `rgSaveDraft` plus `pdSwitchTab` lazy-init hook on `tab='restoration'`. Sync note at `.coordination/buddy_phase2c_unit1_2026-05-07.md`.
+
+**Schema deviation caught + resolved (Lesson 4 applied):** Work order spec said "Photo upload zone per fieldset — supports multiple photos per restoration type" as part of Unit 1. **`restoration_grid_entries` has no photo URL columns** (verified via Supabase MCP — 17 cols, none are photos). Photos for restoration phase live on `phase_submissions.photo_restoration_url` + `photo_restoration_whiteboard` — they are submission-level, not row-level. Punted photo upload to Unit 2 where it ties properly to phase_submissions on Submit Phase. Schema wins over spec.
+
+**Form mechanics:** 3 fieldsets (City Strip / Street / Sidewalk), each with dimension / material (5-option select: asphalt / concrete / topsoil_seed / pavers / other) / quantity / notes / 4 CDM-Smith toggles per fieldset (recently_paved_road, base_8inch_by_company, saw_cut_by_company, concrete_under_paving). Save Draft button per fieldset INSERTs one row to `restoration_grid_entries` with `materials_sheet_id`, `sector`, `firm_id` (Lesson 7 applied), `submitted_by` populated. Empty-row check before insert. Multiple entries per restoration_type allowed (Q-2c-d=YES) — pure INSERT, no UPSERT.
+
+**Sector dispatch:** rgInit fetches `properties.sector` for the open property; if `NJAW_SHORT_HILLS`, the role-inversion banner shows above the form ("Inspector dictates dimensions and material spec — confirm with contractor before submit"). NJ6_NORMAL hides it.
+
+**Empty state:** if the property has no active materials_sheet, the form is replaced with explanatory copy directing the inspector to open the Materials Sheet from the Overview tab first.
+
+**Acceptance status (Unit 1 close):** 4 of 8 met — #1 form renders, #4 ShortHills banner, #6 multiple entries append, plus partial #2 Save Draft. Remaining 4 split into Unit 2 (photos + Submit Phase + whiteboard validation) and Unit 3 (history + edit + RPR banner).
+
+**Source:** Buddy autonomous build per Lesson 6 (work order locked + schema verified + repo write access). Lead committed + pushed.
+
+**Affects:** Phase 2c-form pickup unblocked. Closes the Phase 2c lean-scaffold gap that's been on the queue since 5/5. Demo-critical — Restoration phase is one of the 3 inspector-visible flows for the Jeff demo.
+
+---
+
+## 2026-05-07 ~02:00 EDT — Phase 2c-form Unit 2: Submit Restoration Phase handoff + live entry count
+
+**Decision:** MI-101 Phase 2c-form Unit 2 shipped as commit `3a1a9bf` on `demo-banner` via Buddy direct Filesystem MCP edits to `index.html` (+94 net lines). Three surgical edits: CSS additions (~9 rules for `.rg-footer`/`.rg-entry-count`/`.rg-submit-btn`), `rgRenderForm` extended to append a footer with live entry count + Submit button, plus two new functions `rgRefreshEntryCount` and `rgGoToSubmitPhase`. `rgSaveDraft` success path now calls `rgRefreshEntryCount` so the count + Submit-button-enabled state update immediately after each Save. Sync note at `.coordination/buddy_phase2c_unit2_2026-05-07.md`.
+
+**Strategic call — route to existing Submit Phase flow over rebuilding inline:** The dashboard Submit Phase modal already handles photo capture (`renderPhotoSlot`), whiteboard detection (`detect-whiteboard` Edge Function), CS replacement gate, audit chain, and PhotoQueue background sync. Mirroring this inline on the Restoration tab would have required either (a) mutating `#submit-property-select` from outside its panel (state contamination risk), (b) refactoring `handlePhotoCapture` to accept an explicit propertyId (touches a battle-tested function used by 8+ photo slots), or (c) building a parallel photo-capture pipeline (duplicate code + duplicate Storage path conventions + duplicate PhotoQueue wiring). Routing to the existing flow avoids all three. Trade-off: inspector clicks one extra button and the Property Detail modal closes during the handoff. Net win: zero new bug surface for the photo + whiteboard + audit + PhotoQueue paths.
+
+**`rgGoToSubmitPhase` mechanics:** Validates ≥1 grid entry exists for the active materials_sheet (defense in depth — button is also disabled when 0). Captures property context, closes Property Detail modal, calls `showPanel('submit')`, pre-fills `#submit-property-select` (hidden) + `#submit-property-search` (visible) with the current property, then programmatically calls `selectServiceType(tile, 'restoration')` so the dynamic photo slot + form fields render. Inspector continues with the standard Submit Phase flow.
+
+**Acceptance status (Unit 2 close):** 7 of 8 met. Adds #2 (Submit Phase handoff), #3 (whiteboard validation + current_phase advance — inherited from existing `submitPhase` flow), #7 (whiteboard validation blocks submit — inherited via `wbRequiredLabels` array which already includes 'restoration'). Remaining: #5 (recently_paved_road inline banner — Unit 3 cosmetic) + #8 (history view + role-gated edit — Unit 3).
+
+**Source:** Buddy autonomous build per Lesson 6. Lead committed + pushed.
+
+---
+
+## 2026-05-07 ~02:25 EDT — MI-DEMO-UI v2: pitch mode write suppression toggle (no separate spec doc)
+
+**Decision:** MI-DEMO-UI v2 shipped as commit `58d41be` on `demo-banner` per the seed spec §22 cross-reference ("Pitch-day write-suppression toggle, if any, is MI-DEMO-UI v2"). ~75 lines added to `index.html` across 11 surgical edits. Per Lesson 6 (BUILD don't spec when brief is locked + repo write access exists), built directly off the seed spec's §22 cross-reference rather than authoring a separate MI-DEMO-UI v2 spec doc. Sync note at `.coordination/buddy_demo_ui_v2_2026-05-07.md`.
+
+**Mechanism:**
+1. **Banner toggle button** added to `<div class="demo-banner">` next to existing copy. Reads "Pitch mode: OFF" / "Pitch mode: ON".
+2. **localStorage persistence** — key `mi_pitch_mode` = `'on'` | `'off'`. Survives reload + re-login.
+3. **Visual state shift** when ON: banner gradient shifts from amber to red-amber, tag pill turns red (#c84a4a), copy updates to "Pitch mode active — all writes suppressed."
+4. **`body.pitch-mode-active` class** when active + on demo firm. Available for future CSS hooks.
+5. **Scope guard** — `currentFirmIsDemo` checked in both `togglePitchMode()` AND `pitchModeBlocked()`. Real firm sessions are unaffected even if the localStorage key gets stuck `'on'`.
+
+**Write paths guarded (8 entry points):** `saveProperty`, `submitNoWorkPhase`, `submitPhase`, `confirmBulkImport`, `saveMaterialsSheet`, `confirmSectorEdit`, `submitTapcard`, `rgSaveDraft`. Each gets a one-line `if(pitchModeBlocked('label')) return;` at the top of the function. Toast on block: `"Pitch mode is ON — {label} suppressed. Toggle off in the demo banner to resume."` The CS authorization RPC inside `submitPhase` is implicitly guarded by `submitPhase`'s guard.
+
+**Q-pitch ratifications (no separate spec doc — locked inline during build):**
+- **Q-pitch-a — toggle UX:** button in the banner itself, not a separate settings page. Banner-as-control is the most discoverable surface during a live demo.
+- **Q-pitch-b — persistence:** localStorage (not server-side flag). Pitch mode is operator-facing demo-prep state, not user data; per-device makes sense.
+- **Q-pitch-c — scope:** demo firm only, hard-coded check on `currentFirmIsDemo`. Pitch mode on a real firm session = nonsensical.
+- **Q-pitch-d — visual disable:** body class added, no CSS dimming yet. Logical block + toast is the v2 baseline. Visual dim can layer on later if Jorge wants stronger signal.
+- **Q-pitch-e — write surface coverage:** 8 paths cover the demo-visible writes. New paths added in future tickets carry the burden of adding their own guard. Documented in sync note for downstream awareness.
+
+**Carry-forward (out of scope for v2):**
+- Visual disable of buttons (CSS dimming via `body.pitch-mode-active`)
+- Holistic supabase write interception (monkey-patch `sb.from()` to cover all `.insert`/`.update`/`.upsert`/`.delete` paths automatically) — drift risk closure
+- Override path for super_admin — intentionally NOT added; pitch mode is hard block for everyone, Jorge toggles OFF to unblock
+- Auto-on schedule (calendar-event-driven activation)
+- Tab-sync (localStorage events not wired)
+
+**Affects:** Demo-tenant sessions can now be locked into read-only state during a live prospect call (Jeff demo 5/14-5/15). Inspector reads (browse properties, view tapcards, inspect history) are unaffected. The MI-DEMO-DEPLOY companion spec is the next pitch-day-relevant work; this closes the UI side.
+
+**Source:** Buddy autonomous build per Lesson 6 — seed spec §22 cross-reference was the locked authority. Lead committed + pushed + merged forward to `mi-demo-seed`.
+
+---
+
+## 2026-05-07 ~02:55 EDT — Phase 2c-form Unit 3: history view + role-gated edit + recently_paved banner — Phase 2c-form 8/8 closed
+
+**Decision:** MI-101 Phase 2c-form Unit 3 shipped as commit `9a94510` on `demo-banner` via Buddy direct Filesystem MCP edits to `index.html` (+262/-3 lines). Closes acceptance #5 (recently_paved_road dynamic banner) + #8 (history view + role-gated edit). **Phase 2c-form 8/8 acceptance criteria CLOSED.** Sync note at `.coordination/buddy_phase2c_unit3_2026-05-07.md`.
+
+**File diff (5 surgical edits):**
+1. **Globals (+2 lines):** `currentUserRole` global declared near `currentUserIsSuperAdmin`, captured in `initApp` from `profile.role` (the existing `isSuperAdmin` boolean lost the raw role string).
+2. **CSS (~33 new rules):** `.rg-history-section/header/list/empty/row/summary/detail/edit-btn`, `.rg-fieldset.rg-editing` styling, `.rg-action-update/-cancel` toggle visibility, `.rg-edit-banner`, `.rg-rpr-banner` (default hidden + `.visible` variant).
+3. **`rgRenderForm` extended:** history section HTML before the 3 fieldsets; per-fieldset rpr-banner div + onchange wiring on the recently_paved_road checkbox; per-fieldset Update Entry + Cancel buttons (hidden until `.rg-editing` class on parent fieldset). Plus `rgRefreshHistory()` call after render.
+4. **`rgSaveDraft` success path:** added `rgRefreshHistory()` call so newly-saved rows appear in the history list immediately.
+5. **JS module additions (~190 lines):** `rgRprToggle`, `rgCanEdit`, `rgRefreshHistory`, `rgRenderHistory`, `rgToggleEntryExpand`, `rgStartEdit`, `rgCancelEdit`, `rgUpdateEntry`. Plus `RG_MATERIAL_LABELS` constant + `rgEditingEntryId` and `rgEntriesCache` globals.
+
+**Q-rg-edit-gate ratification:** Edit allowed at UI level if any of (a) `currentUserIsSuperAdmin === true` (god mode), (b) `currentUserRole === 'supervisor'` (firm-scoped supervisor), (c) `entry.submitted_by === currentUser.id` (original author). Non-allowed users see *"Edit reserved for super_admin, supervisor, or original author"* in the expanded detail panel instead of the Edit Entry button.
+
+**Q-rg-edit-rls-tightening:** Deferred. RLS policy on `restoration_grid_entries` still allows any same-firm user to UPDATE any entry (firm-scoped only, no author/role gate at SQL level). Tightening RLS to enforce author/role at UPDATE is a follow-up ticket — not blocking v1 demo. UI gate is sufficient for inspector-grade rolesplay; RLS layer is a defense-in-depth addition.
+
+**Q-rg-rpr-copy:** Locked banner text for the recently_paved_road advisory: `"Recently paved road — municipality may require extended saw cut + thicker base coat. Confirm spec with town engineer before submit."` Banner appears inline within the fieldset whose checkbox flipped ON; hides on uncheck.
+
+**Edit mode UX:** When Edit Entry clicked, the matching restoration_type fieldset gets a blue border + "Edit mode" inline banner, pre-fills with row data, swaps Save Draft → Update Entry + Cancel buttons. Other 2 fieldsets hide. Footer + history section also hide for focus. Status text shows "Editing entry from [datetime]". Cancel restores all 3 fieldsets cleanly. Update Entry runs `sb.from('restoration_grid_entries').update(patch).eq('id', rgEditingEntryId)` and refreshes history + entry count.
+
+**Pitch mode integration:** Both new write paths (`rgStartEdit`, `rgUpdateEntry`) inherit MI-DEMO-UI v2 pitch-mode guards via `pitchModeBlocked('edit entry')` / `pitchModeBlocked('restoration update')`. Discipline locked: every write-bearing entry point checks the pitch toggle.
+
+**Final acceptance (Phase 2c-form 8/8):**
+| # | Criterion | Status |
+|---|---|---|
+| 1 | Form renders | ✅ Unit 1 |
+| 2 | Save Draft + Submit Phase advance | ✅ Unit 1+2 |
+| 3 | Submit Phase whiteboard validation + current_phase advance | ✅ Unit 2 (inherited) |
+| 4 | ShortHills role-inversion banner | ✅ Unit 1 |
+| 5 | recently_paved_road dynamic banner | ✅ **Unit 3** |
+| 6 | Multiple entries per type | ✅ Unit 1 |
+| 7 | Whiteboard validation blocks submit | ✅ Unit 2 (inherited) |
+| 8 | Edit existing entry, role-gated | ✅ **Unit 3** |
+
+**Source:** Buddy autonomous build per Lesson 6. Lead committed + pushed + merged forward to `mi-demo-seed`.
+
+**Affects:** Phase 2c-form (Restoration phase) closed end-to-end on `demo-banner`. With MI-DEMO-UI v2 pitch mode also closed tonight, the demo critical path for Jeff (5/14-5/15) is essentially down to click-test pass on Vercel preview + polish. Buffer is healthy — 7-8 days runway.
