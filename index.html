@@ -915,6 +915,9 @@ html,body{overflow-x:hidden}
       <div class="nav-link" id="nav-properties" onclick="showPanel('properties')">
         <span class="nav-icon">🏠</span> Properties
       </div>
+      <div class="nav-link" id="nav-gis-lists" onclick="showPanel('gis-lists')">
+        <span class="nav-icon">🗺️</span> GIS Lists
+      </div>
       <div class="nav-link" id="nav-submit" onclick="showPanel('submit')">
         <span class="nav-icon">📋</span> Submit Phase
       </div>
@@ -1003,6 +1006,44 @@ html,body{overflow-x:hidden}
           </div>
           <div id="properties-list">
             <div class="loading"><div class="spinner"></div><br>Loading properties...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GIS LISTS PANEL -->
+      <div class="panel" id="panel-gis-lists">
+        <div class="page-header">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+            <div>
+              <div class="page-title">GIS Lists</div>
+              <div class="page-sub">Address checklist — tap to advance status</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <select class="modal-select" id="gis-list-selector" style="width:240px;min-width:240px" onchange="loadGisListEntries(this.value)">
+                <option value="">Loading lists...</option>
+              </select>
+              <button class="btn-sm btn-orange" id="gis-new-list-btn" onclick="openNewGisList()" style="display:none">+ New List</button>
+              <button class="btn-sm btn-orange" id="gis-import-btn" onclick="openGisImport()" style="display:none">⬆ Import</button>
+            </div>
+          </div>
+        </div>
+        <div class="search-wrap">
+          <span class="search-icon">&#128269;</span>
+          <input class="search-input" type="text" id="gis-entry-search" placeholder="Search address or notes..." oninput="filterGisEntries(this.value)">
+        </div>
+        <div id="gis-filter-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+          <button class="btn-sm btn-orange" data-status="all" onclick="setGisFilter('all')">All</button>
+          <button class="btn-sm btn-ghost" data-status="to_do" onclick="setGisFilter('to_do')">To-Do</button>
+          <button class="btn-sm btn-ghost" data-status="in_progress" onclick="setGisFilter('in_progress')">In-Progress</button>
+          <button class="btn-sm btn-ghost" data-status="complete" onclick="setGisFilter('complete')">Complete</button>
+        </div>
+        <div class="table-wrap">
+          <div class="table-header">
+            <div class="table-title" id="gis-list-title">Entries</div>
+            <div class="page-sub" id="gis-list-stats" style="font-size:12px"></div>
+          </div>
+          <div id="gis-entries-list">
+            <div class="loading"><div class="spinner"></div><br>Loading entries...</div>
           </div>
         </div>
       </div>
@@ -1281,6 +1322,62 @@ html,body{overflow-x:hidden}
       <div class="modal-actions">
         <button class="btn-sm btn-orange" onclick="closeBulkImportAndReload()">Done</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- NEW GIS LIST MODAL (MI-401) -->
+<div class="modal-overlay" id="modal-new-gis-list">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">New GIS List</div>
+        <div class="modal-sub">Create an empty list. Add entries via Import or paste-CSV after.</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-new-gis-list')">✕</button>
+    </div>
+    <div style="padding:16px 20px">
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">List name *</label>
+        <input class="modal-select" id="ngl-name" type="text" placeholder='e.g. "GIS List — Released 10 Sept 2025"'>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Release date</label>
+        <input class="modal-select" id="ngl-release-date" type="date">
+      </div>
+      <div id="ngl-error" style="color:var(--orange);font-size:12px;margin-bottom:12px;display:none"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-new-gis-list')">Cancel</button>
+      <button class="btn-sm btn-orange" id="ngl-save-btn" onclick="confirmNewGisList()">Create List</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT GIS ENTRIES MODAL (MI-401) -->
+<div class="modal-overlay" id="modal-gis-import">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Import GIS Entries</div>
+        <div class="modal-sub">Paste CSV/TSV with header row. Columns: INDEX, ADDRESS, STATUS, NOTES — ADDRESS is the only required column.</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-gis-import')">✕</button>
+    </div>
+    <div style="padding:16px 20px">
+      <div style="margin-bottom:8px;font-size:12px;color:var(--muted)">
+        Target list: <strong id="gi-target-list" style="color:var(--white)">—</strong>
+      </div>
+      <textarea id="gi-paste" rows="10"
+        placeholder="INDEX,ADDRESS,STATUS,NOTES&#10;1,123 Main St,to_do,&#10;2,456 Oak Ave,in_progress,Tapcard pending"
+        oninput="parseGisImport()"
+        style="width:100%;background:var(--surface2);color:var(--white);border:1px solid var(--border);border-radius:6px;padding:10px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;resize:vertical"></textarea>
+      <div id="gi-summary" style="margin-top:12px;font-size:12px;color:var(--muted)">Paste data above to see preview.</div>
+      <div id="gi-error" style="color:var(--orange);font-size:12px;margin-top:8px;display:none"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-gis-import')">Cancel</button>
+      <button class="btn-sm btn-orange" id="gi-confirm-btn" onclick="confirmGisImport()" disabled>Import</button>
     </div>
   </div>
 </div>
@@ -2430,6 +2527,7 @@ function showPanel(name){
   document.getElementById('nav-'+name).classList.add('active');
   if(name==='submissions') loadAllSubmissions();
   if(name==='reports') loadReports();
+  if(name==='gis-lists') loadGisLists();
 }
 
 // ── DASHBOARD ─────────────────────────────────────────
@@ -3563,6 +3661,304 @@ async function generateReport(){
   if(error){ showToast('Error generating report: '+error.message,'error'); return; }
   showToast('Daily report generated!','success');
   await loadReports();
+}
+
+// ── GIS LISTS (MI-401) ──────────────────────────────────
+let gisLists = [];
+let gisEntries = [];
+let gisCurrentListId = null;
+let gisCurrentFilter = 'all';
+let gisSearchQuery = '';
+const gisEscape = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+async function loadGisLists(){
+  const isAdmin = currentUserIsSuperAdmin || currentUserRole === 'supervisor';
+  document.getElementById('gis-new-list-btn').style.display = isAdmin ? '' : 'none';
+  document.getElementById('gis-import-btn').style.display = isAdmin ? '' : 'none';
+  const {data, error} = await sb.from('gis_lists')
+    .select('*').is('deleted_at', null)
+    .order('release_date', {ascending: false, nullsFirst: false});
+  if(error){
+    document.getElementById('gis-entries-list').innerHTML =
+      `<div class="loading">Error loading lists: ${gisEscape(error.message)}</div>`;
+    return;
+  }
+  gisLists = data || [];
+  const sel = document.getElementById('gis-list-selector');
+  if(!gisLists.length){
+    sel.innerHTML = '<option value="">No lists yet</option>';
+    document.getElementById('gis-entries-list').innerHTML =
+      '<div class="loading">No GIS lists yet.' + (isAdmin ? ' Use "+ New List" to create one.' : '') + '</div>';
+    document.getElementById('gis-list-stats').textContent = '';
+    return;
+  }
+  sel.innerHTML = gisLists.map(l => {
+    const dt = l.release_date ? new Date(l.release_date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+    return `<option value="${gisEscape(l.id)}">${gisEscape(l.name)}${dt?' — '+dt:''}</option>`;
+  }).join('');
+  gisCurrentListId = gisLists[0].id;
+  sel.value = gisCurrentListId;
+  await loadGisListEntries(gisCurrentListId);
+}
+
+async function loadGisListEntries(listId){
+  if(!listId){ return; }
+  gisCurrentListId = listId;
+  const {data, error} = await sb.from('gis_list_entries')
+    .select('*').eq('gis_list_id', listId).is('deleted_at', null)
+    .order('index_number', {ascending: true, nullsFirst: false});
+  if(error){
+    document.getElementById('gis-entries-list').innerHTML =
+      `<div class="loading">Error loading entries: ${gisEscape(error.message)}</div>`;
+    return;
+  }
+  gisEntries = data || [];
+  const list = gisLists.find(l => l.id === listId);
+  document.getElementById('gis-list-title').textContent = list ? list.name : 'Entries';
+  renderGisEntries();
+}
+
+function renderGisEntries(){
+  const container = document.getElementById('gis-entries-list');
+  const stats = document.getElementById('gis-list-stats');
+  if(!gisEntries.length){
+    container.innerHTML = '<div class="loading">No entries in this list yet.</div>';
+    stats.textContent = '';
+    return;
+  }
+  const total = gisEntries.length;
+  const done = gisEntries.filter(e => e.status === 'complete').length;
+  const inprog = gisEntries.filter(e => e.status === 'in_progress').length;
+  stats.textContent = `${done}/${total} complete · ${inprog} in progress`;
+  const q = (gisSearchQuery||'').toLowerCase().trim();
+  const filtered = gisEntries.filter(e => {
+    if(gisCurrentFilter !== 'all' && e.status !== gisCurrentFilter) return false;
+    if(q && !((e.address||'')+' '+(e.notes||'')).toLowerCase().includes(q)) return false;
+    return true;
+  });
+  if(!filtered.length){
+    container.innerHTML = '<div class="loading">No entries match the current filter.</div>';
+    return;
+  }
+  let html = `<table><thead><tr>
+    <th style="width:60px">#</th>
+    <th>Address</th>
+    <th style="width:140px">Status</th>
+    <th>Notes</th>
+    <th style="width:120px">Last Action</th>
+  </tr></thead><tbody>`;
+  filtered.forEach(e => {
+    const idx = e.index_number != null ? e.index_number : '—';
+    const status = e.status || 'to_do';
+    const statusLabel = status === 'to_do' ? 'To-Do' : status === 'in_progress' ? 'In Progress' : 'Complete';
+    const statusCls = status === 'to_do' ? 'btn-ghost' : 'btn-orange';
+    const lastDt = e.completed_at ? new Date(e.completed_at).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—';
+    const linkBtn = e.linked_property_id ? `<button class="btn-sm btn-ghost" style="margin-left:6px" onclick="openPropertyDetail('${gisEscape(e.linked_property_id)}')">View</button>` : '';
+    html += `<tr data-entry-id="${gisEscape(e.id)}">
+      <td style="color:var(--muted)">${idx}</td>
+      <td><div style="font-weight:600;color:var(--white)">${gisEscape(e.address||'')}</div>${linkBtn}</td>
+      <td><button class="btn-sm ${statusCls}" style="min-width:120px" onclick="cycleGisStatus('${gisEscape(e.id)}')">${statusLabel}</button></td>
+      <td><input class="search-input" style="margin:0;font-size:12px" value="${gisEscape(e.notes||'')}" onblur="saveGisNotes('${gisEscape(e.id)}', this.value)" placeholder="Add note..."></td>
+      <td style="font-size:12px;color:var(--muted)">${lastDt}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function setGisFilter(status){
+  gisCurrentFilter = status;
+  document.querySelectorAll('#gis-filter-chips button').forEach(b => {
+    const active = b.dataset.status === status;
+    b.classList.toggle('btn-orange', active);
+    b.classList.toggle('btn-ghost', !active);
+  });
+  renderGisEntries();
+}
+
+function filterGisEntries(query){
+  gisSearchQuery = query || '';
+  renderGisEntries();
+}
+
+// Write paths (Lesson 7: UPDATE doesn't need firm_id in payload — RLS WITH CHECK validates the existing row's firm_id)
+async function cycleGisStatus(entryId){
+  if(pitchModeBlocked('GIS status toggle')) return;
+  const entry = gisEntries.find(e => e.id === entryId);
+  if(!entry) return;
+  const next = entry.status === 'to_do' ? 'in_progress'
+             : entry.status === 'in_progress' ? 'complete'
+             : 'to_do';
+  const patch = { status: next };
+  if(next === 'complete'){
+    patch.completed_at = new Date().toISOString();
+    patch.completed_by = currentUser?.id || null;
+  } else if(entry.status === 'complete'){
+    patch.completed_at = null;
+    patch.completed_by = null;
+  }
+  const {data, error} = await sb.from('gis_list_entries')
+    .update(patch).eq('id', entryId).select('*').single();
+  if(error){ showToast('Status update failed: '+error.message, 'error'); return; }
+  Object.assign(entry, data);
+  renderGisEntries();
+}
+
+async function saveGisNotes(entryId, value){
+  const entry = gisEntries.find(e => e.id === entryId);
+  if(!entry) return;
+  const newNotes = (value || '').trim();
+  if((entry.notes || '') === newNotes) return;
+  if(pitchModeBlocked('GIS notes save')) return;
+  const {data, error} = await sb.from('gis_list_entries')
+    .update({ notes: newNotes }).eq('id', entryId).select('*').single();
+  if(error){ showToast('Notes save failed: '+error.message, 'error'); return; }
+  Object.assign(entry, data);
+}
+
+// Super_admin write paths
+function openNewGisList(){
+  document.getElementById('ngl-name').value = '';
+  document.getElementById('ngl-release-date').value = '';
+  document.getElementById('ngl-error').style.display = 'none';
+  document.getElementById('ngl-save-btn').disabled = false;
+  document.getElementById('modal-new-gis-list').classList.add('open');
+  setTimeout(()=>document.getElementById('ngl-name').focus(), 50);
+}
+
+async function confirmNewGisList(){
+  if(pitchModeBlocked('GIS list create')) return;
+  const errEl = document.getElementById('ngl-error');
+  const name = (document.getElementById('ngl-name').value || '').trim();
+  const releaseDate = document.getElementById('ngl-release-date').value || null;
+  if(!name){
+    errEl.textContent = 'Name is required.';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  const btn = document.getElementById('ngl-save-btn');
+  btn.disabled = true;
+  // Lesson 7: firm_id is required by RLS WITH CHECK on INSERT — RLS rejects silently otherwise
+  const payload = {
+    firm_id: currentFirmId,
+    name,
+    release_date: releaseDate,
+    created_by: currentUser?.id || null
+  };
+  const {data, error} = await sb.from('gis_lists').insert(payload).select('*').single();
+  if(error){
+    errEl.textContent = 'Create failed: '+error.message;
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    return;
+  }
+  closeModal('modal-new-gis-list');
+  showToast('GIS list created','success');
+  await loadGisLists();
+  if(data?.id){
+    document.getElementById('gis-list-selector').value = data.id;
+    await loadGisListEntries(data.id);
+  }
+}
+
+let gisImportRows = [];
+
+function openGisImport(){
+  if(!gisCurrentListId){
+    showToast('Select or create a list first','error');
+    return;
+  }
+  const list = gisLists.find(l => l.id === gisCurrentListId);
+  document.getElementById('gi-target-list').textContent = list ? list.name : '—';
+  document.getElementById('gi-paste').value = '';
+  document.getElementById('gi-summary').textContent = 'Paste data above to see preview.';
+  document.getElementById('gi-error').style.display = 'none';
+  document.getElementById('gi-confirm-btn').disabled = true;
+  gisImportRows = [];
+  document.getElementById('modal-gis-import').classList.add('open');
+  setTimeout(()=>document.getElementById('gi-paste').focus(), 50);
+}
+
+function parseGisImport(){
+  const text = (document.getElementById('gi-paste').value || '').trim();
+  const summary = document.getElementById('gi-summary');
+  const errEl = document.getElementById('gi-error');
+  const btn = document.getElementById('gi-confirm-btn');
+  errEl.style.display = 'none';
+  gisImportRows = [];
+  if(!text){
+    summary.textContent = 'Paste data above to see preview.';
+    btn.disabled = true;
+    return;
+  }
+  const lines = text.split(/\r?\n/).filter(l => l.trim().length);
+  if(lines.length < 2){
+    summary.textContent = 'Need a header row + at least 1 data row.';
+    btn.disabled = true;
+    return;
+  }
+  const sep = lines[0].includes('\t') ? '\t' : ',';
+  const splitLine = l => l.split(sep).map(s => s.trim());
+  const headers = splitLine(lines[0]).map(h => h.toLowerCase());
+  const idxIdx = headers.indexOf('index');
+  const addrIdx = headers.indexOf('address');
+  const statusIdx = headers.indexOf('status');
+  const notesIdx = headers.indexOf('notes');
+  if(addrIdx < 0){
+    errEl.textContent = 'Header row must include an ADDRESS column.';
+    errEl.style.display = 'block';
+    summary.textContent = '';
+    btn.disabled = true;
+    return;
+  }
+  const validStatuses = new Set(['to_do','in_progress','complete']);
+  let skipped = 0;
+  for(let i = 1; i < lines.length; i++){
+    const cells = splitLine(lines[i]);
+    const address = cells[addrIdx];
+    if(!address){ skipped++; continue; }
+    let status = statusIdx >= 0 ? (cells[statusIdx] || '').toLowerCase().replace(/[\s-]/g,'_') : 'to_do';
+    if(!validStatuses.has(status)) status = 'to_do';
+    let indexNumber = null;
+    if(idxIdx >= 0 && cells[idxIdx]){
+      const n = parseInt(cells[idxIdx], 10);
+      if(!isNaN(n)) indexNumber = n;
+    }
+    const notes = notesIdx >= 0 ? (cells[notesIdx] || '') : '';
+    gisImportRows.push({ index_number: indexNumber, address, status, notes });
+  }
+  const valid = gisImportRows.length;
+  summary.textContent = `${valid} row${valid===1?'':'s'} ready to import` + (skipped ? ` · ${skipped} skipped (no address)` : '');
+  btn.disabled = valid === 0;
+}
+
+async function confirmGisImport(){
+  if(pitchModeBlocked('GIS bulk import')) return;
+  if(!gisCurrentListId){ showToast('No target list selected','error'); return; }
+  if(!gisImportRows.length) return;
+  const btn = document.getElementById('gi-confirm-btn');
+  btn.disabled = true;
+  // Lesson 7: every INSERT row must include firm_id — RLS WITH CHECK rejects silently otherwise
+  const payload = gisImportRows.map(r => ({
+    firm_id: currentFirmId,
+    gis_list_id: gisCurrentListId,
+    index_number: r.index_number,
+    address: r.address,
+    status: r.status,
+    notes: r.notes || null
+  }));
+  const {error} = await sb.from('gis_list_entries').insert(payload);
+  if(error){
+    const errEl = document.getElementById('gi-error');
+    errEl.textContent = 'Import failed: '+error.message;
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    return;
+  }
+  closeModal('modal-gis-import');
+  showToast(`Imported ${payload.length} entries`,'success');
+  await loadGisListEntries(gisCurrentListId);
 }
 
 // ── BULK IMPORT ──────────────────────────────────────
