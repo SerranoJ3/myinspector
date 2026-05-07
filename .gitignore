@@ -1,0 +1,41 @@
+# MyInspector .gitignore
+#
+# Repo is PUBLIC (SerranoJ3/myinspector on GitHub). Anything committed
+# becomes searchable. Buddy/CC use .coordination/ as a working file channel,
+# so some operational scratch files live there but should NEVER ship public.
+#
+# Patterns below cover known-sensitive files and future similar ones.
+# Files stay on Jorge's local disk for Buddy + CC to read; they just don't
+# travel to GitHub.
+
+# ── Operational / personal scratch (Buddy + CC working notes) ────────────────
+.coordination/buddy_context*.md
+.coordination/end_of_day_*.md
+.coordination/progress_report_*.md
+.coordination/velocity_analytics_*.md
+
+# ── Security details (super_admin email, attack-surface inventories) ─────────
+.coordination/SUNDAY_SECURITY_AUDIT*.md
+
+# ── Demo seed spec (names real demo target + sanitization-list-as-leak) ──────
+.coordination/MI-DEMO_seed_spec_*.md
+
+# ── NJAW operational data (contractor-territory map from internal source) ────
+.coordination/MI402_TOWNS_CONTRACTORS_REFERENCE_BRIEF.md
+.coordination/work_order_MI402_towns_contractors.md
+
+# ── Real-prospect identifying material (Jeff + employer + credential) ────────
+.coordination/MI404_HERALD_TAB_BRIEF.md
+.coordination/work_order_MI404_herald_tab.md
+
+# ── Firm code rotation (rotation notes + migrations contain live signup secrets) ─
+.coordination/buddy_firm_code_rotation*.md
+supabase/migrations/*rotate*firm*code*.sql
+
+# ── Standard noise ───────────────────────────────────────────────────────────
+.DS_Store
+node_modules/
+*.log
+.env
+.env.local
+.env.*.local
