@@ -276,6 +276,13 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .rg-banner-shorthills strong{color:var(--orange);font-weight:700;display:block;margin-bottom:2px;font-family:'Rajdhani',sans-serif;letter-spacing:.04em;text-transform:uppercase;font-size:11px}
 .rg-btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted);font-size:12px;padding:6px 12px;border-radius:5px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-weight:600;letter-spacing:.04em}
 .rg-btn-ghost:hover{border-color:var(--blue-light);color:var(--white)}
+.rg-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);margin-top:6px;flex-wrap:wrap}
+.rg-entry-count{font-size:12px;color:var(--muted);font-style:italic;flex:1;min-width:200px}
+.rg-entry-count strong{color:var(--white);font-style:normal;font-weight:600}
+.rg-entry-count.rg-empty-count{color:var(--orange)}
+.rg-submit-btn{background:linear-gradient(135deg,var(--orange) 0%,#d18820 100%);color:#1a1a1a;border:none;font-size:13px;font-weight:700;padding:10px 18px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+.rg-submit-btn:hover{filter:brightness(1.08)}
+.rg-submit-btn:disabled{opacity:0.5;cursor:not-allowed;filter:grayscale(0.5)}
 .tc-ms-readout{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;font-size:12px}
 .tc-ms-readout > div{background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px}
 .tc-ms-readout-label{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px}
@@ -4701,7 +4708,92 @@ function rgRenderForm(sheet){
       </fieldset>
     `;
   });
+  // Unit 2: footer with live entry count + Submit Restoration Phase handoff
+  html += `
+    <div class="rg-footer">
+      <div class="rg-entry-count" id="rg-entry-count">Loading entries…</div>
+      <button type="button" class="rg-submit-btn" id="rg-submit-btn" onclick="rgGoToSubmitPhase()">Submit Restoration Phase →</button>
+    </div>
+  `;
   container.innerHTML = html;
+  // Kick off async entry-count refresh now that elements exist
+  rgRefreshEntryCount().catch(err => console.warn('rgRefreshEntryCount error:', err));
+}
+
+async function rgRefreshEntryCount(){
+  const el = document.getElementById('rg-entry-count');
+  const btn = document.getElementById('rg-submit-btn');
+  if(!el || !rgMaterialsSheetId) return;
+  try {
+    const { count, error } = await sb
+      .from('restoration_grid_entries')
+      .select('id', { count: 'exact', head: true })
+      .eq('materials_sheet_id', rgMaterialsSheetId)
+      .is('deleted_at', null);
+    if(error) throw error;
+    const n = count || 0;
+    if(n === 0){
+      el.classList.add('rg-empty-count');
+      el.innerHTML = `No entries saved yet — Save Draft on at least one section above before submitting`;
+      if(btn) btn.disabled = true;
+    } else {
+      el.classList.remove('rg-empty-count');
+      el.innerHTML = `<strong>${n}</strong> ${n === 1 ? 'entry' : 'entries'} saved on the active Materials Sheet`;
+      if(btn) btn.disabled = false;
+    }
+  } catch(err){
+    console.error('rgRefreshEntryCount fetch error:', err);
+    el.textContent = 'Could not load entry count';
+    if(btn) btn.disabled = true;
+  }
+}
+
+async function rgGoToSubmitPhase(){
+  if(!rgMaterialsSheetId){ showToast('No materials sheet attached', 'error'); return; }
+  if(!currentPropertyDetailId){ showToast('No property loaded', 'error'); return; }
+
+  // Validate >=1 grid entry exists (defense in depth — button is also disabled when 0)
+  const { count, error } = await sb
+    .from('restoration_grid_entries')
+    .select('id', { count: 'exact', head: true })
+    .eq('materials_sheet_id', rgMaterialsSheetId)
+    .is('deleted_at', null);
+  if(error){ showToast('Could not verify entries: ' + error.message, 'error'); return; }
+  if(!count || count < 1){
+    showToast('Save at least one Restoration entry above before submitting the phase', 'error');
+    return;
+  }
+
+  // Capture state before closing the Property Detail modal
+  const propertyId = currentPropertyDetailId;
+  const titleEl = document.getElementById('pd-title');
+  const propAddress = titleEl?.textContent || '';
+
+  closeModal('modal-property-detail');
+  showPanel('submit');
+
+  // Pre-fill the Submit Phase property select (hidden input is the source of truth
+  // for handlePhotoCapture, submitPhase, etc.)
+  const hidden = document.getElementById('submit-property-select');
+  const search = document.getElementById('submit-property-search');
+  if(hidden) hidden.value = propertyId;
+  if(search) search.value = propAddress;
+  const results = document.getElementById('submit-property-results');
+  if(results) results.style.display = 'none';
+
+  // Programmatically select the Restoration service tile so the dynamic photo
+  // slot + form fields render. Reuses proven selectServiceType flow.
+  const tile = document.querySelector('.service-opt[onclick*="selectServiceType(this,\'restoration\')"]');
+  if(tile){
+    selectServiceType(tile, 'restoration');
+    // Scroll the Submit panel into view at the service-opt area
+    setTimeout(() => tile.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+  } else {
+    console.warn('Could not find restoration service tile to auto-select');
+  }
+
+  const noun = count === 1 ? 'entry' : 'entries';
+  showToast(`Property pre-filled (${count} restoration ${noun} saved). Take Restoration Photo, then Submit Phase.`, 'success');
 }
 
 function rgClearFieldset(type){
@@ -4759,6 +4851,8 @@ async function rgSaveDraft(type){
   }
   rgSetStatus(type, `Saved at ${new Date().toLocaleTimeString()}`, 'ok');
   showToast(`${type.replace(/_/g,' ')} entry saved`, 'success');
+  // Refresh entry count + re-enable Submit button if this was the first save
+  rgRefreshEntryCount().catch(err => console.warn('rgRefreshEntryCount error:', err));
   // Don't auto-clear — inspector may want to add a follow-up entry with similar values
 }
 
