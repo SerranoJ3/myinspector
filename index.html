@@ -916,7 +916,7 @@ html,body{overflow-x:hidden}
         <span class="nav-icon">🏠</span> Properties
       </div>
       <div class="nav-link" id="nav-gis-lists" onclick="showPanel('gis-lists')">
-        <span class="nav-icon">🗺️</span> GIS Lists
+        <span class="nav-icon">🗺️</span> GIS / Restorations
       </div>
       <div class="nav-link" id="nav-submit" onclick="showPanel('submit')">
         <span class="nav-icon">📋</span> Submit Phase
@@ -1013,40 +1013,67 @@ html,body{overflow-x:hidden}
         </div>
       </div>
 
-      <!-- GIS LISTS PANEL -->
+      <!-- GIS / RESTORATIONS PANEL (MI-401 v1 + MI-401-v2 sub-tabs) -->
       <div class="panel" id="panel-gis-lists">
         <div class="page-header">
-          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-            <div>
-              <div class="page-title">GIS Lists</div>
-              <div class="page-sub">Address checklist — tap to advance status</div>
+          <div class="page-title">GIS / Restorations</div>
+          <div class="page-sub" id="gis-panel-sub">Two surfaces: route checklists (GIS Lists) + restoration submissions across the firm.</div>
+        </div>
+        <!-- MI-401-v2 sub-tab toggle. Defaults to 'lists' on every panel show (loadGisLists resets it). -->
+        <div id="gis-subtab-toggle" style="display:flex;gap:8px;margin-bottom:16px">
+          <button class="btn-sm btn-orange" data-subtab="lists" onclick="setGisSubtab('lists')">🗺️ GIS Lists</button>
+          <button class="btn-sm btn-ghost" data-subtab="restorations" onclick="setGisSubtab('restorations')">🛠️ Restorations</button>
+        </div>
+
+        <!-- Sub-tab: GIS Lists (existing v1 surface) -->
+        <div id="gis-subtab-lists">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;justify-content:flex-end">
+            <select class="modal-select" id="gis-list-selector" style="width:240px;min-width:240px" onchange="loadGisListEntries(this.value)">
+              <option value="">Loading lists...</option>
+            </select>
+            <button class="btn-sm btn-orange" id="gis-new-list-btn" onclick="openNewGisList()" style="display:none">+ New List</button>
+            <button class="btn-sm btn-orange" id="gis-import-btn" onclick="openGisImport()" style="display:none">⬆ Import</button>
+          </div>
+          <div class="search-wrap">
+            <span class="search-icon">&#128269;</span>
+            <input class="search-input" type="text" id="gis-entry-search" placeholder="Search address or notes..." oninput="filterGisEntries(this.value)">
+          </div>
+          <div id="gis-filter-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+            <button class="btn-sm btn-orange" data-status="all" onclick="setGisFilter('all')">All</button>
+            <button class="btn-sm btn-ghost" data-status="to_do" onclick="setGisFilter('to_do')">To-Do</button>
+            <button class="btn-sm btn-ghost" data-status="in_progress" onclick="setGisFilter('in_progress')">In-Progress</button>
+            <button class="btn-sm btn-ghost" data-status="complete" onclick="setGisFilter('complete')">Complete</button>
+          </div>
+          <div class="table-wrap">
+            <div class="table-header">
+              <div class="table-title" id="gis-list-title">Entries</div>
+              <div class="page-sub" id="gis-list-stats" style="font-size:12px"></div>
             </div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-              <select class="modal-select" id="gis-list-selector" style="width:240px;min-width:240px" onchange="loadGisListEntries(this.value)">
-                <option value="">Loading lists...</option>
-              </select>
-              <button class="btn-sm btn-orange" id="gis-new-list-btn" onclick="openNewGisList()" style="display:none">+ New List</button>
-              <button class="btn-sm btn-orange" id="gis-import-btn" onclick="openGisImport()" style="display:none">⬆ Import</button>
+            <div id="gis-entries-list">
+              <div class="loading"><div class="spinner"></div><br>Loading entries...</div>
             </div>
           </div>
         </div>
-        <div class="search-wrap">
-          <span class="search-icon">&#128269;</span>
-          <input class="search-input" type="text" id="gis-entry-search" placeholder="Search address or notes..." oninput="filterGisEntries(this.value)">
-        </div>
-        <div id="gis-filter-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-          <button class="btn-sm btn-orange" data-status="all" onclick="setGisFilter('all')">All</button>
-          <button class="btn-sm btn-ghost" data-status="to_do" onclick="setGisFilter('to_do')">To-Do</button>
-          <button class="btn-sm btn-ghost" data-status="in_progress" onclick="setGisFilter('in_progress')">In-Progress</button>
-          <button class="btn-sm btn-ghost" data-status="complete" onclick="setGisFilter('complete')">Complete</button>
-        </div>
-        <div class="table-wrap">
-          <div class="table-header">
-            <div class="table-title" id="gis-list-title">Entries</div>
-            <div class="page-sub" id="gis-list-stats" style="font-size:12px"></div>
+
+        <!-- Sub-tab: Restorations (MI-401-v2 read-only aggregate of phase='restoration' submissions) -->
+        <div id="gis-subtab-restorations" style="display:none">
+          <div class="search-wrap">
+            <span class="search-icon">&#128269;</span>
+            <input class="search-input" type="text" id="gis-rest-search" placeholder="Search address, city, or work code..." oninput="filterGisRestorations(this.value)">
           </div>
-          <div id="gis-entries-list">
-            <div class="loading"><div class="spinner"></div><br>Loading entries...</div>
+          <div id="gis-rest-filter-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+            <button class="btn-sm btn-orange" data-rest-filter="all" onclick="setGisRestFilter('all')">All</button>
+            <button class="btn-sm btn-ghost" data-rest-filter="with_whiteboard" onclick="setGisRestFilter('with_whiteboard')">With whiteboard ✓</button>
+            <button class="btn-sm btn-ghost" data-rest-filter="without_whiteboard" onclick="setGisRestFilter('without_whiteboard')">Missing whiteboard ⚠</button>
+          </div>
+          <div class="table-wrap">
+            <div class="table-header">
+              <div class="table-title">Restoration Submissions</div>
+              <div class="page-sub" id="gis-rest-stats" style="font-size:12px"></div>
+            </div>
+            <div id="gis-rest-list">
+              <div class="loading"><div class="spinner"></div><br>Loading restorations...</div>
+            </div>
           </div>
         </div>
       </div>
@@ -3820,6 +3847,8 @@ let gisSearchQuery = '';
 const gisEscape = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 async function loadGisLists(){
+  // MI-401-v2: reset to 'lists' sub-tab on every panel open per spec ("Default to GIS Lists on tab open")
+  setGisSubtab('lists');
   const isAdmin = currentUserIsSuperAdmin || currentUserRole === 'supervisor';
   document.getElementById('gis-new-list-btn').style.display = isAdmin ? '' : 'none';
   document.getElementById('gis-import-btn').style.display = isAdmin ? '' : 'none';
@@ -4107,6 +4136,123 @@ async function confirmGisImport(){
   closeModal('modal-gis-import');
   showToast(`Imported ${payload.length} entries`,'success');
   await loadGisListEntries(gisCurrentListId);
+}
+
+// ── GIS / RESTORATIONS sub-tab (MI-401-v2) ─────────────
+// Read-only aggregate of phase='restoration' submissions across the firm
+// (Q-401v2-a ratified read-only v1 — writes flow only via the existing Submit
+// Phase Restoration handoff). Status filters derive from phase_submissions
+// semantic state per Q-401v2-b — currently photo_restoration_whiteboard
+// presence as the compliance-meaningful axis (CDM-Smith rule: whiteboard
+// required for restoration when open excavation exists).
+let gisRestorations = [];
+let gisRestSearch = '';
+let gisRestFilter = 'all';
+let gisCurrentSubtab = 'lists';
+
+function setGisSubtab(name){
+  gisCurrentSubtab = name;
+  document.getElementById('gis-subtab-lists').style.display = (name === 'lists') ? '' : 'none';
+  document.getElementById('gis-subtab-restorations').style.display = (name === 'restorations') ? '' : 'none';
+  document.querySelectorAll('#gis-subtab-toggle button').forEach(b => {
+    const active = b.dataset.subtab === name;
+    b.classList.toggle('btn-orange', active);
+    b.classList.toggle('btn-ghost', !active);
+  });
+  const sub = document.getElementById('gis-panel-sub');
+  if(sub){
+    sub.textContent = (name === 'restorations')
+      ? 'All restoration submissions across the firm — reverse chronological. Read-only; submissions land via Submit Phase.'
+      : 'Address checklist — tap to advance status.';
+  }
+  if(name === 'restorations' && !gisRestorations.length){
+    loadGisRestorations();
+  }
+}
+
+async function loadGisRestorations(){
+  const container = document.getElementById('gis-rest-list');
+  const {data, error} = await sb.from('phase_submissions')
+    .select('id,property_id,phase,submitted_at,submitted_by,work_order_code,njaw_work_order_code,notes,photo_restoration_whiteboard,properties(address,city)')
+    .eq('phase', 'restoration')
+    .order('submitted_at', {ascending: false})
+    .limit(200);
+  if(error){
+    container.innerHTML = `<div class="loading">Error loading restorations: ${gisEscape(error.message)}</div>`;
+    return;
+  }
+  gisRestorations = data || [];
+  renderGisRestorations();
+}
+
+function renderGisRestorations(){
+  const container = document.getElementById('gis-rest-list');
+  const stats = document.getElementById('gis-rest-stats');
+  if(!gisRestorations.length){
+    container.innerHTML = '<div class="loading">No restoration submissions yet for this firm.</div>';
+    stats.textContent = '';
+    return;
+  }
+  const total = gisRestorations.length;
+  const withWb = gisRestorations.filter(r => r.photo_restoration_whiteboard).length;
+  stats.textContent = `${total} total · ${withWb} with whiteboard · ${total - withWb} missing`;
+  const q = (gisRestSearch || '').toLowerCase().trim();
+  const filtered = gisRestorations.filter(r => {
+    if(gisRestFilter === 'with_whiteboard' && !r.photo_restoration_whiteboard) return false;
+    if(gisRestFilter === 'without_whiteboard' && r.photo_restoration_whiteboard) return false;
+    if(q){
+      const hay = ((r.properties?.address||'')+' '+(r.properties?.city||'')+' '+(r.work_order_code||'')+' '+(r.njaw_work_order_code||'')+' '+(r.notes||'')).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  if(!filtered.length){
+    container.innerHTML = '<div class="loading">No restoration submissions match the current filter.</div>';
+    return;
+  }
+  let html = `<table><thead><tr>
+    <th>Address</th>
+    <th style="width:120px">Submitted</th>
+    <th style="width:120px">Work Code</th>
+    <th style="width:60px">WB</th>
+    <th style="width:80px">Property</th>
+  </tr></thead><tbody>`;
+  filtered.forEach(r => {
+    const addr = r.properties?.address || '(unknown)';
+    const city = r.properties?.city || '';
+    const dt = r.submitted_at ? new Date(r.submitted_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+    const code = r.work_order_code || r.njaw_work_order_code || '—';
+    const wb = r.photo_restoration_whiteboard
+      ? '<span style="color:var(--green)">✓</span>'
+      : '<span style="color:var(--orange)">⚠</span>';
+    const propBtn = r.property_id
+      ? `<button class="btn-sm btn-ghost" onclick="openPropertyDetail('${gisEscape(r.property_id)}')">View</button>`
+      : '';
+    html += `<tr data-restoration-id="${gisEscape(r.id)}">
+      <td><div style="font-weight:600;color:var(--white)">${gisEscape(addr)}</div><div style="font-size:11px;color:var(--muted)">${gisEscape(city)}</div></td>
+      <td style="font-size:12px;color:var(--muted)">${dt}</td>
+      <td style="font-size:12px;color:var(--muted)">${gisEscape(code)}</td>
+      <td style="text-align:center">${wb}</td>
+      <td style="text-align:right">${propBtn}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function filterGisRestorations(query){
+  gisRestSearch = query || '';
+  renderGisRestorations();
+}
+
+function setGisRestFilter(filter){
+  gisRestFilter = filter;
+  document.querySelectorAll('#gis-rest-filter-chips button').forEach(b => {
+    const active = b.dataset.restFilter === filter;
+    b.classList.toggle('btn-orange', active);
+    b.classList.toggle('btn-ghost', !active);
+  });
+  renderGisRestorations();
 }
 
 // ── HERALD (MI-404) ───────────────────────────────────
