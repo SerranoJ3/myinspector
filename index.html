@@ -1076,7 +1076,8 @@ html,body{overflow-x:hidden}
                 <span class="svc-name">Test Pit</span>
                 <span class="svc-sub">Initial excavation</span>
               </div>
-              <div class="service-opt" onclick="selectServiceType(this,'assessment')">
+              <!-- MI-101-reorg: Assessment hidden from top-level grid; reachable via inline link inside the Test Pit form (Jorge: "assessment should be within test pit tab"). Tile kept in DOM so selectServiceType wiring + the existing 'assessment' renderDynamicFields case + phase='assessment' write path stay intact. -->
+              <div class="service-opt" onclick="selectServiceType(this,'assessment')" style="display:none">
                 <span class="svc-name">Assessment</span>
                 <span class="svc-sub">Material check</span>
               </div>
@@ -1092,10 +1093,7 @@ html,body{overflow-x:hidden}
                 <span class="svc-name">Restoration</span>
                 <span class="svc-sub">Final closeout</span>
               </div>
-              <div class="service-opt" onclick="selectServiceType(this,'out_of_order')">
-                <span class="svc-name">Out of Order</span>
-                <span class="svc-sub">Partial / revisit</span>
-              </div>
+              <!-- MI-101-reorg: Out of Order tile removed (Jorge: "I dont understand why out of order exists"). The phase_submissions.out_of_sequence boolean column stays in schema (no migration); submit payload now hardcodes out_of_sequence: false. -->
               <div class="service-opt service-opt-nowork" onclick="selectServiceType(this,'no_work')">
                 <span class="svc-name">No Work</span>
                 <span class="svc-sub">Showed up, no excavation</span>
@@ -2999,6 +2997,19 @@ function selectServiceType(el, type){
   renderDynamicFields(type);
 }
 
+// MI-101-reorg: helper invoked from the inline "Material Assessment Only" link
+// inside the Test Pit form. Locates the hidden Assessment tile by its onclick
+// signature and triggers the existing selectServiceType pipeline so the
+// Assessment form renders with phase='assessment' write routing intact.
+function openAssessmentFromTestPit(){
+  const tiles = document.querySelectorAll('#service-type-grid .service-opt');
+  for(const t of tiles){
+    const oc = t.getAttribute('onclick') || '';
+    if(oc.indexOf("'assessment'") !== -1){ t.click(); return; }
+  }
+  console.warn('[MI-101-reorg] Assessment tile not found');
+}
+
 function renderDynamicFields(type){
   const container = document.getElementById('dynamic-form-fields');
   let html='';
@@ -3027,6 +3038,13 @@ function renderDynamicFields(type){
       </div>
       <div class="modal-field"><label class="modal-label">Notes</label>
         <input class="modal-input" id="f-notes" placeholder="Any additional notes..."></div>
+    </div>
+    <div class="form-section" style="padding:10px 14px">
+      <!-- MI-101-reorg: Assessment-only inline link from inside the Test Pit form. Jumps to the (hidden) Assessment tile so the inspector can submit a material-assessment-only row when no test pit excavation happens. -->
+      <div style="font-size:12px;color:var(--muted)">
+        Material assessment only (no excavation)?
+        <a href="#" onclick="event.preventDefault(); openAssessmentFromTestPit();" style="color:var(--blue-light);text-decoration:underline;cursor:pointer">Switch to Assessment →</a>
+      </div>
     </div>`;
   }
 
@@ -3132,18 +3150,7 @@ function renderDynamicFields(type){
     </div>`;
   }
 
-  if(type==='out_of_order'){
-    html+=`<div class="form-section">
-      <div class="form-section-title">Out of Sequence Details</div>
-      <div class="alert alert-orange">
-        <div><span class="alert-title">Supervisor will be notified</span>This submission will be flagged for review. Your work is not blocked.</div>
-      </div>
-      <div class="modal-field"><label class="modal-label">Reason (required)</label>
-        <textarea class="modal-input" id="f-sequence-note" rows="3" placeholder="Describe what you're doing and why it's out of order..." style="resize:none;line-height:1.5"></textarea></div>
-      <div class="modal-field"><label class="modal-label">Notes</label>
-        <input class="modal-input" id="f-notes" placeholder="Any additional notes..."></div>
-    </div>`;
-  }
+  // MI-101-reorg: out_of_order render branch removed — tile killed per Jorge spec ("I dont understand why out of order exists"). The phase_submissions.out_of_sequence column stays in schema; submit payload hardcodes false.
 
   // MI-108: No-Work submission (compliance rule a) — house + whiteboard photo + reason; no CS toggle
   if(type==='no_work'){
@@ -3580,8 +3587,8 @@ async function submitPhase(){
     photo_curbstop_whiteboard: wbCurb,
     photo_watermain_whiteboard: wbMain,
     photo_restoration_whiteboard: wbRest,
-    out_of_sequence: currentServiceType==='out_of_order',
-    sequence_note: document.getElementById('f-sequence-note')?.value||null,
+    out_of_sequence: false, // MI-101-reorg: Out of Order tile removed; column kept in schema, always false from this UI path
+    sequence_note: null,
     photos: [],
     last_client_sync_at: new Date().toISOString(),
   };
