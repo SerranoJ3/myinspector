@@ -1,13 +1,13 @@
 # Coordination Status — MyInspector
 
-**Last updated:** 2026-05-07 ~03:00 EDT (post Phase 2c-form 8/8 close + MI-DEMO-UI v2 + CP firm code rotation)
-**Updated by:** Lead (Claude Code CLI) — doc-sync flush covering 4 ships: Phase 2c-form Units 1+2+3, MI-DEMO-UI v2 pitch mode toggle, plus reflection of `3f448ab` security commit (CP firm code rotation + .gitignore sensitive-file cleanup).
+**Last updated:** 2026-05-07 ~05:45 EDT (post MI-401 Unit 2 + MI-404 Unit 2 ships)
+**Updated by:** Lead (Claude Code CLI) — doc-sync flush covering MI-401 Unit 2 (`24b430f`) + MI-404 Unit 2 (`d64407f`), plus reflection of `558383b` bergen demo redistribution + `74f224a` handoff-note cleanup that landed between the prior doc-sync (`2385c9e`) and this one.
 
 ---
 
 ## Current state
 
-**Active branches:** `demo-banner` and `mi-demo-seed` both at `9a94510` (Phase 2c-form Unit 3 — closes 8/8 acceptance). main untouched per §22.
+**Active branches:** `demo-banner` and `mi-demo-seed` both at `d64407f` (MI-404 Unit 2). main untouched per §22.
 
 **Local main is 1 behind `origin/main`.** Missing commit is `4d70901` (Phase 2b refactor squash merge, Sun 0:52). Run `git fetch && git checkout main && git pull` to catch up before any new branch off main.
 
@@ -24,7 +24,12 @@
 10. `3a1a9bf` Phase 2c-form Unit 2 (Thu 5/7 ~02:00, Buddy build)
 11. `58d41be` MI-DEMO-UI v2 pitch mode toggle (Thu 5/7 ~02:25, Buddy build)
 12. `9a94510` Phase 2c-form Unit 3 — closes 8/8 (Thu 5/7 ~02:55, Buddy build)
-13. (this) doc-sync batch — STATE.md + decisions.md + status.md updates covering Phase 2c-form arc + MI-DEMO-UI v2
+13. `2385c9e` doc-sync batch — STATE/decisions/status sync for Phase 2c-form 8/8 + MI-DEMO-UI v2 + CP firm code rotation
+14. `558383b` demo-sanitize: redistribute properties to Bergen County + neutralize sector descriptors
+15. `74f224a` chore: drop bergen swap handoff note (work landed)
+16. `24b430f` MI-401 Unit 2 — GIS List tab UI + status toggle + paste-CSV import (Thu 5/7 ~04:30, Lead build)
+17. `d64407f` MI-404 Unit 2 — Herald tab UI + hero card + highlight tiles + PDF viewer + super_admin upload (Thu 5/7 ~05:30, Lead build)
+18. (this) doc-sync batch — STATE/decisions/status updates covering MI-401 + MI-404 Unit 2 ships
 
 `mi-demo-seed` matches `demo-banner` after fast-forward merges between each ship.
 
@@ -61,8 +66,8 @@ Part of `3f448ab`. Public repo (`SerranoJ3/myinspector`) had no .gitignore. Budd
 |---|---|---|---|
 | `mi101-phase2a` | `a542d5a` | NOT merged — branch stale | Frontend was merged via Path C cherry-pick to main as `9c446e7` Mon 5/5; original branch now historical reference only. Can be deleted post-Phase 2c-form close (now). |
 | `njaw-selector-v2` | `ab0fa55` | Pushed to origin, PR status unverified | Jorge to confirm GitHub branches page; if PR open and Vercel preview clean, merge. Likely needs re-port given Phase 2b 3-tab → 2-tab refactor. |
-| `demo-banner` | `9a94510` | **Active — holds Wed 5/6 → Thu 5/7 session work** | Phase 2d-revision finish + MI-DEMO seed merge + MI-110 Phase 4 + acceptance #6 + Luis polish + towns swap + CP firm rotation + Phase 2c-form (8/8) + MI-DEMO-UI v2. Per §22, NEVER MERGE TO MAIN. |
-| `mi-demo-seed` | `9a94510` | **Active — fast-forwarded with `demo-banner`** | Demo seed branch sits in lockstep with `demo-banner` post each ship via FF merge. Per §22, NEVER MERGE TO MAIN. |
+| `demo-banner` | `d64407f` | **Active — holds Wed 5/6 → Thu 5/7 session work** | Phase 2d-revision finish + MI-DEMO seed merge + MI-110 Phase 4 + acceptance #6 + Luis polish + towns swap + CP firm rotation + Phase 2c-form (8/8) + MI-DEMO-UI v2 + bergen redistribution + MI-401 Unit 2 + MI-404 Unit 2. Per §22, NEVER MERGE TO MAIN. |
+| `mi-demo-seed` | `d64407f` | **Active — fast-forwarded with `demo-banner`** | Demo seed branch sits in lockstep with `demo-banner` post each ship via FF merge. Per §22, NEVER MERGE TO MAIN. |
 
 ## Recently closed (chronological since 5/2 evening)
 
@@ -70,7 +75,8 @@ Part of `3f448ab`. Public repo (`SerranoJ3/myinspector`) had no .gitignore. Budd
 - **Sun 5/3:** `mi101-phase2b-refactor` merged 0:52 (`4d70901`); MI-203 step 3 shipped ~08:55; `serranogroup.org` registered + Email Routing live + marketing site on Cloudflare Pages; full prod verification (8 surfaces GREEN); MI-AUDIT-1 fix shipped; CP Engineers default project seeded; 6 Q ratifications; Phase 2b real-shape verified GREEN; MI-AUDIT-3 filed.
 - **Mon 5/5:** STATE.md 3-day reconciliation + Phase 2c lean scaffold (`91f2af4`); Phase 2d original (`79f8434`); Buddy parallel-track sync (`7c0e83b`); MI-AUDIT-3 close + Phase 2a doc-drift correction (`f99b6f0`); Phase 2a → main merge via Path C cherry-pick (`9c446e7` on main); main → demo-banner forward (`553dea2`); Phase 2d-revision Unit 1 Step 1 vestigial cleanup (`6b9a9d3`).
 - **Wed 5/6 evening:** Phase 2d-revision Unit 1 Step 2 + Unit 2 (`52adf8a` + `7018493`); MI-DEMO seed bootstrap via Buddy direct MCP (sync `08fac2d` on `mi-demo-seed`, merged forward as `ea2d957`); MI-110 Phase 4 diagram editor (`cb6a96c`, Buddy 1-turn ship); Phase 4 docs (`5c64440`).
-- **Thu 5/7 ~00:00–03:00 EDT:** towns swap + Phase 4 acceptance #6 + Luis polish triple-ship (`be48774`); docs catch-up (`5cbc330`); CP firm code rotation + .gitignore sensitive cleanup (`3f448ab`, codes themselves stay in gitignored sync note); Phase 2c-form Unit 1 (`d871f73`); Phase 2c-form Unit 2 (`3a1a9bf`); MI-DEMO-UI v2 pitch mode (`58d41be`); Phase 2c-form Unit 3 — closes 8/8 (`9a94510`); doc-sync batch (this commit).
+- **Thu 5/7 ~00:00–03:00 EDT:** towns swap + Phase 4 acceptance #6 + Luis polish triple-ship (`be48774`); docs catch-up (`5cbc330`); CP firm code rotation + .gitignore sensitive cleanup (`3f448ab`, codes themselves stay in gitignored sync note); Phase 2c-form Unit 1 (`d871f73`); Phase 2c-form Unit 2 (`3a1a9bf`); MI-DEMO-UI v2 pitch mode (`58d41be`); Phase 2c-form Unit 3 — closes 8/8 (`9a94510`); doc-sync batch (`2385c9e`).
+- **Thu 5/7 ~03:30–05:30 EDT:** Bergen demo redistribution (`558383b`); handoff-note cleanup (`74f224a`); **MI-401 Unit 2** GIS List tab UI shipped (`24b430f`, +396 lines, 9 surgical Lead Edits — sidebar tab + panel + read/write paths + super_admin New List + paste-CSV import; closes acceptance #1/#2/#4/#9, partial #3/#5/#8); **MI-404 Unit 2** Herald tab UI shipped (`d64407f`, +347 lines — sidebar tab + hero card + 4 highlight tiles + back-issues archive + 3-branch PDF viewer + super_admin Upload modal with friendly toasts on storage failure; modal-input class convention aligned via 2 replace_all Edits; closes acceptance #1-#7). Buddy worked MI-AUDIT-4 + MI-DEMO-DEPLOY spec in parallel during this window. doc-sync batch (this commit).
 
 ## Open questions (in `questions.md`)
 
@@ -90,11 +96,12 @@ Part of `3f448ab`. Public repo (`SerranoJ3/myinspector`) had no .gitignore. Budd
 ## Next move
 
 1. **Jorge:** distribute new firm code to Justin + Tyler out-of-band per the gitignored sync note `.coordination/buddy_firm_code_rotation_2026-05-07.md` (text/Slack, NOT public channel).
-2. **Jorge:** Vercel preview click-test pass on `demo-banner` alias — walk full Phase 2c-form flow (Restoration tab → Save Draft → history view → edit gate → Submit Restoration Phase handoff → photo capture via existing Submit Phase flow → verify phase advance). Plus pitch mode toggle on/off; verify writes blocked when ON.
-3. **Lead next session:** MI-AUDIT-4 (firms audit trigger + `updated_at` column, ~30 min security gap close).
-4. **Lead:** CLAUDE.md cosmetic — replace defunct firm-code literal with a placeholder reference (codes themselves stay out of tracked docs).
-5. **Lead:** MI-DEMO-DEPLOY spec (pitch-day deploy ritual, Vercel alias swap, post-demo wipe schedule). ~30 min spec + execution day-of.
-6. **Optional pre-demo:** MI-401 GIS List (~3 sessions), MI-404 Herald Tab (~2 sessions). Either can ride buffer time before Jeff demo 5/14-5/15.
+2. **Jorge:** Vercel preview click-test pass on `demo-banner` alias — walk Phase 2c-form flow + GIS Lists tab + The Herald tab. For Herald: open tab as inspector role to verify August 2025 hero card + Photo of Month tile (Schmitz Tank caption with Jeff's name). Then super_admin to upload the actual August 2025 PDF via the Upload modal so the Read CTA renders the embed instead of the placeholder message.
+3. **Jorge:** sanitization of CLAUDE.md (Jeff Longberg name removal — currently unstaged on local working tree) — separate small commit.
+4. **Lead next session:** MI-AUDIT-4 (firms audit trigger + `updated_at` column, ~30 min security gap close) — Buddy may have shipped this already in the parallel-track work; reconcile before re-shipping.
+5. **Lead / Buddy:** MI-DEMO-DEPLOY spec finalize + execute day-of (pitch-day deploy ritual, Vercel alias swap, post-demo wipe schedule). Buddy was drafting in parallel during MI-401/404 build window.
+6. **Lead:** CLAUDE.md cosmetic — replace defunct firm-code literal with a placeholder reference (codes themselves stay out of tracked docs).
+7. **Optional polish (if buffer remains):** MI-401 Unit 3 (supervisor stats + address autocomplete + CSV export); MI-401 fuzzy-match candidates UI; MI-401 mobile card view. None demo-blocking.
 
 ## Active investigations / side tracks
 

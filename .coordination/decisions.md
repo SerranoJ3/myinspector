@@ -636,3 +636,47 @@ Buddy lean: **B** is cleanest long-term (clean audit chain, isolated heartbeat d
 **Source:** Buddy autonomous build per Lesson 6. Lead committed + pushed + merged forward to `mi-demo-seed`.
 
 **Affects:** Phase 2c-form (Restoration phase) closed end-to-end on `demo-banner`. With MI-DEMO-UI v2 pitch mode also closed tonight, the demo critical path for Jeff (5/14-5/15) is essentially down to click-test pass on Vercel preview + polish. Buffer is healthy — 7-8 days runway.
+
+---
+
+## 2026-05-07 ~04:30 EDT — MI-401 Unit 2 (GIS List tab UI) shipped
+
+**Decision:** MI-401 Unit 2 shipped as commit `24b430f` on `demo-banner` (FF-merged to `mi-demo-seed`). +396 lines in `index.html` across 9 surgical Lead edits via Edit tool. Sidebar tab "GIS Lists" between Properties and Submit Phase; panel with list selector + status filter chips + search; full read path (`loadGisLists`, `loadGisListEntries`, `renderGisEntries` with completion stats); write path with status cycle (to_do → in_progress → complete, `completed_at`/`completed_by` tracked) and notes save-on-blur; super_admin "+ New List" modal + paste-CSV/TSV import modal with INDEX/ADDRESS/STATUS/NOTES header parsing.
+
+**Backend reuse:** Buddy's MI-401 Unit 1 backend (`gis_lists` + `gis_list_entries` tables, RLS forced + 3 firm-scoped policies each, audit triggers, demo + CP firm seed with mixed-status entries) shipped earlier this session via Filesystem MCP — no migration in this commit. Lead's frontend wires to verified columns per `.coordination/buddy_mi401_mi404_backends_2026-05-07.md`.
+
+**Lesson 7 applied:** Every client INSERT (`gis_lists.create`, `gis_list_entries` bulk import) explicitly includes `firm_id: currentFirmId` per RLS WITH CHECK. UPDATEs (status cycle, notes save) deliberately omit `firm_id` since the existing row's firm_id satisfies WITH CHECK.
+
+**Pitch mode integration:** All four write paths (`cycleGisStatus`, `saveGisNotes`, `confirmNewGisList`, `confirmGisImport`) check `pitchModeBlocked('label')` and bail with toast. Adds 4 to the running pitch-mode guard tally (10 from MI-DEMO-UI v2 + Phase 2c-form Unit 3 → 14 total).
+
+**Acceptance status:** Closes #1, #2, #4, #9. Partials: #3 (View button on linked entries, no fuzzy-match candidates UI), #5 (paste-CSV not PDF parsing), #8 (responsive table, no separate mobile card view). #6 supervisor stats deferred to Unit 3.
+
+**Source:** Lead autonomous build off Buddy work order `.coordination/work_order_MI401_gis_list_tab.md` + Buddy backend handoff. Lead committed + pushed + FF merged to `mi-demo-seed`.
+
+**Affects:** GIS List paper-replacement workflow live in demo. Inspectors can advance route status without touching paper notebooks. Demo angle: Jeff (Field Operations Manager at CP Engineers) recognizes the workflow from his own LCRI supervision.
+
+---
+
+## 2026-05-07 ~05:30 EDT — MI-404 Unit 2 (The Herald tab UI) shipped
+
+**Decision:** MI-404 Unit 2 shipped as commit `d64407f` on `demo-banner` (FF-merged to `mi-demo-seed`). +347 lines in `index.html`. Sidebar tab "The Herald" (last position in Office nav); panel with hero card (thumbnail-or-📰-placeholder + title + month/year + released date + Read CTA), 4 highlight tiles conditional on populated fields (Market Spotlight / Photo of the Month / Get to Know / Tip of the Month), Back Issues archive listing all issues including current (per acceptance #4 — single-issue state shows that issue in archive), super_admin Upload New Issue modal + PDF viewer modal.
+
+**Backend reuse:** Buddy's MI-404 Unit 1 backend (`heralds` table, RLS forced + read-firm + super_admin-only writes, August 2025 row with all highlight fields populated, `pdf_url` placeholder) shipped earlier this session via Filesystem MCP. **Buddy deviation flagged:** work order RLS spec used `current_user_role() = 'super_admin'` but that helper doesn't exist in DB; Buddy substituted `is_super_admin()` (canonical pattern, used elsewhere in schema). No semantic change — same access predicate, correct function name.
+
+**PDF viewer 3-branch logic:** `openHeraldPdf(issueId)` inspects `pdf_url`; (a) if not a valid `http(s)://` URL (placeholder state), shows friendly "PDF not yet uploaded" message inline; (b) if `window.innerWidth < 768`, swaps embed for "Download PDF" anchor link (per work order mobile fallback); (c) otherwise renders inline `<embed type="application/pdf">` at 90vh. Avoids the failure mode where the placeholder string would render as a broken iframe.
+
+**Upload modal storage flow:** `confirmHeraldUpload` PUTs PDF to bucket `heralds` at path `{firm_id}/{year}-{month}/herald.pdf` (work order convention) with `upsert: true`, then upserts the heralds row keyed on `(firm_id, year, month)` UNIQUE so a re-upload of the same month replaces both file + metadata. Bucket existence pre-verified by Jorge before wire-up.
+
+**Friendly toast on storage failures:** Per Jorge's directive ("friendly toast not raw error"), bucket-missing errors surface as `"Herald storage not configured yet — ping Jorge to enable the bucket"` rather than the raw Supabase error. Generic upload/save failures show `"Upload failed — try again or ping Jorge"`. Raw error messages are not surfaced to the user. Banked discipline: error UX matters even on super_admin-only surfaces.
+
+**Class convention alignment:** Initial draft used `class="modal-select"` on text/date/file inputs and textareas. Jorge flagged the canonical convention: `.modal-input` for non-select inputs, `.modal-select` for `<select>` elements. Both classes have CSS rules with near-identical visual result on text inputs (modal-input has `transition:border-color`, modal-select has `-webkit-appearance:none`); aligned via two `replace_all` Edit calls scoped to `id="hu-` (7 inputs + 3 textareas → modal-input; 1 `<select>` for month kept on modal-select). Banked: when a class name in scope has both `-input` and `-select` variants, default to `-input` for non-select form fields.
+
+**Lesson 7 applied:** Heralds upsert payload explicitly includes `firm_id: currentFirmId`. RLS WITH CHECK on the heralds insert/update policy enforces firm isolation + super_admin role.
+
+**Pitch mode integration:** `confirmHeraldUpload` checks `pitchModeBlocked('Herald upload')`. Adds 1 to the running pitch-mode guard tally (14 → 15 total).
+
+**Acceptance status:** Closes #1, #2, #3, #4, #5, #6, #7. All 7 work order acceptance criteria met.
+
+**Source:** Lead autonomous build off Buddy work order `.coordination/work_order_MI404_herald_tab.md` + Buddy backend handoff. Lead committed + pushed + FF merged to `mi-demo-seed`.
+
+**Affects:** The Herald tab is live for demo. When Jorge demos to Jeff, opening the tab → August 2025 issue renders as hero card with Photo of the Month tile reading the Schmitz Tank caption with Jeff's name. Warm-room landing as planned in the work order strategic angle. Pre-demo prerequisite: Jorge uploads the actual PDF via the super_admin modal so the Read CTA renders the embed instead of the placeholder message.
