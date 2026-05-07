@@ -231,13 +231,26 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .tc-mi-remove:hover{color:var(--red);border-color:var(--red)}
 .tc-mi-add{background:transparent;color:var(--blue-light);border:1px dashed var(--border);border-radius:6px;padding:8px 12px;font-size:11px;font-weight:600;cursor:pointer;width:100%;margin-top:8px;letter-spacing:.04em}
 .tc-mi-add:hover{border-color:var(--blue-light);background:rgba(74,124,196,0.06)}
-.tc-diagram-placeholder{background:rgba(94,122,154,0.06);border:2px dashed var(--border);border-radius:var(--radius);padding:32px;text-align:center;color:var(--muted);font-size:12px;font-style:italic;margin:10px 0}
-.tc-diagram-placeholder strong{display:block;font-style:normal;font-weight:700;color:var(--blue-light);margin-bottom:4px;font-family:'Rajdhani',sans-serif;font-size:14px;letter-spacing:.06em;text-transform:uppercase}
-.tc-diagram-prominent{min-height:220px;padding:40px 24px;background:linear-gradient(180deg,rgba(74,124,196,0.08),rgba(74,124,196,0.03));border-color:rgba(74,124,196,0.4);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
-.tc-diagram-prominent strong{font-size:18px;color:var(--blue-light);text-transform:uppercase;letter-spacing:.08em;margin:0}
-.tc-diagram-icon{font-size:36px;color:var(--blue-light);opacity:0.55;margin-bottom:4px}
-.tc-diagram-phase{font-style:normal;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--orange);background:rgba(244,168,32,0.1);border:1px solid rgba(244,168,32,0.25);border-radius:99px;padding:4px 12px}
-.tc-diagram-detail{font-style:normal;font-size:11px;color:var(--muted);line-height:1.55;max-width:560px;margin-top:6px}
+.tc-diagram-toolbar{display:flex;align-items:center;gap:6px;padding:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius) var(--radius) 0 0;border-bottom:none;flex-wrap:wrap;position:relative}
+.tc-diagram-btn{background:var(--surface2);border:1px solid var(--border);color:var(--white);font-size:13px;padding:6px 10px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-weight:600;letter-spacing:.04em;min-height:32px;min-width:32px;display:inline-flex;align-items:center;justify-content:center;transition:background 120ms ease,border-color 120ms ease}
+.tc-diagram-btn:hover{background:rgba(74,124,196,0.18);border-color:var(--blue-light)}
+.tc-diagram-btn:disabled{opacity:0.4;cursor:not-allowed}
+.tc-diagram-btn-danger{color:#fca5a5}
+.tc-diagram-btn-danger:hover{background:rgba(220,38,38,0.18);border-color:#dc2626}
+.tc-diagram-sep{width:1px;height:20px;background:var(--border);margin:0 4px}
+.tc-diagram-toggle{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;user-select:none}
+.tc-diagram-toggle input{margin:0;cursor:pointer}
+.tc-diagram-spacer{flex:1}
+.tc-diagram-status{color:var(--muted);font-size:11px;font-style:italic}
+.tc-diagram-asset-wrap{position:relative}
+.tc-diagram-asset-picker{position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px;display:flex;flex-direction:column;gap:4px;z-index:50;box-shadow:0 6px 18px rgba(0,0,0,0.45);min-width:120px}
+.tc-diagram-asset-picker button{background:transparent;border:1px solid transparent;color:var(--white);font-size:12px;padding:6px 10px;border-radius:4px;cursor:pointer;text-align:left;font-family:'Rajdhani',sans-serif;font-weight:600}
+.tc-diagram-asset-picker button:hover{background:rgba(74,124,196,0.2);border-color:var(--blue-light)}
+.tc-diagram-canvas-wrap{position:relative;border:1px solid var(--border);border-radius:0 0 var(--radius) var(--radius);overflow:hidden;background:#0a1220}
+.tc-diagram-canvas{display:block;width:100%;height:auto;max-height:60vh;touch-action:none;-webkit-user-select:none;user-select:none;cursor:crosshair}
+.tc-diagram-canvas g.dgm-mp,.tc-diagram-canvas g.dgm-asset{cursor:grab}
+.tc-diagram-canvas g.dgm-mp:active,.tc-diagram-canvas g.dgm-asset:active{cursor:grabbing}
+.tc-diagram-readonly-pill{position:absolute;top:8px;right:8px;background:rgba(244,168,32,0.95);color:#1a1a1a;font-size:11px;font-weight:700;padding:5px 10px;border-radius:99px;font-family:'Rajdhani',sans-serif;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 2px 8px rgba(0,0,0,0.4)}
 .tc-ms-readout{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;font-size:12px}
 .tc-ms-readout > div{background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px}
 .tc-ms-readout-label{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px}
@@ -1371,11 +1384,38 @@ html,body{overflow-x:hidden}
 
         <div class="tc-section">
           <div class="tc-section-title">Diagram</div>
-          <div class="tc-diagram-placeholder tc-diagram-prominent">
-            <div class="tc-diagram-icon">&#9999;</div>
-            <strong>Diagram pane</strong>
-            <div class="tc-diagram-phase">Phase 4 — separate subproject (~6 sessions)</div>
-            <div class="tc-diagram-detail">SVG-based interactive diagram with snap-to-rule mode is the highest-risk piece of the tapcard cluster (TAPCARD_CLUSTER_SPEC §5). Deferred to its own focused build window — not a missing field, not a render failure. The Tapcard ships and saves without it; diagram data attaches later via tapcard_data.diagram on existing rows.</div>
+          <div class="tc-diagram-toolbar">
+            <button type="button" class="tc-diagram-btn" onclick="diagramUndo()" title="Undo">&#8634;</button>
+            <button type="button" class="tc-diagram-btn" onclick="diagramRedo()" title="Redo">&#8635;</button>
+            <span class="tc-diagram-sep"></span>
+            <div class="tc-diagram-asset-wrap">
+              <button type="button" class="tc-diagram-btn" onclick="diagramToggleAssetPicker()" title="Add asset">+ Asset</button>
+              <div id="tc-diagram-asset-picker" class="tc-diagram-asset-picker" style="display:none;">
+                <button type="button" onclick="diagramArmAsset('watermain_tap')">WM Tap</button>
+                <button type="button" onclick="diagramArmAsset('valve')">Valve</button>
+                <button type="button" onclick="diagramArmAsset('hydrant')">Hydrant</button>
+                <button type="button" onclick="diagramArmAsset('other')">Other</button>
+              </div>
+            </div>
+            <span class="tc-diagram-sep"></span>
+            <label class="tc-diagram-toggle"><input type="checkbox" id="tc-diagram-snap" checked onchange="diagramSetSnap(this.checked)"> Snap</label>
+            <span class="tc-diagram-sep"></span>
+            <button type="button" class="tc-diagram-btn tc-diagram-btn-danger" onclick="diagramClear()" title="Clear all">Clear</button>
+            <span class="tc-diagram-spacer"></span>
+            <span class="tc-diagram-status" id="tc-diagram-status">Tap to place MP</span>
+          </div>
+          <div class="tc-diagram-canvas-wrap">
+            <svg id="tc-diagram-canvas" class="tc-diagram-canvas" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet">
+              <defs>
+                <pattern id="tc-diagram-grid-pattern" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+                  <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(94,122,154,0.18)" stroke-width="1"/>
+                </pattern>
+              </defs>
+              <rect x="0" y="0" width="800" height="600" fill="url(#tc-diagram-grid-pattern)"/>
+              <g id="tc-diagram-content"></g>
+              <g id="tc-diagram-cs-layer"></g>
+            </svg>
+            <div id="tc-diagram-readonly-pill" class="tc-diagram-readonly-pill" style="display:none;"></div>
           </div>
         </div>
 
@@ -4484,6 +4524,10 @@ async function openTapcardForProperty(propertyId){
   }
 
   overlay.classList.add('open');
+  // MI-110 Phase 4: init diagram editor on each open. Empty state by default;
+  // Q-110-b default (a) — older tapcards without diagrams open with empty editor.
+  diagramReset();
+  diagramAttachListeners();
   if(sheet){
     tcSetFooterStatus('ready', `Materials Sheet attached (${sheet.sheet_date || new Date(sheet.created_at).toLocaleDateString()}). Sector ${currentTapcard.sector}.`);
   } else {
@@ -4495,6 +4539,11 @@ function closeTapcardModal(){
   document.getElementById('modal-tapcard').classList.remove('open');
   currentTapcard = null;
   currentTapcardPartsCatalog = [];
+  // MI-110 Phase 4: reset diagram editor state so the next open starts clean.
+  diagramReset();
+  // Hide asset picker if left open
+  const picker = document.getElementById('tc-diagram-asset-picker');
+  if(picker) picker.style.display = 'none';
 }
 
 function tcSwitchPage(page){
@@ -5269,6 +5318,390 @@ function tcReadMaterialInstalledRows(){
   return rows;
 }
 
+// ── PHASE 4 DIAGRAM EDITOR (MI-110) ────────────────────────────
+// SVG-based tapcard diagram editor. Tap to place MP, drag with snap, asset markers,
+// undo/redo. Persists to tapcard_data.diagram per the Phase 4 brief.
+//
+// Coordinates: normalized 0.0-1.0. Renders into 800x600 viewBox. Snap = 5%
+// increments. CS marker locked at {x:0.5, y:0.95} (anchor, not draggable).
+// Distance/bearing computed from CS in feet (50ft per canvas-width — calibration v2).
+// Undo stack capped at 30. Q-7=C: explicit Save (no autosave).
+
+const DIAGRAM_VIEWBOX_W = 800;
+const DIAGRAM_VIEWBOX_H = 600;
+const DIAGRAM_CS_DEFAULT = { x: 0.5, y: 0.95 };
+const DIAGRAM_SNAP_STEP = 0.05;
+const DIAGRAM_UNDO_CAP = 30;
+const DIAGRAM_FT_PER_NORM = 50;
+
+let diagramState = null;
+let diagramReadOnly = false;
+let diagramArmedAssetType = null;
+let diagramSelectedId = null;
+let diagramDragId = null;
+let diagramDragMoved = false;
+let diagramSnapEnabled = true;
+let diagramUndoStack = [];
+let diagramRedoStack = [];
+
+function diagramReset(){
+  diagramState = {
+    version: 1,
+    format: 'structured',
+    cs: { ...DIAGRAM_CS_DEFAULT },
+    mp: [],
+    assets: [],
+    annotations: [],
+    image_dimensions: { width: DIAGRAM_VIEWBOX_W, height: DIAGRAM_VIEWBOX_H }
+  };
+  diagramReadOnly = false;
+  diagramArmedAssetType = null;
+  diagramSelectedId = null;
+  diagramDragId = null;
+  diagramDragMoved = false;
+  diagramSnapEnabled = true;
+  diagramUndoStack = [];
+  diagramRedoStack = [];
+  const snapEl = document.getElementById('tc-diagram-snap');
+  if(snapEl) snapEl.checked = true;
+  const pillEl = document.getElementById('tc-diagram-readonly-pill');
+  if(pillEl) pillEl.style.display = 'none';
+  diagramSetStatus('Tap to place MP');
+  diagramRender();
+}
+
+function diagramLoad(data, opts){
+  // Hydrate from a saved tapcard_data.diagram payload.
+  opts = opts || {};
+  diagramReset();
+  if(data && data.version === 1){
+    diagramState = JSON.parse(JSON.stringify(data));
+    if(!diagramState.mp) diagramState.mp = [];
+    if(!diagramState.assets) diagramState.assets = [];
+    if(!diagramState.annotations) diagramState.annotations = [];
+    if(!diagramState.cs) diagramState.cs = { ...DIAGRAM_CS_DEFAULT };
+    if(!diagramState.image_dimensions) diagramState.image_dimensions = { width: DIAGRAM_VIEWBOX_W, height: DIAGRAM_VIEWBOX_H };
+  }
+  diagramReadOnly = !!opts.readOnly;
+  if(diagramReadOnly){
+    const pillEl = document.getElementById('tc-diagram-readonly-pill');
+    if(pillEl){
+      pillEl.style.display = 'block';
+      pillEl.textContent = opts.pillText || 'Read-only';
+    }
+    diagramSetStatus('Read-only view');
+  }
+  diagramRender();
+}
+
+function diagramSerialize(){
+  // Returns null if the editor is in untouched empty state — keeps payload clean.
+  if(!diagramState) return null;
+  const empty = diagramState.mp.length === 0 && diagramState.assets.length === 0 && diagramState.annotations.length === 0;
+  if(empty) return null;
+  return {
+    version: 1,
+    format: 'structured',
+    cs: { ...diagramState.cs },
+    mp: diagramState.mp.map(m => ({ id:m.id, x:m.x, y:m.y, label:m.label, distance_to_cs_ft:m.distance_to_cs_ft, bearing_to_cs_deg:m.bearing_to_cs_deg })),
+    assets: diagramState.assets.map(a => ({ id:a.id, type:a.type, x:a.x, y:a.y, label:a.label })),
+    annotations: diagramState.annotations.map(a => ({ ...a })),
+    image_dimensions: { ...diagramState.image_dimensions },
+    saved_at: new Date().toISOString(),
+    saved_by_profile_id: currentUser?.id || null
+  };
+}
+
+function _diagramCloneCore(){
+  return JSON.stringify({ cs: diagramState.cs, mp: diagramState.mp, assets: diagramState.assets, annotations: diagramState.annotations });
+}
+
+function diagramSnapshot(){
+  if(!diagramState) return;
+  diagramUndoStack.push(_diagramCloneCore());
+  if(diagramUndoStack.length > DIAGRAM_UNDO_CAP) diagramUndoStack.shift();
+  diagramRedoStack = [];
+}
+
+function diagramUndo(){
+  if(diagramReadOnly) return;
+  if(diagramUndoStack.length === 0){ diagramSetStatus('Nothing to undo'); return; }
+  diagramRedoStack.push(_diagramCloneCore());
+  const prev = JSON.parse(diagramUndoStack.pop());
+  Object.assign(diagramState, prev);
+  diagramSelectedId = null;
+  diagramSetStatus('Undid last action');
+  diagramRender();
+}
+
+function diagramRedo(){
+  if(diagramReadOnly) return;
+  if(diagramRedoStack.length === 0){ diagramSetStatus('Nothing to redo'); return; }
+  diagramUndoStack.push(_diagramCloneCore());
+  const next = JSON.parse(diagramRedoStack.pop());
+  Object.assign(diagramState, next);
+  diagramSelectedId = null;
+  diagramSetStatus('Redid action');
+  diagramRender();
+}
+
+function diagramSetSnap(on){ diagramSnapEnabled = !!on; diagramSetStatus('Snap ' + (diagramSnapEnabled ? 'on' : 'off')); }
+
+function _diagramSnap(v){ return diagramSnapEnabled ? Math.round(v / DIAGRAM_SNAP_STEP) * DIAGRAM_SNAP_STEP : v; }
+function _diagramClamp(v){ return Math.max(0, Math.min(1, v)); }
+
+function _diagramDistance(p1, p2){
+  const dx = p2.x - p1.x, dy = p2.y - p1.y;
+  return Math.round(Math.sqrt(dx*dx + dy*dy) * DIAGRAM_FT_PER_NORM * 10) / 10;
+}
+function _diagramBearing(from, to){
+  const dx = to.x - from.x, dy = -(to.y - from.y);
+  let deg = Math.atan2(dx, dy) * 180 / Math.PI;
+  if(deg < 0) deg += 360;
+  return Math.round(deg);
+}
+
+function diagramSetStatus(msg){
+  const el = document.getElementById('tc-diagram-status');
+  if(el) el.textContent = msg;
+}
+
+function diagramArmAsset(type){
+  if(diagramReadOnly) return;
+  diagramArmedAssetType = type;
+  const labels = { watermain_tap:'WM Tap', valve:'Valve', hydrant:'Hydrant', other:'Other' };
+  diagramSetStatus(`Tap canvas to place ${labels[type] || type}`);
+  const picker = document.getElementById('tc-diagram-asset-picker');
+  if(picker) picker.style.display = 'none';
+}
+
+function diagramToggleAssetPicker(){
+  if(diagramReadOnly) return;
+  const picker = document.getElementById('tc-diagram-asset-picker');
+  if(!picker) return;
+  picker.style.display = picker.style.display === 'none' ? 'flex' : 'none';
+}
+
+function diagramClear(){
+  if(diagramReadOnly) return;
+  if(!diagramState) return;
+  if(diagramState.mp.length === 0 && diagramState.assets.length === 0 && diagramState.annotations.length === 0){
+    diagramSetStatus('Already empty');
+    return;
+  }
+  if(!confirm('Clear all markers? CS stays locked.')) return;
+  diagramSnapshot();
+  diagramState.mp = [];
+  diagramState.assets = [];
+  diagramState.annotations = [];
+  diagramSelectedId = null;
+  diagramArmedAssetType = null;
+  diagramSetStatus('Cleared. Tap to place MP.');
+  diagramRender();
+}
+
+function _diagramSvgPoint(evt){
+  const svg = document.getElementById('tc-diagram-canvas');
+  if(!svg) return null;
+  const pt = svg.createSVGPoint();
+  pt.x = evt.clientX;
+  pt.y = evt.clientY;
+  const ctm = svg.getScreenCTM();
+  if(!ctm) return null;
+  const local = pt.matrixTransform(ctm.inverse());
+  return { x: _diagramClamp(local.x / DIAGRAM_VIEWBOX_W), y: _diagramClamp(local.y / DIAGRAM_VIEWBOX_H) };
+}
+
+function _diagramHit(point){
+  const threshold = 0.045;
+  for(let i = diagramState.mp.length - 1; i >= 0; i--){
+    const m = diagramState.mp[i];
+    const dx = m.x - point.x, dy = m.y - point.y;
+    if(Math.sqrt(dx*dx + dy*dy) < threshold) return { kind:'mp', idx:i, id:m.id };
+  }
+  for(let i = diagramState.assets.length - 1; i >= 0; i--){
+    const a = diagramState.assets[i];
+    const dx = a.x - point.x, dy = a.y - point.y;
+    if(Math.sqrt(dx*dx + dy*dy) < threshold) return { kind:'asset', idx:i, id:a.id };
+  }
+  return null;
+}
+
+function _diagramPointerDown(evt){
+  if(diagramReadOnly) return;
+  evt.preventDefault();
+  const svg = document.getElementById('tc-diagram-canvas');
+  if(svg && svg.setPointerCapture) { try { svg.setPointerCapture(evt.pointerId); } catch(e){} }
+  const pt = _diagramSvgPoint(evt);
+  if(!pt) return;
+  const hit = _diagramHit(pt);
+  // Asset placement mode
+  if(diagramArmedAssetType){
+    diagramSnapshot();
+    const x = _diagramSnap(pt.x), y = _diagramSnap(pt.y);
+    const id = `asset-${Date.now()}-${diagramState.assets.length}`;
+    const labels = { watermain_tap:'WM Tap', valve:'Valve', hydrant:'Hydrant', other:'Asset' };
+    const sameTypeCount = diagramState.assets.filter(a => a.type === diagramArmedAssetType).length + 1;
+    diagramState.assets.push({ id, type: diagramArmedAssetType, x, y, label: `${labels[diagramArmedAssetType] || 'Asset'} ${sameTypeCount}` });
+    diagramSelectedId = id;
+    diagramSetStatus(`Placed ${labels[diagramArmedAssetType]} ${sameTypeCount}`);
+    diagramArmedAssetType = null;
+    diagramRender();
+    return;
+  }
+  // Hit existing marker → select + start drag
+  if(hit){
+    diagramSelectedId = hit.id;
+    diagramDragId = hit.id;
+    diagramDragMoved = false;
+    diagramRender();
+    return;
+  }
+  // Tap on empty area while something selected → deselect
+  if(diagramSelectedId){
+    diagramSelectedId = null;
+    diagramRender();
+    return;
+  }
+  // Place new MP
+  diagramSnapshot();
+  const x = _diagramSnap(pt.x), y = _diagramSnap(pt.y);
+  const num = diagramState.mp.length + 1;
+  const id = `mp-${Date.now()}-${num}`;
+  const distance_to_cs_ft = _diagramDistance({x, y}, diagramState.cs);
+  const bearing_to_cs_deg = _diagramBearing(diagramState.cs, {x, y});
+  diagramState.mp.push({ id, x, y, label: `MP${num}`, distance_to_cs_ft, bearing_to_cs_deg });
+  diagramSelectedId = id;
+  diagramSetStatus(`Placed MP${num} (${distance_to_cs_ft} ft @ ${bearing_to_cs_deg}°)`);
+  diagramRender();
+}
+
+function _diagramPointerMove(evt){
+  if(diagramReadOnly) return;
+  if(!diagramDragId) return;
+  evt.preventDefault();
+  const pt = _diagramSvgPoint(evt);
+  if(!pt) return;
+  // Snapshot once on first real move (>0.5% to avoid jitter snapshots)
+  if(!diagramDragMoved){
+    diagramSnapshot();
+    diagramDragMoved = true;
+  }
+  const x = _diagramSnap(pt.x), y = _diagramSnap(pt.y);
+  const mp = diagramState.mp.find(m => m.id === diagramDragId);
+  if(mp){
+    mp.x = x; mp.y = y;
+    mp.distance_to_cs_ft = _diagramDistance({x, y}, diagramState.cs);
+    mp.bearing_to_cs_deg = _diagramBearing(diagramState.cs, {x, y});
+    diagramSetStatus(`${mp.label}: ${mp.distance_to_cs_ft} ft @ ${mp.bearing_to_cs_deg}°`);
+    diagramRender();
+    return;
+  }
+  const asset = diagramState.assets.find(a => a.id === diagramDragId);
+  if(asset){
+    asset.x = x; asset.y = y;
+    diagramSetStatus(`Moved ${asset.label}`);
+    diagramRender();
+  }
+}
+
+function _diagramPointerUp(evt){
+  if(diagramReadOnly) return;
+  if(diagramDragId){
+    diagramDragId = null;
+    diagramDragMoved = false;
+  }
+}
+
+function _diagramDoubleClick(evt){
+  if(diagramReadOnly) return;
+  const pt = _diagramSvgPoint(evt);
+  if(!pt) return;
+  const hit = _diagramHit(pt);
+  if(!hit) return;
+  const target = hit.kind === 'mp' ? diagramState.mp[hit.idx] : diagramState.assets[hit.idx];
+  if(!target) return;
+  if(!confirm(`Delete ${target.label}?`)) return;
+  diagramSnapshot();
+  if(hit.kind === 'mp'){
+    diagramState.mp.splice(hit.idx, 1);
+    diagramState.mp.forEach((m, i) => { m.label = `MP${i+1}`; });
+  } else {
+    diagramState.assets.splice(hit.idx, 1);
+  }
+  diagramSelectedId = null;
+  diagramSetStatus('Deleted');
+  diagramRender();
+}
+
+function diagramRender(){
+  if(!diagramState) return;
+  const csLayer = document.getElementById('tc-diagram-cs-layer');
+  const content = document.getElementById('tc-diagram-content');
+  if(!csLayer || !content) return;
+  const W = DIAGRAM_VIEWBOX_W, H = DIAGRAM_VIEWBOX_H;
+  const px = n => n * W, py = n => n * H;
+  const csX = px(diagramState.cs.x), csY = py(diagramState.cs.y);
+  csLayer.innerHTML = `
+    <g class="dgm-cs">
+      <circle cx="${csX}" cy="${csY}" r="15" fill="#f4a820" stroke="#fff" stroke-width="2.5"/>
+      <text x="${csX}" y="${csY+5}" text-anchor="middle" fill="#1a1a1a" font-size="12" font-weight="800" font-family="Rajdhani, sans-serif">CS</text>
+      <text x="${csX}" y="${csY+34}" text-anchor="middle" fill="#f4a820" font-size="11" font-weight="700" font-family="Rajdhani, sans-serif" letter-spacing="0.06em">ANCHOR</text>
+    </g>`;
+  const assetColors = { watermain_tap:'#16a34a', valve:'#dc2626', hydrant:'#eab308', other:'#94a3b8' };
+  const assetLetter = { watermain_tap:'T', valve:'V', hydrant:'H', other:'?' };
+  let html = '';
+  // Connectors first (under markers)
+  diagramState.mp.forEach(m => {
+    html += `<line x1="${csX}" y1="${csY}" x2="${px(m.x)}" y2="${py(m.y)}" stroke="rgba(74,124,196,0.5)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
+  });
+  // MPs
+  diagramState.mp.forEach(m => {
+    const mx = px(m.x), my = py(m.y);
+    const sel = (diagramSelectedId === m.id);
+    if(sel) html += `<circle cx="${mx}" cy="${my}" r="22" fill="none" stroke="#7ab1ff" stroke-width="2" stroke-dasharray="4,3"/>`;
+    html += `<g class="dgm-mp" data-id="${m.id}">`;
+    html += `<circle cx="${mx}" cy="${my}" r="12" fill="#4a7cc4" stroke="#fff" stroke-width="2.5"/>`;
+    html += `<text x="${mx}" y="${my+4}" text-anchor="middle" fill="#fff" font-size="11" font-weight="800" font-family="Rajdhani, sans-serif">${(m.label||'').replace('MP','')}</text>`;
+    html += `<text x="${mx}" y="${my-19}" text-anchor="middle" fill="#cdd9eb" font-size="10" font-weight="600" font-family="sans-serif">${m.distance_to_cs_ft}ft &middot; ${m.bearing_to_cs_deg}&deg;</text>`;
+    html += `</g>`;
+  });
+  // Assets
+  diagramState.assets.forEach(a => {
+    const ax = px(a.x), ay = py(a.y);
+    const sel = (diagramSelectedId === a.id);
+    const color = assetColors[a.type] || '#94a3b8';
+    const letter = assetLetter[a.type] || '?';
+    if(sel) html += `<rect x="${ax-19}" y="${ay-19}" width="38" height="38" rx="4" fill="none" stroke="#7ab1ff" stroke-width="2" stroke-dasharray="4,3"/>`;
+    html += `<g class="dgm-asset" data-id="${a.id}">`;
+    html += `<rect x="${ax-12}" y="${ay-12}" width="24" height="24" rx="3" fill="${color}" stroke="#fff" stroke-width="2"/>`;
+    html += `<text x="${ax}" y="${ay+5}" text-anchor="middle" fill="#fff" font-size="13" font-weight="800" font-family="Rajdhani, sans-serif">${letter}</text>`;
+    html += `<text x="${ax}" y="${ay-18}" text-anchor="middle" fill="#cdd9eb" font-size="10" font-weight="600" font-family="sans-serif">${a.label}</text>`;
+    html += `</g>`;
+  });
+  content.innerHTML = html;
+}
+
+function diagramAttachListeners(){
+  const svg = document.getElementById('tc-diagram-canvas');
+  if(!svg || svg._dgmAttached) return;
+  svg._dgmAttached = true;
+  svg.addEventListener('pointerdown', _diagramPointerDown);
+  svg.addEventListener('pointermove', _diagramPointerMove);
+  svg.addEventListener('pointerup', _diagramPointerUp);
+  svg.addEventListener('pointercancel', _diagramPointerUp);
+  svg.addEventListener('dblclick', _diagramDoubleClick);
+  // Close asset picker when clicking outside
+  document.addEventListener('click', (e) => {
+    const wrap = document.querySelector('.tc-diagram-asset-wrap');
+    const picker = document.getElementById('tc-diagram-asset-picker');
+    if(!wrap || !picker || picker.style.display === 'none') return;
+    if(!wrap.contains(e.target)) picker.style.display = 'none';
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+
 function tcReadForm(){
   const text = id => { const el = document.getElementById(id); const v = el?.value; return (v === '' || v === null || v === undefined) ? null : String(v).trim() || null; };
   const num  = id => { const el = document.getElementById(id); const v = el?.value; if(v === '' || v === null || v === undefined) return null; const n = Number(v); return Number.isFinite(n) ? n : null; };
@@ -5300,10 +5733,11 @@ function tcReadForm(){
         date_installed: text('tc-co-date_installed'),
         installed_by: text('tc-co-installed_by'),
       },
-      // diagram: deferred to Phase 4 per TAPCARD_CLUSTER_SPEC §5.1
     },
     sector: currentTapcard?.sector || 'NJ6_NORMAL',
     materials_sheet_id_at_submit: currentTapcard?.materials_sheet_id || null,
+    // MI-110 Phase 4: serialized diagram state. Null if untouched.
+    diagram: diagramSerialize(),
   };
   if(!officeFillEmpty) out.company_side.office_fill = office_fill;
   return out;
