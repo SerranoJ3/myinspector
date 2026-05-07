@@ -251,6 +251,9 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .tc-diagram-canvas g.dgm-mp,.tc-diagram-canvas g.dgm-asset{cursor:grab}
 .tc-diagram-canvas g.dgm-mp:active,.tc-diagram-canvas g.dgm-asset:active{cursor:grabbing}
 .tc-diagram-readonly-pill{position:absolute;top:8px;right:8px;background:rgba(244,168,32,0.95);color:#1a1a1a;font-size:11px;font-weight:700;padding:5px 10px;border-radius:99px;font-family:'Rajdhani',sans-serif;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 2px 8px rgba(0,0,0,0.4)}
+.pd-diagram-embed{position:relative;margin-top:10px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:#0a1220}
+.pd-diagram-pill{position:absolute;top:6px;right:6px;background:rgba(244,168,32,0.92);color:#1a1a1a;font-size:9px;font-weight:700;padding:3px 8px;border-radius:99px;font-family:'Rajdhani',sans-serif;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 2px 6px rgba(0,0,0,0.4);max-width:75%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2}
+.pd-diagram-svg{display:block;width:100%;height:auto;max-height:280px}
 .tc-ms-readout{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;font-size:12px}
 .tc-ms-readout > div{background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px}
 .tc-ms-readout-label{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px}
@@ -3753,6 +3756,10 @@ async function openPropertyDetail(propertyId){
 
     const notesHTML = s.notes ? `<div class="pd-sub-notes"><strong>Notes:</strong> ${s.notes}</div>` : '';
     const seqHTML = s.sequence_note ? `<div class="pd-sub-notes"><strong>Sequence note:</strong> ${s.sequence_note}</div>` : '';
+    // MI-110 Phase 4 acceptance #6: read-only diagram embed for previously-submitted tapcards
+    const diagramHTML = (s.phase === 'tapcard' && s.tapcard_data && s.tapcard_data.diagram)
+      ? diagramReadOnlyEmbed(s.tapcard_data.diagram, { pillText: `Diagram — ${dt} · ${inspector}` })
+      : '';
 
     return `
       <div class="pd-submission" id="pd-sub-${idx}">
@@ -3773,6 +3780,7 @@ async function openPropertyDetail(propertyId){
           ${notesHTML}
           ${seqHTML}
           ${photosHTML}
+          ${diagramHTML}
         </div>
       </div>
     `;
@@ -5700,6 +5708,49 @@ function diagramAttachListeners(){
   });
 }
 
+// Read-only diagram embed — returns standalone SVG markup for any tapcard_data.diagram
+// payload. Used in property detail submissions list to render saved diagrams without
+// instantiating the editor. Multiple embeds can coexist on one page (no shared IDs).
+// MI-110 Phase 4 acceptance #6.
+function diagramReadOnlyEmbed(diagram, opts){
+  if(!diagram) return '';
+  opts = opts || {};
+  const W = DIAGRAM_VIEWBOX_W, H = DIAGRAM_VIEWBOX_H;
+  const px = n => n * W, py = n => n * H;
+  const cs = diagram.cs || DIAGRAM_CS_DEFAULT;
+  const csX = px(cs.x), csY = py(cs.y);
+  const escapeStr = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  let inner = '';
+  inner += `<g class="dgm-cs"><circle cx="${csX}" cy="${csY}" r="13" fill="#f4a820" stroke="#fff" stroke-width="2"/><text x="${csX}" y="${csY+4}" text-anchor="middle" fill="#1a1a1a" font-size="11" font-weight="800" font-family="Rajdhani, sans-serif">CS</text></g>`;
+  (diagram.mp || []).forEach(m => {
+    inner += `<line x1="${csX}" y1="${csY}" x2="${px(m.x)}" y2="${py(m.y)}" stroke="rgba(74,124,196,0.5)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
+  });
+  (diagram.mp || []).forEach(m => {
+    const mx = px(m.x), my = py(m.y);
+    inner += `<g class="dgm-mp"><circle cx="${mx}" cy="${my}" r="11" fill="#4a7cc4" stroke="#fff" stroke-width="2"/>`;
+    inner += `<text x="${mx}" y="${my+4}" text-anchor="middle" fill="#fff" font-size="10" font-weight="800" font-family="Rajdhani, sans-serif">${escapeStr((m.label||'').replace('MP',''))}</text>`;
+    if(m.distance_to_cs_ft != null && m.bearing_to_cs_deg != null){
+      inner += `<text x="${mx}" y="${my-17}" text-anchor="middle" fill="#cdd9eb" font-size="9" font-weight="600" font-family="sans-serif">${escapeStr(m.distance_to_cs_ft)}ft &middot; ${escapeStr(m.bearing_to_cs_deg)}&deg;</text>`;
+    }
+    inner += `</g>`;
+  });
+  const assetColors = { watermain_tap:'#16a34a', valve:'#dc2626', hydrant:'#eab308', other:'#94a3b8' };
+  const assetLetter = { watermain_tap:'T', valve:'V', hydrant:'H', other:'?' };
+  (diagram.assets || []).forEach(a => {
+    const ax = px(a.x), ay = py(a.y);
+    const color = assetColors[a.type] || '#94a3b8';
+    const letter = assetLetter[a.type] || '?';
+    inner += `<g class="dgm-asset"><rect x="${ax-11}" y="${ay-11}" width="22" height="22" rx="3" fill="${color}" stroke="#fff" stroke-width="2"/>`;
+    inner += `<text x="${ax}" y="${ay+4}" text-anchor="middle" fill="#fff" font-size="12" font-weight="800" font-family="Rajdhani, sans-serif">${escapeStr(letter)}</text>`;
+    inner += `<text x="${ax}" y="${ay-16}" text-anchor="middle" fill="#cdd9eb" font-size="9" font-weight="600" font-family="sans-serif">${escapeStr(a.label)}</text>`;
+    inner += `</g>`;
+  });
+
+  const pillText = escapeStr(opts.pillText || 'Read-only');
+  return `<div class="pd-diagram-embed"><div class="pd-diagram-pill">${pillText}</div><svg class="pd-diagram-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${inner}</svg></div>`;
+}
+
 // ─────────────────────────────────────────────────────────────
 
 function tcReadForm(){
@@ -5863,6 +5914,7 @@ You help inspectors and PMs with:
 Be concise and direct. Inspectors are in the field. Use bullet points for lists.`;
 
 let luisOpen=false;
+let luisHistory=[]; // multi-turn conversation history
 
 function toggleLuis(){
   luisOpen=!luisOpen;
@@ -5873,6 +5925,41 @@ function toggleLuis(){
 function askLuis(q){
   document.getElementById('luis-inp').value=q;
   sendLuis();
+}
+
+function luisResetConversation(){
+  // Clear history + restore greeting + restore suggested questions
+  luisHistory = [];
+  const msgs = document.getElementById('luis-msgs');
+  if(msgs){
+    msgs.innerHTML = '<div class="lmsg lmsg-l">Hey, I am Luis — your AI field assistant. Ask me anything about LCRI compliance, work codes, ADA specs, phase requirements, or any field question.</div>';
+  }
+  const sugs = document.getElementById('luis-sugs');
+  if(sugs) sugs.style.display = '';
+}
+
+function luisGetPageContext(){
+  // Inspect what's currently visible to give Luis grounding. Returns context
+  // string to inject into the system prompt, or empty if no relevant context.
+  const bits = [];
+  // Tapcard modal open?
+  const tcModal = document.getElementById('modal-tapcard');
+  if(tcModal && tcModal.classList.contains('open') && currentTapcard){
+    bits.push(`The user is currently filling out a tapcard. Sector: ${currentTapcard.sector || 'NJ6_NORMAL'}. Materials sheet attached: ${currentTapcard.materials_sheet_id ? 'yes' : 'no'}.`);
+  }
+  // Property detail modal open?
+  const pdModal = document.getElementById('modal-property-detail');
+  if(pdModal && pdModal.classList.contains('open')){
+    const pdAddress = document.getElementById('pd-address')?.textContent;
+    const pdCity = document.getElementById('pd-city')?.textContent;
+    if(pdAddress) bits.push(`The user is viewing property detail for ${pdAddress}${pdCity ? ', ' + pdCity : ''}.`);
+  }
+  // Materials sheet modal open?
+  const msModal = document.getElementById('modal-materials-sheet');
+  if(msModal && msModal.classList.contains('open')){
+    bits.push(`The user has the Materials Sheet form open.`);
+  }
+  return bits.length ? `\n\n[CURRENT CONTEXT]\n${bits.join(' ')}` : '';
 }
 
 function addMsg(text,type){
@@ -5895,26 +5982,35 @@ async function sendLuis(){
   addMsg(q,'u');
   addMsg('Luis is thinking...','t');
 
+  // Build messages array: full conversation history + the new question
+  const messages = [...luisHistory, { role:'user', content:q }];
+  // Pull current page context fresh on each send (modals can open/close mid-convo)
+  const systemWithContext = LUIS_SYSTEM + luisGetPageContext();
+
   try{
     const resp=await fetch('https://wryitfoletwskkdqqwcw.supabase.co/functions/v1/luis-proxy',{
       method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-      },
+      headers:{ 'Content-Type':'application/json' },
       body:JSON.stringify({
         model:'claude-haiku-4-5-20251001',
         max_tokens:600,
-        system:LUIS_SYSTEM,
-        messages:[{role:'user',content:q}]
+        system: systemWithContext,
+        messages
       })
     });
     const data=await resp.json();
     document.getElementById('luis-typing')?.remove();
     const answer=data.content?.map(c=>c.text||'').join('')||'Sorry, try again.';
     addMsg(answer,'l');
+    // Append both turns to history for the next request
+    luisHistory.push({ role:'user', content:q });
+    luisHistory.push({ role:'assistant', content:answer });
+    // Keep history bounded so token usage doesn't run away
+    if(luisHistory.length > 20) luisHistory = luisHistory.slice(-20);
     if(currentUser){
       sb.from('luis_conversations').insert({
         user_id:currentUser.id,
+        firm_id: currentFirmId,
         question:q,
         answer,
         module_key:'water'
