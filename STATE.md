@@ -4,8 +4,8 @@
 > **CLAUDE.md** holds locked principles. **STATE.md** holds live state.
 > Conflict with Claude memory: this file wins.
 
-**Last updated:** May 7, 2026 ~00:30 EDT (post Phase 2d-revision Unit 1 Step 2 + Unit 2 ship + MI-DEMO seed bootstrap + MI-110 Phase 4 diagram editor ship)
-**Updated by:** Lead (CC) on `demo-banner` branch. Tonight's session shipped: (1) Phase 2d-revision visual tapcard (`52adf8a` + `7018493`), (2) MI-DEMO seed (12 migrations via Buddy direct MCP, sync commit `08fac2d` on `mi-demo-seed`, merged to `demo-banner` as `ea2d957`), (3) MI-110 Phase 4 diagram editor (`cb6a96c` — Buddy shipped in 1 turn vs 6-session brief estimate; Lesson 6 banked).
+**Last updated:** May 7, 2026 ~00:45 EDT (post triple-ship close — towns swap + MI-110 acceptance #6 + Luis polish)
+**Updated by:** Lead (CC) on `demo-banner` branch. Wed 5/6 → Thu 5/7 session shipped six things: (1) Phase 2d-revision visual tapcard (`52adf8a` + `7018493`), (2) MI-DEMO seed (sync commit `08fac2d` merged to demo-banner as `ea2d957`), (3) MI-110 Phase 4 editor (`cb6a96c`), (4) Phase 4 docs (`5c64440`), (5) towns swap + MI-110 acceptance #6 + Luis polish triple-ship (`be48774`), (6) docs catch-up (this commit). Lessons 6 + 7 banked.
 
 ---
 
@@ -42,9 +42,10 @@
 | MI-101 Phase 2d (Visual Tapcard Preview, original placement) | Shipped Mon 5/5 on `demo-banner` (`79f8434`); superseded by Phase 2d-revision | Original placement on `#modal-tapcard`. Vestigial scaffolding removed in Phase 2d-revision Unit 1 Step 1 (commit `6b9a9d3`). VTC config + helpers preserved for Step 2 reuse on `modal-materials-sheet`. |
 | **MI-101 Phase 2d-revision Unit 1 Step 1 (vestigial removal)** | **Closed Mon 5/5 ~late evening** | Commit `6b9a9d3` on `demo-banner`. Removed `vtc-mobile-tabs` + `tc-mid` wrapper + `visual-tapcard-preview-container` from `#modal-tapcard`; removed `vtcInitOnOpen` / `vtcReset` / `vtcAttachListeners` / `vtcMobileTab` functions + call sites + `currentTapcard.property = prop` stash. Preserved `VTC_FIELDS` config + `vtcRender` + `vtcDebouncedRender` + `vtcVal` / `vtcEsc` / `vtcWrap` helpers + CSS rules. |
 | **MI-101 Phase 2d-revision Unit 1 Step 2 + Unit 2** | **Closed Wed 5/6 ~evening** | Two commits on `demo-banner`: `52adf8a` (Unit 1 Step 2 — split layout 50/50 desktop / 55/45 tablet / mobile sub-tab toggle, paper-true 6-section + Job Notes box SVG, sector dispatch via `currentMaterialsSheetProperty.sector`, helpers `vtcMs`/`vtcProp`/`vtcInchesToFtIn`/parsers) and `7018493` (Unit 2 — `vtcAttachAutopopListeners` idempotent delegated input listener, chip/toggle/recalc helper patches fire `vtcRender` directly, `tc-co-*` one-way binding, `vtcMaterialsRows` extrapolation FULL/KILL/M2C/H2C/MP/TP). Vercel preview `dpl_BbarAjj9...` from sha `7018493` confirmed READY. Schema verified pre-build (no drift; spec said `materials_sheets` 39 cols, actual 48 — caught + adjusted). |
-| **MI-110 Phase 4 (Tapcard Diagram editor)** | **Closed Wed 5/6 ~late evening — pending read-only wiring** | Commit `cb6a96c` on `demo-banner` (+447/-13 net +434 in `index.html`). Buddy shipped in 1 turn vs the 6-session brief estimate (see Lesson 6). SVG-based interactive editor: tap-to-place MP, drag-with-snap (5% grid), 4 asset markers (watermain_tap/valve/hydrant/other per Q-110-a), undo/redo (cap 30 states), `tapcard_data.diagram` jsonb persistence. Acceptance #1-5+#7 ✅; #6 (read-only mode wiring into property-detail view of previously-submitted tapcards) engine in place via `diagramLoad(data, {readOnly:true})` but NOT wired to property-detail surface — separate ticket. Deferred from this push: pinch-zoom/pan, long-press rename UI, annotation tool. Vercel preview `dpl_3PNpodp4...` from sha `cb6a96cf` confirmed READY. |
+| **MI-110 Phase 4 (Tapcard Diagram editor)** | **Closed Wed 5/6 — fully closed Thu 5/7 ~00:15 EDT** | Editor commit `cb6a96c` (+447/-13 in `index.html`, Buddy shipped in 1 turn vs 6-session brief estimate — see Lesson 6). Acceptance #6 closed in `be48774` Thu 5/7 ~00:15 EDT: `diagramReadOnlyEmbed(diagram, opts)` public API renders standalone SVG markup for any `tapcard_data.diagram` payload; Property Detail submissions list now inlines a read-only diagram beneath each `phase='tapcard'` submission card with `tapcard_data.diagram` set (multiple embeds per page, no shared IDs, XSS-safe). All 7 acceptance criteria ✅. Deferred (separate tickets): pinch-zoom/pan, long-press rename UI, annotation tool. |
+| **MI-DEMO-TOWNS** | **Closed Thu 5/7 ~00:00 EDT** | Migration `20260507002311_mi_demo_seed_14_swap_towns_to_non_njaw` reassigned 12 demo properties from NJAW footprint towns (Maplewood/Millburn/Short Hills) to non-NJAW NJ municipalities: Hoboken (3), Jersey City (3), Bayonne (3), Trenton (3). Per Jorge: a CP Engineers prospect would clock the original towns as Jorge's actual NJAW LCRI contract zone. Sector enum `NJAW_SHORT_HILLS` retained on bb...0011 + bb...0012 — sector is a product role-inversion type, not a municipality. Sector enum rename queued as separate ticket. |
 | MI-302 Construction PM frontend | Work order on disk (Buddy 5/5 evening) | Backend fully shipped. CP default project seeded Sun (`722f9db8...`). Q-302-b/c/d/e ratified. Patent-claim module per Bill. ~4 sessions. |
-| MI-luis-1 Luis AI v1 (Water Utility) | Work order on disk (Buddy 5/5 evening) | `luis_conversations` table shipped. Haiku 4.5 via Anthropic API + `luis-ask` Edge Function + brand-palette chat panel + citation chips. Demo-target for Jeff (5/14-5/15). ~2 sessions. |
+| **MI-luis-1 Luis AI v1 (Water Utility)** | **Polished Thu 5/7 ~00:25 EDT** | `luis_conversations` table + `luis-ask` Edge Function + chat panel + citation chips already in place. Polish in commit `be48774`: (1) multi-turn history (`luisHistory` global capped at 20 messages = 10 turns); (2) page-context awareness (`luisGetPageContext()` inspects open modals — tapcard/property-detail/materials-sheet — and injects a context string into the system prompt, fresh on each send); (3) **RLS bug fix:** `luis_conversations` insert was missing `firm_id` — `pg_policies` showed WITH CHECK = `(firm_id = current_firm_id() OR is_super_admin())`, so every prior insert with NULL firm_id was silently rejected. `currentFirmId` now passed on insert. Lesson 7 banked. |
 | MI-401 GIS List Tab | Work order on disk | Paper-replacement workflow. ~3 sessions. |
 | MI-402 Towns/Contractors reference | Work order on disk | Smallest, ~30 min backend + optional frontend. |
 | MI-403 Field Guides Tab | Work order on disk | Fittings reference library. ~2 sessions. |
@@ -195,7 +196,12 @@
 - **Three side decisions banked during seed run:** `pg_net` extension installed (forward capability for trigger-based Edge Function calls); `profiles.email` column added with backfill from `auth.users` (denormalized convenience for email-based lookups); `seed-demo-users` Edge Function deployed but functionally broken (`auth.admin.listUsers` SDK call fails — SQL bypass migration `20260506230158_mi_demo_seed_04_create_demo_auth_users_via_sql.sql` replaces it). Function source preserved at `supabase/functions/seed-demo-users/index.ts` for future SDK-version retry.
 - **§16a actor coverage outcome:** Spec target was ~91% audit attribution from ~1,000 cascade rows. Actual: 36.5% from ~58 cascade rows. Spec drift — cascade was much smaller than estimated. Demo-firm `audit_log` final state: 159 total, 58 attributed (36.5%), 101 NULL legacy (untouched per §16a option a). Defensible under audit.
 - **Companion specs queued (out of scope of seed):** MI-DEMO-UI v2 (banner copy + write suppression), MI-DEMO-DEPLOY (pitch-day deploy ritual + post-demo wipe schedule). Both pending separate spec drafts before pitch day.
-- **MI-110 Phase 4 SHIPPED in 1 Buddy turn** (commit `cb6a96c` on `demo-banner`, +447/-13 net +434 in `index.html`). SVG-based interactive Tapcard Diagram editor: tap-to-place MP, drag-with-snap (5% grid), 4 asset markers (Q-110-a default), undo/redo, `tapcard_data.diagram` jsonb persistence. Acceptance #1-5+#7 ✅; #6 read-only mode wiring deferred to separate ticket (engine in place via `diagramLoad(data, {readOnly:true})`). Deferred from this push: pinch-zoom/pan, long-press rename UI, annotation tool. Vercel preview READY. **Lesson 6 banked:** brief was 6-session estimate, shipped in 1 turn — when brief is locked + repo write access exists, BUILD don't spec.
+- **MI-110 Phase 4 SHIPPED in 1 Buddy turn** (commit `cb6a96c` on `demo-banner`, +447/-13 net +434 in `index.html`). SVG-based interactive Tapcard Diagram editor: tap-to-place MP, drag-with-snap (5% grid), 4 asset markers (Q-110-a default), undo/redo, `tapcard_data.diagram` jsonb persistence. Acceptance #1-5+#7 ✅; #6 read-only mode wiring initially deferred (engine in place via `diagramLoad(data, {readOnly:true})`). Deferred from this push: pinch-zoom/pan, long-press rename UI, annotation tool. Vercel preview READY. **Lesson 6 banked:** brief was 6-session estimate, shipped in 1 turn — when brief is locked + repo write access exists, BUILD don't spec.
+
+**Thu 5/7 ~00:00–00:30 EDT (late-night triple-ship — `be48774`):**
+- **Demo property towns swapped from NJAW footprint to non-NJAW NJ municipalities** via migration `20260507002311_mi_demo_seed_14_swap_towns_to_non_njaw`. Maplewood/Millburn/Short Hills (NJAW LCRI contract zone — Jorge's actual day-job territory) replaced with Hoboken (3) / Jersey City (3) / Bayonne (3) / Trenton (3). Sanitization fix per Jorge: a CP Engineers prospect would clock the original towns as Jorge's contract zone. Sector enum `NJAW_SHORT_HILLS` retained on bb...0011 + bb...0012 — it's a product role-inversion type, not a municipality. Sector enum rename queued separately.
+- **MI-110 Phase 4 acceptance #6 CLOSED** — `diagramReadOnlyEmbed(diagram, opts)` public API renders standalone SVG markup for any `tapcard_data.diagram` payload. Property Detail submissions list now inlines a read-only diagram beneath each `phase='tapcard'` submission card with `tapcard_data.diagram` set. Multiple embeds per page supported (no shared IDs). XSS-safe `escapeStr` on label text. All 7 brief acceptance criteria now ✅.
+- **Luis v1 polished:** multi-turn (`luisHistory` cap 20 messages = 10 turns) + page-context awareness (`luisGetPageContext()` inspects open modals + injects context string into system prompt) + **RLS bug fix** (`luis_conversations.insert` was missing `firm_id`; `pg_policies` WITH CHECK = `(firm_id = current_firm_id() OR is_super_admin())` rejected every prior write silently — `currentFirmId` now passed on insert). **Lesson 7 banked:** verify RLS WITH CHECK columns are populated on every client-side INSERT.
 
 ---
 
@@ -266,9 +272,9 @@ Post-demo: MI-302 Construction PM frontend (4 sessions, patent claim), Module 2 
 
 ## Completion percentages (per progress_report_2026-05-05.md, +deltas Wed 5/6)
 
-- v0.1 Compliance Foundation: ~72% (was ~67% Mon 5/5 close, +5% Wed 5/6 across Phase 2d-rev finish + MI-DEMO seed + MI-110 Phase 4)
-- v1.0 (commercial-ready Water Utility): ~62% (was ~55%, +7% — MI-110 was the highest-risk remaining v1.0 ticket)
-- Full 7-module platform: ~29% (was ~26%, +3%)
+- v0.1 Compliance Foundation: ~74% (was ~67% Mon 5/5 close, +7% Wed 5/6 → Thu 5/7 across Phase 2d-rev finish + MI-DEMO seed + MI-110 Phase 4 full close + towns swap + Luis polish)
+- v1.0 (commercial-ready Water Utility): ~65% (was ~55%, +10% — MI-110 was the highest-risk remaining v1.0 ticket; Luis multi-turn + page context closes the AI surface; demo data is now sanitization-safe for any prospect)
+- Full 7-module platform: ~30% (was ~26%, +4%)
 - Full architected vision (incl. integrations, mobile native, all 7 modules, Luis cross-discipline, residential): ~13%
 
 ---
@@ -285,9 +291,9 @@ Post-demo: MI-302 Construction PM frontend (4 sessions, patent claim), Module 2 
 
 ---
 
-## Banked discipline lessons (Mon 5/5 session + Wed 5/6 addition — 6 lessons total)
+## Banked discipline lessons (Mon 5/5 + Wed 5/6 + Thu 5/7 — 7 lessons total)
 
-Six locked discipline rules surfaced. Lessons 1-5 from the Mon 5/5 session; Lesson 6 added Wed 5/6 after MI-110 Phase 4 shipped in 1 Buddy turn vs the 6-session brief estimate. Logged at end of STATE.md so future Lead/Buddy reads see them at the bottom of the standing-state digest.
+Seven locked discipline rules surfaced. Lessons 1-5 from the Mon 5/5 session; Lesson 6 added Wed 5/6 after MI-110 Phase 4 shipped in 1 Buddy turn vs the 6-session brief estimate; Lesson 7 added Thu 5/7 after RLS WITH CHECK silently dropped every Luis conversation INSERT for an unknown duration. Logged at end of STATE.md so future Lead/Buddy reads see them at the bottom of the standing-state digest.
 
 ### Lesson 1 — Stop-and-ping when a brief contradicts the codebase
 
@@ -338,3 +344,19 @@ Six locked discipline rules surfaced. Lessons 1-5 from the Mon 5/5 session; Less
 **How to apply:** before drafting a work order, check: (1) is the brief locked end-to-end? (2) are all schemas verified? (3) are all Q-answers ratified? (4) does the executing actor have repo write access (filesystem MCP for Buddy, edit tools for CC)? If all four = yes, skip the work-order step and ship the build. If any = no, draft the work order. Trade-off: builds shipped this way still need a sync note documenting what was applied + what was deferred (acceptance #6 read-only-wiring for MI-110), so post-build documentation is non-negotiable. The savings come from eliminating the spec-review-handoff loop, not from skipping documentation.
 
 **Counter-cases (still draft a work order):** any feature touching production schema migrations (audit chain side-effects), any cross-firm or cross-tenant logic where RLS can drift, any compliance gate (Carlo authorization, no_work invariants), any branch-merge ceremony where §22 or similar policy gates apply. For those: spec-first is still correct because the cost of a wrong build is higher than the cost of a draft.
+
+### Lesson 7 — Verify RLS WITH CHECK columns are populated on every INSERT
+
+**Rule:** before shipping any client-side INSERT to a table with RLS, query `pg_policies` for the WITH CHECK expression and verify every column referenced is populated by the client code. RLS rejection on missing WITH CHECK columns is silent at the SQL level — Supabase returns success-shaped responses for inserts that policy actually rejected, and the row never lands. UI doesn't surface the failure unless the code explicitly inspects `error` on the insert response.
+
+**Why:** Luis v1 chat panel was deployed with `luis_conversations.insert({ user_id, project_id, module_key, question, answer, sources })` — missing `firm_id`. `pg_policies` showed the WITH CHECK as `(firm_id = current_firm_id()) OR is_super_admin()`. NULL firm_id failed the check, but the client treated the response as success because no thrown error surfaced. **Every Luis conversation written before the Thu 5/7 ~00:25 EDT fix was silently dropped.** Unknown how long the bug had been live; whoever was using Luis on prod (Jorge during demo prep) saw the chat work in-session but rows never persisted.
+
+**How to apply:** at any client-side INSERT against an RLS-protected table:
+1. Query `pg_policies` for the WITH CHECK expression on that table
+2. Cross-reference every column the policy references (typically `firm_id`, sometimes `submitted_by`, `actor_id`, `created_by`)
+3. Verify the client INSERT payload includes ALL of them, populated from authenticated session context (`currentFirmId`, `currentInspectorId`, etc.)
+4. After deploy, run a ground-truth row-count check (`SELECT COUNT(*) FROM <table> WHERE created_at > <deploy_time>`) to confirm rows are actually landing, not just the API returning success-shape.
+
+**Banked rationale:** RLS is fail-closed by design (rejected rows don't leak to other firms), but it's silent-fail when the client doesn't inspect errors. The cost of a missing column is "feature appears to work, no data persisted" — exactly the worst failure mode for a demo or production user. The 4-step check above takes ~2 minutes and prevents the whole class of bug.
+
+**Counter-cases:** server-side INSERTs running as `service_role` bypass RLS entirely, so this lesson doesn't apply (different attack surface). Apply only to client-side / user-JWT-context INSERTs.

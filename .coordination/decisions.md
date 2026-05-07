@@ -474,3 +474,59 @@ Buddy lean: **B** is cleanest long-term (clean audit chain, isolated heartbeat d
 **Affects:** MI-110 was the highest-risk surface in v1.0 per the brief (touch events on iPad, structured-JSON data model, paper-true diagram rendering). Shipping it tonight clears the path to Jeff demo without Phase 4 hanging over the schedule. Demo property #1 (12 Maple Ridge Ave) seed data already has placeholder `tapcard_data` from MI-DEMO seed — pitch-day flow can either edit that record or create a fresh tapcard on a clean demo property to show the editor empty-state-to-saved flow. Read-only wiring follow-up tracked; impact is "older tapcards in property-detail view show jsonb but not visual" until that ships.
 
 **Source:** Buddy autonomous build per Lesson 6; Lead committed + pushed + verified Vercel READY; Lead authored this decisions entry + STATE.md update + buddy_context.md sync include.
+
+---
+
+## 2026-05-07 ~00:00 EDT — Demo property towns reassigned away from NJAW footprint
+
+**Decision:** Migration `20260507002311_mi_demo_seed_14_swap_towns_to_non_njaw` applied via Buddy direct Supabase MCP. Reassigns 12 demo properties (`bbbbbbbb-0000-0000-0000-00000000NNNN`) from Maplewood/Millburn/Short Hills (NJAW LCRI contract zone) to non-NJAW NJ municipalities: Hoboken (zip 07030, Veolia/Suez North Hudson — 3 properties), Jersey City (zips 07302/07310, Suez — 3), Bayonne (zip 07002, Suez Bayonne — 3), Trenton (zips 08608/08611, Trenton Water Works — 3). Verification: `SELECT city, COUNT(*) FROM properties WHERE firm_id='99999999-...' AND id::text LIKE 'bbbbbbbb-%' GROUP BY city` → 3/3/3/3 across the four towns.
+
+**Reasoning:** Original demo seed (`mi_demo_seed_06_properties`) used Maplewood/Millburn/Short Hills addresses because they map to the 44 Dunnell paper-true example for visual tapcard QA. Jorge flagged: a CP Engineers prospect (e.g., Stan, Jeff) would recognize those municipalities as Jorge's actual NJAW LCRI contract zone — the demo would read as "this is Jorge's day-job customer data sanitized, not a fresh sample tenant." Real bug, not a misread. Towns swap moves the demo into NJ municipalities served by other utilities (Veolia/Suez/TWW) so the prospect sees a credible-but-distinct sample tenant.
+
+**Sector enum decision:** `NJAW_SHORT_HILLS` enum value retained on bb...0011 + bb...0012 even though those properties now have city='Trenton' (or wherever the swap landed those two). The sector enum is a **product role-inversion type** (inspector dictates means/methods + handles homeowner contact directly), not a municipality. Renaming the enum to something like `ROLE_INVERTED` is a separate ticket — high-value cleanup but out of scope for this demo-data fix.
+
+**Affects:** Demo data is now sanitization-safe for any prospect including CP-adjacent ones. The 44 Dunnell paper-true comparison for Phase 2d-revision visual tapcard QA still works because measurements + materials data didn't change — only city/municipality/zip/lat-lng. Sector enum cleanup tracked as future ticket; not blocking pitch day.
+
+**Source:** Jorge flagged the issue in real-time after MI-110 Phase 4 ship; Buddy applied migration via direct Supabase MCP within 5 min of flag; Lead committed + pushed as part of Thu 5/7 triple-ship `be48774`.
+
+---
+
+## 2026-05-07 ~00:15 EDT — MI-110 Phase 4 acceptance #6 closed (read-only diagram embeds)
+
+**Decision:** Closing the open follow-up from Wed 5/6 MI-110 Phase 4 ship. Read-only diagram engine (`diagramLoad(data, {readOnly:true})`) was already in place but not wired into the property-detail surface. Three surgical edits to `index.html` close the gap:
+
+1. **CSS** (~line 254): added `.pd-diagram-embed`, `.pd-diagram-pill`, `.pd-diagram-svg` classes for inline embed styling.
+2. **JS** (after `diagramAttachListeners`): new `diagramReadOnlyEmbed(diagram, opts)` function — public API returns standalone SVG markup string for any `tapcard_data.diagram` payload. Multiple embeds can coexist on one page (no shared element IDs across embeds). Includes XSS-safe `escapeStr` on label text.
+3. **Property Detail submissions list** (~line 3760): each `phase=='tapcard'` submission with `tapcard_data.diagram` set now renders an inline read-only diagram in the card body alongside notes/photos. Pill text format: `Diagram — [datetime] · [inspector]`.
+
+**Reasoning:** Acceptance #6 was the only outstanding item from the brief. Brief said read-only renders correctly; the editor commit `cb6a96c` shipped the engine but didn't wire it to the consumption surface (property-detail submissions list). Without this wire-in, prospects browsing the property history would see the JSON in `tapcard_data` but no visual rendering — defeats the whole point of the editor. Also blocks any future surface that wants to display diagrams (printable reports, dashboards).
+
+**Public API locked:** `diagramReadOnlyEmbed(diagram, opts)` returns SVG markup string. `opts` supports `pillText` (header label override). Consumers can render multiple embeds on the same DOM page. Future surfaces (PDF export, supervisor dashboards) reuse this function — no separate read-only renderer needed.
+
+**Affects:** All 7 MI-110 brief acceptance criteria now ✅. Demo property #1 (now 12 Hoboken Way after towns swap) will display its diagram inline in the property-detail submissions list when seeded. Pitch-day flow can either edit or browse — both surfaces show the visual.
+
+**Source:** Buddy autonomous follow-up after Lead pushed Phase 4 docs commit; shipped within ~30 min of doc commit. Lead committed + pushed as part of Thu 5/7 triple-ship `be48774`.
+
+---
+
+## 2026-05-07 ~00:25 EDT — Luis v1 polished (multi-turn + page context + RLS WITH CHECK fix)
+
+**Decision:** Luis v1 chat panel polished with three improvements in one surgical edit to the Luis script block in `index.html`:
+
+1. **Multi-turn conversation history.** New `luisHistory = []` global, capped at 20 messages (= 10 turns) to keep token usage bounded. `sendLuis` builds `messages = [...luisHistory, {role:'user', content:q}]` and pushes both turns post-success. New `luisResetConversation()` helper (no UI button yet — wire to a panel-header reset button in a follow-up ticket).
+2. **Page-context awareness.** New `luisGetPageContext()` function inspects DOM for open modals (tapcard, property-detail, materials-sheet) and returns a context string injected into the system prompt. Pulls fresh on each send (modals can open/close mid-conversation).
+3. **RLS WITH CHECK bug fix.** `luis_conversations.insert` was missing `firm_id`. `pg_policies` shows the WITH CHECK as `((firm_id = current_firm_id()) OR is_super_admin())` — NULL firm_id silently failed the check. **Every Luis conversation written before this fix was rejected by RLS.** Duration of the bug unknown; whoever was using Luis on prod (likely Jorge during demo prep) saw the chat work in-session but rows never persisted. `currentFirmId` now passed on insert.
+
+**Reasoning:** Luis v1 work order estimated ~2 sessions. The basic chat panel + Edge Function were already in place from prior work (luis-proxy Edge Function deployed; chat panel wired). Real gaps were the multi-turn / context-awareness UX layer and the silent RLS data-loss bug. All three are surgical edits to the Luis script block — no migrations, no new files.
+
+**Demo impact:** Multi-turn + context awareness means Luis can hold a real conversation grounded in what the inspector is looking at. Sample interaction:
+> User opens tapcard for 12 Hoboken Way (NJ6_NORMAL sector), opens Luis, asks "What work code applies here?"
+> Luis (with context "filling out tapcard, sector NJ6_NORMAL"): grounds the answer in NJAW work order codes (FULL/M2C/H2C/MP/TP/KILL).
+> User: "What about the whiteboard rule for that?"
+> Luis (with history): continues, knows we're still on the tapcard context.
+
+**Banked Discipline Lesson 7 — Verify RLS WITH CHECK columns are populated on every client-side INSERT.** RLS rejection on missing WITH CHECK columns is silent at the SQL level; Supabase returns success-shaped responses for inserts that policy actually rejected. UI doesn't surface the failure unless the code explicitly inspects `error` on the insert response. The Luis bug shipped to prod and silently dropped every conversation for an unknown duration. Rule going forward: at any client-side INSERT against an RLS-protected table, query `pg_policies` for the WITH CHECK expression, cross-reference every column the policy references against the client INSERT payload, and run a row-count ground-truth check post-deploy. Full lesson text in STATE.md banked-discipline section.
+
+**Affects:** Luis is now demo-ready for Jeff (5/14-5/15). Multi-turn + context grounds the chat in NJAW field workflow + property-specific data. RLS fix means demo conversations actually persist for post-demo audit. Lesson 7 applies forward to all future RLS-protected client INSERTs (immediate audit candidates: any other client INSERT in `index.html` against tables with `firm_id`-scoped WITH CHECK policies — not yet swept).
+
+**Source:** Buddy autonomous build after MI-110 acceptance #6; surgical edit ~30 min after diagram embed ship. Lead committed + pushed as part of Thu 5/7 triple-ship `be48774`.
