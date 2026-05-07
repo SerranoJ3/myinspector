@@ -928,6 +928,9 @@ html,body{overflow-x:hidden}
       <div class="nav-link" id="nav-reports" onclick="showPanel('reports')">
         <span class="nav-icon">📄</span> Daily Reports
       </div>
+      <div class="nav-link" id="nav-herald" onclick="showPanel('herald')">
+        <span class="nav-icon">📰</span> The Herald
+      </div>
       <div class="sidebar-bottom">
         <div class="user-badge">
           <div class="user-avatar" id="sidebar-avatar">?</div>
@@ -1160,6 +1163,31 @@ html,body{overflow-x:hidden}
         </div>
       </div>
 
+      <!-- HERALD PANEL (MI-404) -->
+      <div class="panel" id="panel-herald">
+        <div class="page-header">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+            <div>
+              <div class="page-title">The Herald</div>
+              <div class="page-sub">Monthly newsletter — latest issue + archive</div>
+            </div>
+            <button class="btn-sm btn-orange" id="herald-upload-btn" onclick="openHeraldUpload()" style="display:none">⬆ Upload New Issue</button>
+          </div>
+        </div>
+        <div id="herald-hero-card" style="margin-bottom:16px">
+          <div class="loading"><div class="spinner"></div><br>Loading the Herald...</div>
+        </div>
+        <div id="herald-highlights" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:16px"></div>
+        <div class="table-wrap">
+          <div class="table-header">
+            <div class="table-title">Back Issues</div>
+          </div>
+          <div id="herald-archive-list">
+            <div class="loading">Loading archive...</div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -1378,6 +1406,102 @@ html,body{overflow-x:hidden}
     <div class="modal-actions">
       <button class="btn-sm btn-ghost" onclick="closeModal('modal-gis-import')">Cancel</button>
       <button class="btn-sm btn-orange" id="gi-confirm-btn" onclick="confirmGisImport()" disabled>Import</button>
+    </div>
+  </div>
+</div>
+
+<!-- HERALD PDF VIEWER MODAL (MI-404) -->
+<div class="modal-overlay" id="modal-herald-pdf">
+  <div class="modal modal-lg" style="width:min(95vw,1100px);max-width:95vw;height:90vh;display:flex;flex-direction:column">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="hpdf-title">The Herald</div>
+        <div class="modal-sub" id="hpdf-sub"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-herald-pdf')">✕</button>
+    </div>
+    <div id="hpdf-viewer" style="flex:1;min-height:0;padding:0 20px 20px">
+      <embed id="hpdf-embed" type="application/pdf" style="width:100%;height:100%;border:1px solid var(--border);border-radius:6px;background:var(--surface2)">
+    </div>
+    <div id="hpdf-mobile-fallback" style="display:none;padding:20px;text-align:center">
+      <div style="font-size:14px;color:var(--muted);margin-bottom:14px">Inline PDF preview is unavailable on this device.</div>
+      <a id="hpdf-download" class="btn-sm btn-orange" href="#" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">⬇ Download PDF</a>
+    </div>
+  </div>
+</div>
+
+<!-- HERALD UPLOAD MODAL (MI-404) -->
+<div class="modal-overlay" id="modal-herald-upload">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Upload New Herald Issue</div>
+        <div class="modal-sub">PDF + month/year + manual highlight curation. Stored under firm-scoped bucket.</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-herald-upload')">✕</button>
+    </div>
+    <div style="padding:16px 20px;max-height:70vh;overflow-y:auto">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div>
+          <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Title *</label>
+          <input class="modal-input" id="hu-title" type="text" placeholder="The Hard Hat Herald — August 2025">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Released *</label>
+          <input class="modal-input" id="hu-released" type="date">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Month *</label>
+          <select class="modal-select" id="hu-month">
+            <option value="1">January</option><option value="2">February</option>
+            <option value="3">March</option><option value="4">April</option>
+            <option value="5">May</option><option value="6">June</option>
+            <option value="7">July</option><option value="8">August</option>
+            <option value="9">September</option><option value="10">October</option>
+            <option value="11">November</option><option value="12">December</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Year *</label>
+          <input class="modal-input" id="hu-year" type="number" min="2020" max="2099" value="2026">
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">PDF file *</label>
+        <input class="modal-input" id="hu-pdf" type="file" accept="application/pdf" style="padding:6px 10px">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Market Spotlight — sector</label>
+        <input class="modal-input" id="hu-spotlight-sector" type="text" placeholder="Life Sciences">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Market Spotlight — summary</label>
+        <textarea class="modal-input" id="hu-spotlight-summary" rows="3" style="resize:vertical;font-family:inherit"></textarea>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Photo of the Month — caption</label>
+        <textarea class="modal-input" id="hu-photo-caption" rows="2" style="resize:vertical;font-family:inherit"></textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div>
+          <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">New Hire — name</label>
+          <input class="modal-input" id="hu-newhire-name" type="text">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">New Hire — role</label>
+          <input class="modal-input" id="hu-newhire-role" type="text">
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Tip of the Month — summary</label>
+        <textarea class="modal-input" id="hu-tip-summary" rows="2" style="resize:vertical;font-family:inherit"></textarea>
+      </div>
+      <div id="hu-error" style="color:var(--orange);font-size:12px;margin-bottom:8px;display:none"></div>
+      <div id="hu-progress" style="font-size:12px;color:var(--muted);margin-bottom:8px;display:none">Uploading...</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-herald-upload')">Cancel</button>
+      <button class="btn-sm btn-orange" id="hu-save-btn" onclick="confirmHeraldUpload()">Upload Issue</button>
     </div>
   </div>
 </div>
@@ -2528,6 +2652,7 @@ function showPanel(name){
   if(name==='submissions') loadAllSubmissions();
   if(name==='reports') loadReports();
   if(name==='gis-lists') loadGisLists();
+  if(name==='herald') loadHerald();
 }
 
 // ── DASHBOARD ─────────────────────────────────────────
@@ -3959,6 +4084,228 @@ async function confirmGisImport(){
   closeModal('modal-gis-import');
   showToast(`Imported ${payload.length} entries`,'success');
   await loadGisListEntries(gisCurrentListId);
+}
+
+// ── HERALD (MI-404) ───────────────────────────────────
+let heraldIssues = [];
+let heraldCurrentIssue = null;
+const heraldEscape = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const HERALD_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+async function loadHerald(){
+  document.getElementById('herald-upload-btn').style.display = currentUserIsSuperAdmin ? '' : 'none';
+  const {data, error} = await sb.from('heralds')
+    .select('*').order('year', {ascending: false}).order('month', {ascending: false});
+  if(error){
+    document.getElementById('herald-hero-card').innerHTML =
+      `<div class="loading">Error loading the Herald: ${heraldEscape(error.message)}</div>`;
+    return;
+  }
+  heraldIssues = data || [];
+  if(!heraldIssues.length){
+    document.getElementById('herald-hero-card').innerHTML =
+      `<div class="loading">No issues yet.${currentUserIsSuperAdmin ? ' Use "Upload New Issue" to add the first issue.' : ''}</div>`;
+    document.getElementById('herald-highlights').innerHTML = '';
+    document.getElementById('herald-archive-list').innerHTML = '<div class="loading">No archive entries yet.</div>';
+    return;
+  }
+  heraldCurrentIssue = heraldIssues[0];
+  renderHeraldHero(heraldCurrentIssue);
+  renderHeraldHighlights(heraldCurrentIssue);
+  renderHeraldArchive(heraldIssues);
+}
+
+function renderHeraldHero(issue){
+  const el = document.getElementById('herald-hero-card');
+  const issueLabel = `${HERALD_MONTHS[(issue.month||1)-1]} ${issue.year || ''}`;
+  const released = issue.released_at ? new Date(issue.released_at+'T00:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}) : '';
+  const thumb = issue.thumbnail_url
+    ? `<img src="${heraldEscape(issue.thumbnail_url)}" alt="Herald cover" style="width:120px;height:160px;object-fit:cover;border-radius:6px;border:1px solid var(--border)">`
+    : `<div style="width:120px;height:160px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:32px">📰</div>`;
+  el.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px;display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap">
+      ${thumb}
+      <div style="flex:1;min-width:240px">
+        <div style="font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">Latest Issue</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;color:var(--white);margin-bottom:6px">${heraldEscape(issue.title || issueLabel)}</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:12px">${heraldEscape(issueLabel)}${released?' · Released '+heraldEscape(released):''}</div>
+        <button class="btn-sm btn-orange" onclick="openHeraldPdf('${heraldEscape(issue.id)}')">📖 Read the Herald</button>
+      </div>
+    </div>`;
+}
+
+function renderHeraldHighlights(issue){
+  const el = document.getElementById('herald-highlights');
+  const tile = (label, body) => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px">
+      <div style="font-size:10px;color:var(--orange);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:6px">${heraldEscape(label)}</div>
+      <div style="font-size:13px;color:var(--white);line-height:1.4">${body}</div>
+    </div>`;
+  const tiles = [];
+  if(issue.market_spotlight_summary || issue.market_spotlight_sector){
+    const sectorLine = issue.market_spotlight_sector ? `<div style="font-weight:600;margin-bottom:4px">${heraldEscape(issue.market_spotlight_sector)}</div>` : '';
+    tiles.push(tile('Market Spotlight', sectorLine + heraldEscape(issue.market_spotlight_summary || '')));
+  }
+  if(issue.photo_of_month_caption){
+    tiles.push(tile('Photo of the Month', heraldEscape(issue.photo_of_month_caption)));
+  }
+  if(issue.new_hire_name){
+    const role = issue.new_hire_role ? `<div style="font-size:12px;color:var(--muted);margin-top:4px">${heraldEscape(issue.new_hire_role)}</div>` : '';
+    tiles.push(tile('Get to Know', `<div style="font-weight:600">${heraldEscape(issue.new_hire_name)}</div>${role}`));
+  }
+  if(issue.tip_of_month_summary){
+    tiles.push(tile('Tip of the Month', heraldEscape(issue.tip_of_month_summary)));
+  }
+  el.innerHTML = tiles.join('');
+}
+
+function renderHeraldArchive(allIssues){
+  const el = document.getElementById('herald-archive-list');
+  if(!allIssues.length){
+    el.innerHTML = '<div class="loading">No issues yet.</div>';
+    return;
+  }
+  const monthShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let html = '<table><thead><tr><th>Issue</th><th>Released</th><th></th></tr></thead><tbody>';
+  allIssues.forEach(issue => {
+    const issueLabel = `${monthShort[(issue.month||1)-1]} ${issue.year || ''}`;
+    const released = issue.released_at ? new Date(issue.released_at+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
+    html += `<tr>
+      <td><div style="font-weight:600;color:var(--white)">${heraldEscape(issue.title || issueLabel)}</div><div style="font-size:11px;color:var(--muted)">${heraldEscape(issueLabel)}</div></td>
+      <td style="font-size:12px;color:var(--muted)">${heraldEscape(released)}</td>
+      <td style="text-align:right"><button class="btn-sm btn-ghost" onclick="openHeraldPdf('${heraldEscape(issue.id)}')">📖 Read</button></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function openHeraldPdf(issueId){
+  const issue = heraldIssues.find(i => i.id === issueId);
+  if(!issue){ showToast('Issue not found','error'); return; }
+  const pdfUrl = (issue.pdf_url || '').trim();
+  const isValidUrl = /^https?:\/\//i.test(pdfUrl);
+  const issueLabel = `${HERALD_MONTHS[(issue.month||1)-1]} ${issue.year || ''}`;
+  document.getElementById('hpdf-title').textContent = issue.title || issueLabel;
+  document.getElementById('hpdf-sub').textContent = issueLabel;
+  const viewer = document.getElementById('hpdf-viewer');
+  const fallback = document.getElementById('hpdf-mobile-fallback');
+  const dl = document.getElementById('hpdf-download');
+  if(!isValidUrl){
+    viewer.innerHTML = `<div class="loading" style="padding:40px;text-align:center">PDF not yet uploaded for this issue.${currentUserIsSuperAdmin ? ' Use "Upload New Issue" to attach the PDF.' : ''}</div>`;
+    viewer.style.display = '';
+    fallback.style.display = 'none';
+  } else if(window.innerWidth < 768){
+    viewer.style.display = 'none';
+    fallback.style.display = '';
+    dl.href = pdfUrl;
+    dl.textContent = `⬇ Download ${issueLabel}`;
+  } else {
+    viewer.innerHTML = '<embed id="hpdf-embed" type="application/pdf" style="width:100%;height:100%;border:1px solid var(--border);border-radius:6px;background:var(--surface2)">';
+    document.getElementById('hpdf-embed').src = pdfUrl;
+    viewer.style.display = '';
+    fallback.style.display = 'none';
+    dl.href = pdfUrl;
+  }
+  document.getElementById('modal-herald-pdf').classList.add('open');
+}
+
+function openHeraldUpload(){
+  if(!currentUserIsSuperAdmin){ showToast('Super_admin only','error'); return; }
+  document.getElementById('hu-title').value = '';
+  document.getElementById('hu-released').value = '';
+  const today = new Date();
+  document.getElementById('hu-month').value = String(today.getMonth() + 1);
+  document.getElementById('hu-year').value = today.getFullYear();
+  document.getElementById('hu-pdf').value = '';
+  document.getElementById('hu-spotlight-sector').value = '';
+  document.getElementById('hu-spotlight-summary').value = '';
+  document.getElementById('hu-photo-caption').value = '';
+  document.getElementById('hu-newhire-name').value = '';
+  document.getElementById('hu-newhire-role').value = '';
+  document.getElementById('hu-tip-summary').value = '';
+  document.getElementById('hu-error').style.display = 'none';
+  document.getElementById('hu-progress').style.display = 'none';
+  document.getElementById('hu-save-btn').disabled = false;
+  document.getElementById('modal-herald-upload').classList.add('open');
+  setTimeout(()=>document.getElementById('hu-title').focus(), 50);
+}
+
+async function confirmHeraldUpload(){
+  if(pitchModeBlocked('Herald upload')) return;
+  if(!currentUserIsSuperAdmin){ showToast('Super_admin only','error'); return; }
+  const errEl = document.getElementById('hu-error');
+  const progEl = document.getElementById('hu-progress');
+  const btn = document.getElementById('hu-save-btn');
+  errEl.style.display = 'none';
+  const title = document.getElementById('hu-title').value.trim();
+  const released = document.getElementById('hu-released').value;
+  const month = parseInt(document.getElementById('hu-month').value, 10);
+  const year = parseInt(document.getElementById('hu-year').value, 10);
+  const fileEl = document.getElementById('hu-pdf');
+  const file = fileEl.files && fileEl.files[0];
+  if(!title || !released || !month || !year || !file){
+    errEl.textContent = 'Title, Released, Month, Year, and PDF file are all required.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if(!currentFirmId){
+    errEl.textContent = 'No firm context — cannot upload.';
+    errEl.style.display = 'block';
+    return;
+  }
+  btn.disabled = true;
+  progEl.style.display = '';
+  progEl.textContent = 'Uploading PDF...';
+  // Path convention from work order: {firm_id}/{year}-{month}/herald.pdf
+  const monthPad = String(month).padStart(2, '0');
+  const path = `${currentFirmId}/${year}-${monthPad}/herald.pdf`;
+  const {error: uploadErr} = await sb.storage.from('heralds').upload(path, file, {
+    contentType: 'application/pdf',
+    upsert: true
+  });
+  if(uploadErr){
+    progEl.style.display = 'none';
+    btn.disabled = false;
+    const msg = (uploadErr.message || '').toLowerCase();
+    if(msg.includes('bucket') || msg.includes('not found') || msg.includes('does not exist')){
+      showToast('Herald storage not configured yet — ping Jorge to enable the bucket','error');
+    } else {
+      showToast('Upload failed — try again or ping Jorge','error');
+    }
+    return;
+  }
+  progEl.textContent = 'Saving issue...';
+  const {data: urlData} = sb.storage.from('heralds').getPublicUrl(path);
+  const pdfUrl = urlData?.publicUrl || '';
+  // Lesson 7: firm_id required by RLS WITH CHECK on INSERT
+  const payload = {
+    firm_id: currentFirmId,
+    month, year,
+    title,
+    pdf_url: pdfUrl,
+    released_at: released,
+    market_spotlight_sector: document.getElementById('hu-spotlight-sector').value.trim() || null,
+    market_spotlight_summary: document.getElementById('hu-spotlight-summary').value.trim() || null,
+    photo_of_month_caption: document.getElementById('hu-photo-caption').value.trim() || null,
+    new_hire_name: document.getElementById('hu-newhire-name').value.trim() || null,
+    new_hire_role: document.getElementById('hu-newhire-role').value.trim() || null,
+    tip_of_month_summary: document.getElementById('hu-tip-summary').value.trim() || null,
+    created_by: currentUser?.id || null
+  };
+  // upsert by (firm_id, year, month) UNIQUE — replace existing if same month re-uploaded
+  const {error: insertErr} = await sb.from('heralds')
+    .upsert(payload, { onConflict: 'firm_id,year,month' });
+  if(insertErr){
+    progEl.style.display = 'none';
+    btn.disabled = false;
+    showToast('Save failed — try again or ping Jorge','error');
+    return;
+  }
+  progEl.style.display = 'none';
+  closeModal('modal-herald-upload');
+  showToast('Herald issue uploaded','success');
+  await loadHerald();
 }
 
 // ── BULK IMPORT ──────────────────────────────────────
