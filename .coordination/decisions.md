@@ -720,3 +720,80 @@ A firm could be safe to display while pitch mode is on (e.g., the demo firm itse
 **Source:** Buddy authored the work-order analysis at `.coordination/MI_DEMO_UI_v3_firm_display_gate_2026-05-07.md` after Jorge's click-test screenshot exposed the leak — included DB state check, orthogonality argument, and 4-point acceptance criteria. Jorge greenlit ship as MI-DEMO-UI v3 with extra-credit instruction to also gate "Welcome to [firm name]" headers / dashboard chrome / anywhere `.name` from `firms` renders. Lead built off existing `firm_safe_to_display` query already in `initApp` (verified via grep — only 2 firm-name display sites). Lead committed + pushed + FF merged to `mi-demo-seed`. Vercel preview READY both branches (`dpl_8VPFLG8...` demo-banner / `dpl_prt2pENu...` mi-demo-seed).
 
 **Affects:** Demo and prospect-facing privacy. CP's name no longer leaks in shoulder-to-shoulder demo scenarios — closes the failure mode Jorge's click-test screenshot caught. Once a real customer is onboarded publicly (case study, multi-tenant demo), single-row UPDATE flips display on for that firm without a code change. Sets the convention: any future firm-name display site checks `currentFirmSafeToDisplay` before rendering `firmName`. Lesson 8 banked (see STATE.md): honor schema-level identity-display flags at every render site, not just write paths.
+
+---
+
+## 2026-05-07 ~07:30 EDT — MI-101-reorg: Submit Phase tab restructure (Out of Order killed, Assessment under Test Pit)
+
+**Trigger:** Round 1 of Jorge's first-click-test feedback (`.coordination/MI_DEMO_FEEDBACK_round1_2026-05-07.md`, section B, gitignored territory). Three verbatim asks: "in submit phase assessment should be within test pit tab" / "I dont understand why out of order exists" / "partial services should be under service work".
+
+**Decision:** Structural-only ship as commit `8ddf416` on `demo-banner` (FF-merged to `mi-demo-seed`). +26/-19 lines on `index.html` across 5 surgical Lead Edit-tool calls. Per Buddy's stop condition (Q-101r-b/c data-model decisions deferred), this commit reshuffles UI surface only — write paths unchanged, phase enum routing preserved.
+
+**Changes:**
+1. **Out of Order tile removed** from `#service-type-grid`. The `phase_submissions.out_of_sequence` boolean column stays in schema (no migration); submit payload now hardcodes `out_of_sequence: false` and `sequence_note: null`. The `renderDynamicFields` `out_of_order` branch removed.
+2. **Assessment tile hidden** via inline `style="display:none"` (kept in DOM so existing `selectServiceType` wiring + the `renderDynamicFields` 'assessment' case + `phase='assessment'` write path stay intact).
+3. **Test Pit form** gets an inline "Material assessment only (no excavation)? → Switch to Assessment" link in a new sub-section at the bottom. Link calls new helper `openAssessmentFromTestPit()` which finds the hidden Assessment tile by its onclick signature and triggers the existing `selectServiceType` pipeline.
+4. **Partial Services NOT TOUCHED** initially — Jorge's spec said "partial services should be under service work" but no Partial Services tile existed at top level (the "Partial / revisit" subtitle was on the Out of Order tile, now removed). Q-101r-c blocker queued for ratification. **Resolved-by-discovery** in MI-101-reorg-v2 commit (see below): the Partial LSL concept already lived as an `<option value="PLSL-R">` inside the Service Work form's `f-wo-code` dropdown (line 3095) — already nested under Service Work, no separate tile to fold.
+
+**Acceptance status (round-1 spec):** ✅ Submit Phase shows fewer tiles (8 → 6 immediately, then 4 after MI-101-reorg-v2); ✅ Out of Order tile and panel gone; out_of_sequence column orphan-safe; ✅ Test Pit panel includes Assessment access path (inline link); ✅ Partial Services merge — resolved-by-discovery, no work needed; ✅ Existing data continues to work.
+
+**Source:** Lead build per Buddy work-order analysis. Lead committed + pushed + FF merged to `mi-demo-seed`. Vercel READY (`dpl_G3HK...` mi-demo-seed / `dpl_D4j6K...` demo-banner).
+
+**Affects:** Submit Phase mental model simplified. Inspector tile decisions reduced. Demo presentation cleaner — Stan/Jeff see fewer top-level options.
+
+---
+
+## 2026-05-07 ~07:45 EDT — MI-401-v2: GIS Lists → "GIS / Restorations" with sub-tab toggle + read-only Restorations aggregate
+
+**Trigger:** Round 1 of MI_DEMO_FEEDBACK section A. Jorge's verbatim spec: "gis tab should read GIS/Restorations. then within that tab gis and restorations are independent from each other but follow the same style and layout."
+
+**Decision:** Shipped as commit `812c3a5` on `demo-banner` (FF-merged to `mi-demo-seed`). +174/-28 lines on `index.html` across 4 surgical Lead Edits. **Q-401v2-a/b ratified by Jorge before build** (both leaned to Buddy defaults — read-only v1 with writes via Submit Phase only; status filter chips derived from `phase_submissions` semantic state, specifically `photo_restoration_whiteboard` presence as the compliance-meaningful axis).
+
+**Changes:**
+1. **Sidebar nav label** updated: "🗺️ GIS Lists" → "🗺️ GIS / Restorations". Internal IDs (`nav-gis-lists`, `panel-gis-lists`, `showPanel('gis-lists')`) preserved to keep blast radius minimal — the visible label is the canonical name going forward; identifiers are implementation detail. Full ID alignment is a v2.1 cleanup if desired.
+2. **Panel restructured** with sub-tab toggle. Two pills below the page-header: "🗺️ GIS Lists" (default active) | "🛠️ Restorations". Clicking switches which sub-tab content div is visible.
+3. **GIS Lists sub-tab content** = the existing v1 surface (zero behavior change). The list selector + super_admin "+ New List" / "⬆ Import" buttons moved out of the page-header into the sub-tab content div so they don't render when the Restorations sub-tab is active. All v1 IDs intact.
+4. **Restorations sub-tab content** = NEW read-only aggregate view: search input matching address/city/work code; 3 filter chips (All / With whiteboard ✓ / Missing whiteboard ⚠); table with Address (with city subline), Submitted datetime, Work Code (`work_order_code` || `njaw_work_order_code` fallback), WB icon, Property View button → `openPropertyDetail`. Stats line: "{total} total · {withWb} with whiteboard · {missing} missing".
+5. **Lazy-load**: `loadGisRestorations` query fires only when user first clicks the Restorations sub-tab (not on every panel open) to keep cold-load cost on the GIS Lists path. Query: `phase_submissions` with `phase='restoration'`, joined to `properties(address,city)` for display. RLS handles firm scoping. Limit 200 reverse-chrono. No new schema, no new RPC.
+6. **`loadGisLists`** now calls `setGisSubtab('lists')` at the top per spec ("Default to GIS Lists on tab open") — every `showPanel('gis-lists')` resets to the lists sub-tab.
+
+**Acceptance status (round-1 spec, 5 criteria):** ✅ Sidebar shows "🗺️ GIS / Restorations"; ✅ Tab opens to GIS Lists sub-tab with visible Restorations toggle; ✅ Restorations sub-tab renders sorted reverse-chrono; ✅ Status filter chips work (all / with whiteboard / missing); 🟡 Cross-link opens Property Detail at default tab, not pre-positioned to Restoration tab (deferred to v2.1).
+
+**Pitch-mode footprint:** No write paths added (read-only v1). No new pitch-mode guards. Lesson 7 doesn't apply (no client INSERTs).
+
+**Source:** Lead autonomous build per Buddy work-order spec, post-Q-401v2-a/b ratification with Jorge. Lead committed + pushed + FF merged to `mi-demo-seed`. Vercel READY (`dpl_2BWFn...` mi-demo-seed / `dpl_EfrRr...` demo-banner).
+
+**Affects:** Restoration cross-property visibility — supervisors and inspectors can see all restoration submissions across the firm without per-property drill-down. Demo angle: addresses Jorge's "two surfaces, same style/layout" architectural intent. Cross-link to Property Detail enables one-click navigation from aggregate to per-property context.
+
+---
+
+## 2026-05-07 ~08:00 EDT — MI-101-reorg-v2: consolidate Submit Phase grid to 4 tiles via sub-pills inside Service Work + Restoration
+
+**Trigger:** Two-step. (a) Lead's correction note flagged that no "Partial LSL" tile exists at top-level (Jorge's earlier directive was based on memory of a tile that turned out to be `<option value="PLSL-R">` inside the Service Work form's `f-wo-code` dropdown at line 3095). (b) Jorge pivoted scope: "pills probably cleaner given two destinations exist for each parent (Service Work has Tapcard; Restoration has GIS/Docs)" — fold Tapcard under Service Work, fold GIS/Docs under Restoration, end at 4 visible tiles.
+
+**Decision:** Shipped as commit `d02ede9` on `demo-banner` (FF-merged to `mi-demo-seed`). +40/-4 lines on `index.html` across 5 surgical Lead Edits. Same pattern as MI-101-reorg's Assessment fold: hide tiles, add sub-pill in parent form, helper functions invoke existing tile click handlers. Write paths unchanged (`phase='tapcard'` + `phase='gis_docs'` routing preserved).
+
+**Changes:**
+1. **Tapcard tile hidden** via inline `style="display:none"`. Tile kept in DOM so the existing tapcard branch in `selectServiceType` (which opens the full-screen 3-page modal via `openTapcardForProperty`) and the `phase='tapcard'` write path stay reachable via helper.
+2. **GIS/Docs tile hidden** the same way. `renderDynamicFields` 'gis_docs' branch + `phase='gis_docs'` write path intact.
+3. **Service Work form** gets a top-right sub-pill: "Need the 3-page Tapcard form? 📋 Switch to Tapcard →". Pill carries blue-tinted border (`var(--blue-light)`) to nod at the existing `service-opt-tapcard` color theme.
+4. **Restoration form** gets a parallel top-right sub-pill: "GPS / blueprint / Bluebeam reference instead? 🗺️ Switch to GIS / Docs →". Standard `btn-ghost` styling.
+5. **Two helper functions added** next to existing `openAssessmentFromTestPit`: `openTapcardFromServiceWork()` + `openGisDocsFromRestoration()`. Both walk `#service-type-grid .service-opt`, match by onclick signature, and `.click()` the hidden tile.
+
+**Net visible Submit Phase tile grid (after this ship + the prior MI-101-reorg + bergen sanitization session work):**
+- **Test Pit** (visible) — has bottom inline link to Assessment (added in MI-101-reorg)
+- **Service Work** (visible) — has top-right pill to Tapcard (NEW in v2)
+- **Restoration** (visible) — has top-right pill to GIS/Docs (NEW in v2)
+- **No Work** (visible)
++ 3 hidden tiles (Assessment, Tapcard, GIS/Docs) preserving routing
++ Out of Order: deleted entirely in MI-101-reorg
+
+**Acceptance (Jorge spec, 4 criteria):** ✅ Submit Phase grid shows 4 tiles; ✅ Clicking Service Work shows form + visible Tapcard sub-toggle; ✅ Clicking Restoration shows form + visible GIS/Docs sub-toggle; ✅ Existing `phase_submissions` rows with `phase='tapcard'` or `phase='gis_docs'` still render in History view (routing unchanged).
+
+**Q-101r-c reframed and resolved:** the original "Partial Services" question that blocked MI-101-reorg turned out to be moot. PLSL-R already lives as an `<option>` inside the Service Work form's `f-wo-code` dropdown (line 3095) — the right architectural home. No separate tile exists or needs to exist.
+
+**Lesson 9 candidate (un-banked):** when a directive references a UI element by remembered label (e.g., "Partial LSL tile"), grep for the literal phrase before treating it as ground truth. A label can be on a `<option>`, `<button>`, `<div>`, or just plain text — the label-vs-element ambiguity matters for fold-vs-no-fold decisions. The 30 seconds of grep in this case caught a 30-minute speculative build that would have created a tile only to immediately fold it.
+
+**Source:** Lead correction note + Jorge pivot directive. Lead committed + pushed + FF merged to `mi-demo-seed`. Vercel READY both branches.
+
+**Affects:** Submit Phase grid is now demo-clean — 4 top-level decisions instead of 7-8. Each parent shows its sub-options as visible pills rather than buried tiles. Demo presentation: Stan/Jeff see Test Pit / Service Work / Restoration / No Work, then discover Tapcard + GIS/Docs naturally when they click into the parent flows.

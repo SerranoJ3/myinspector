@@ -1,13 +1,13 @@
 # Coordination Status — MyInspector
 
-**Last updated:** 2026-05-07 ~06:45 EDT (post MI-DEMO-UI v3 ship)
-**Updated by:** Lead (Claude Code CLI) — doc-sync flush covering MI-DEMO-UI v3 (`ec1f981`) firm_safe_to_display gate on user-role chrome + signup toast.
+**Last updated:** 2026-05-07 ~08:15 EDT (post MI-101-reorg + MI-401-v2 + MI-101-reorg-v2 ships)
+**Updated by:** Lead (Claude Code CLI) — doc-sync flush covering three demo-feedback-driven feat commits: `8ddf416` MI-101-reorg (kill Out of Order, hide Assessment under Test Pit), `812c3a5` MI-401-v2 (GIS Lists → "GIS / Restorations" with sub-tab toggle + read-only Restorations aggregate), `d02ede9` MI-101-reorg-v2 (consolidate to 4 tiles via sub-pills in Service Work + Restoration). All three close round 1 of Jorge's first-click-test feedback (`MI_DEMO_FEEDBACK_round1`). Lesson 9 candidate banked.
 
 ---
 
 ## Current state
 
-**Active branches:** `demo-banner` and `mi-demo-seed` both at `ec1f981` (MI-DEMO-UI v3 firm_safe_to_display gate). main untouched per §22.
+**Active branches:** `demo-banner` and `mi-demo-seed` both at `d02ede9` (MI-101-reorg-v2 — Submit Phase grid consolidated to 4 tiles via sub-pills). main untouched per §22.
 
 **Local main is 1 behind `origin/main`.** Missing commit is `4d70901` (Phase 2b refactor squash merge, Sun 0:52). Run `git fetch && git checkout main && git pull` to catch up before any new branch off main.
 
@@ -32,7 +32,12 @@
 18. `d2a0d78` doc-sync batch — STATE/decisions/status sync for MI-401 Unit 2 + MI-404 Unit 2 ships
 19. `a585f67` CLAUDE.md sanitize — drop Jeff Longberg name from CDM-Smith reference + replace defunct CP firm code literal with placeholder
 20. `ec1f981` MI-DEMO-UI v3 — firm_safe_to_display gate on user-role chrome + signup toast (Thu 5/7 ~06:30, Lead build)
-21. (this) doc-sync batch — STATE/decisions/status updates covering MI-DEMO-UI v3 ship
+21. `7ea8e32` doc-sync batch — STATE/decisions/status sync for MI-DEMO-UI v3 ship
+22. `88b9fef` doc-sync reconcile — Buddy v3 sync note merged in + Lesson 8 banked
+23. `8ddf416` MI-101-reorg — Submit Phase tab restructure: kill Out of Order, hide Assessment under Test Pit (Thu 5/7 ~07:30, Lead build per MI_DEMO_FEEDBACK round 1 section B)
+24. `812c3a5` MI-401-v2 — GIS Lists → "GIS / Restorations" with sub-tab toggle + read-only Restorations aggregate (Thu 5/7 ~07:45, Lead build post Q-401v2-a/b ratification)
+25. `d02ede9` MI-101-reorg-v2 — consolidate Submit Phase grid to 4 tiles via sub-pills inside Service Work (→ Tapcard) + Restoration (→ GIS/Docs) (Thu 5/7 ~08:00, Lead build)
+26. (this) doc-sync batch — STATE/decisions/status updates covering all three round-1 demo-feedback ships
 
 `mi-demo-seed` matches `demo-banner` after fast-forward merges between each ship.
 
@@ -69,8 +74,8 @@ Part of `3f448ab`. Public repo (`SerranoJ3/myinspector`) had no .gitignore. Budd
 |---|---|---|---|
 | `mi101-phase2a` | `a542d5a` | NOT merged — branch stale | Frontend was merged via Path C cherry-pick to main as `9c446e7` Mon 5/5; original branch now historical reference only. Can be deleted post-Phase 2c-form close (now). |
 | `njaw-selector-v2` | `ab0fa55` | Pushed to origin, PR status unverified | Jorge to confirm GitHub branches page; if PR open and Vercel preview clean, merge. Likely needs re-port given Phase 2b 3-tab → 2-tab refactor. |
-| `demo-banner` | `ec1f981` | **Active — holds Wed 5/6 → Thu 5/7 session work** | Phase 2d-revision finish + MI-DEMO seed merge + MI-110 Phase 4 + acceptance #6 + Luis polish + towns swap + CP firm rotation + Phase 2c-form (8/8) + MI-DEMO-UI v2 + bergen redistribution + MI-401 Unit 2 + MI-404 Unit 2 + CLAUDE.md sanitization + MI-DEMO-UI v3 firm-name gate. Per §22, NEVER MERGE TO MAIN. |
-| `mi-demo-seed` | `ec1f981` | **Active — fast-forwarded with `demo-banner`** | Demo seed branch sits in lockstep with `demo-banner` post each ship via FF merge. Per §22, NEVER MERGE TO MAIN. |
+| `demo-banner` | `d02ede9` | **Active — holds Wed 5/6 → Thu 5/7 session work** | Phase 2d-revision finish + MI-DEMO seed merge + MI-110 Phase 4 + acceptance #6 + Luis polish + towns swap + CP firm rotation + Phase 2c-form (8/8) + MI-DEMO-UI v2 + bergen redistribution + MI-401 Unit 2 + MI-404 Unit 2 + CLAUDE.md sanitization + MI-DEMO-UI v3 firm-name gate + MI-101-reorg + MI-401-v2 GIS/Restorations + MI-101-reorg-v2 4-tile consolidation. Per §22, NEVER MERGE TO MAIN. |
+| `mi-demo-seed` | `d02ede9` | **Active — fast-forwarded with `demo-banner`** | Demo seed branch sits in lockstep with `demo-banner` post each ship via FF merge. Per §22, NEVER MERGE TO MAIN. |
 
 ## Recently closed (chronological since 5/2 evening)
 
@@ -81,7 +86,12 @@ Part of `3f448ab`. Public repo (`SerranoJ3/myinspector`) had no .gitignore. Budd
 - **Thu 5/7 ~00:00–03:00 EDT:** towns swap + Phase 4 acceptance #6 + Luis polish triple-ship (`be48774`); docs catch-up (`5cbc330`); CP firm code rotation + .gitignore sensitive cleanup (`3f448ab`, codes themselves stay in gitignored sync note); Phase 2c-form Unit 1 (`d871f73`); Phase 2c-form Unit 2 (`3a1a9bf`); MI-DEMO-UI v2 pitch mode (`58d41be`); Phase 2c-form Unit 3 — closes 8/8 (`9a94510`); doc-sync batch (`2385c9e`).
 - **Thu 5/7 ~03:30–05:30 EDT:** Bergen demo redistribution (`558383b`); handoff-note cleanup (`74f224a`); **MI-401 Unit 2** GIS List tab UI shipped (`24b430f`, +396 lines, 9 surgical Lead Edits — sidebar tab + panel + read/write paths + super_admin New List + paste-CSV import; closes acceptance #1/#2/#4/#9, partial #3/#5/#8); **MI-404 Unit 2** Herald tab UI shipped (`d64407f`, +347 lines — sidebar tab + hero card + 4 highlight tiles + back-issues archive + 3-branch PDF viewer + super_admin Upload modal with friendly toasts on storage failure; modal-input class convention aligned via 2 replace_all Edits; closes acceptance #1-#7). Buddy worked MI-AUDIT-4 + MI-DEMO-DEPLOY spec in parallel during this window. doc-sync batch (`d2a0d78`).
 - **Thu 5/7 ~05:50 EDT:** CLAUDE.md sanitization (`a585f67`) — dropped "Jeff Longberg" from CDM-Smith email reference + replaced defunct `QUIET-RIVER-58` firm-code literal with placeholder pointing at gitignored sync note; closes the cosmetic follow-up from the Thu 5/7 ~00:50 EDT firm-code rotation.
-- **Thu 5/7 ~06:30 EDT:** **MI-DEMO-UI v3** shipped (`ec1f981`, +19/-3 lines, 5 surgical Lead Edits) — `firm_safe_to_display` gate on `.user-role` sidebar chrome (firm name renders only when flag=true; otherwise '—'; super_admin badge unchanged) + signup confirmation toast genericized (flag not fetchable at signup time post-MI-203 step 3). New `currentFirmSafeToDisplay` global captured in initApp + reset in logout. Architectural pattern locked in code: canonical "redact firm identity in UI" gate; new customer onboards → flip `firms.firm_safe_to_display = true` on their row → name surfaces. CP currently false → user-role shows '—' on CP sessions. **Triggered by Jorge's click-test screenshot** showing CP firm name leaking under his profile name; Buddy authored pre-work-order analysis at `.coordination/MI_DEMO_UI_v3_firm_display_gate_2026-05-07.md` (gitignored territory, untracked) with DB state + orthogonality framing + 4-point acceptance spec. **Lesson 8 banked** in STATE.md: honor schema-level identity-display flags at every render site, not just write paths. doc-sync batch (this commit) absorbs the Buddy reconciliation + Lesson 8 + carry-forward items 7-9 (identity-display sweep, person/project_safe_to_display pattern extension, firm_unsafe_displayed pre-flight metric).
+- **Thu 5/7 ~06:30 EDT:** **MI-DEMO-UI v3** shipped (`ec1f981`, +19/-3 lines, 5 surgical Lead Edits) — `firm_safe_to_display` gate on `.user-role` sidebar chrome (firm name renders only when flag=true; otherwise '—'; super_admin badge unchanged) + signup confirmation toast genericized (flag not fetchable at signup time post-MI-203 step 3). New `currentFirmSafeToDisplay` global captured in initApp + reset in logout. Architectural pattern locked in code: canonical "redact firm identity in UI" gate; new customer onboards → flip `firms.firm_safe_to_display = true` on their row → name surfaces. CP currently false → user-role shows '—' on CP sessions. **Triggered by Jorge's click-test screenshot** showing CP firm name leaking under his profile name; Buddy authored pre-work-order analysis at `.coordination/MI_DEMO_UI_v3_firm_display_gate_2026-05-07.md` (gitignored territory, untracked) with DB state + orthogonality framing + 4-point acceptance spec. **Lesson 8 banked** in STATE.md: honor schema-level identity-display flags at every render site, not just write paths. Doc-sync flushed at `7ea8e32` + reconciliation `88b9fef`.
+- **Thu 5/7 ~07:30–08:00 EDT — Round 1 demo-feedback follow-ups (three feat ships):**
+  - **MI-101-reorg** (`8ddf416`, +26/-19, 5 Edits + 1 helper): Submit Phase grid restructure per Jorge's section-B asks. Out of Order tile deleted entirely; renderDynamicFields out_of_order branch removed; submit payload hardcodes `out_of_sequence: false` + `sequence_note: null` (column kept in schema). Assessment tile hidden via `display:none` (kept in DOM); inline link "Material assessment only? → Switch to Assessment" added at bottom of Test Pit form, calls helper `openAssessmentFromTestPit()` which clicks the hidden tile. Partial Services initially deferred pending Q-101r-c, then **resolved-by-discovery** in v2 commit (PLSL-R already lives as `<option>` inside Service Work form's f-wo-code dropdown).
+  - **MI-401-v2** (`812c3a5`, +174/-28, 4 Edits, post Q-401v2-a/b ratification): GIS Lists → "GIS / Restorations" sidebar relabel; sub-tab toggle inside the panel ("🗺️ GIS Lists" default | "🛠️ Restorations"). New Restorations sub-tab is read-only aggregate of `phase='restoration'` submissions (Q-401v2-a ratified read-only v1; writes flow only via Submit Phase). Status filter chips derived from `photo_restoration_whiteboard` presence (Q-401v2-b ratified — phase_submissions semantic state not GIS enum). Cross-link to Property Detail via View button. Lazy-load: query fires only on first sub-tab click. `loadGisLists` now calls `setGisSubtab('lists')` to default-reset.
+  - **MI-101-reorg-v2** (`d02ede9`, +40/-4, 5 Edits): Submit Phase grid consolidated to 4 visible tiles (Test Pit / Service Work / Restoration / No Work) via sub-pills inside parent forms. Tapcard tile hidden + reachable via top-right pill in Service Work form ("📋 Switch to Tapcard →", blue-tinted accent). GIS/Docs tile hidden + reachable via top-right pill in Restoration form ("🗺️ Switch to GIS / Docs →", btn-ghost). Two new helpers next to `openAssessmentFromTestPit`: `openTapcardFromServiceWork()` + `openGisDocsFromRestoration()`. Write paths unchanged (`phase='tapcard'` + `phase='gis_docs'` routing intact via hidden-tile click invocation).
+- All three above ships **demo-feedback round 1 complete** — Jorge's first-click-test asks (sections A + B of `MI_DEMO_FEEDBACK_round1`, gitignored) all addressed. Section C (tapcard polish) still awaits Jorge specs. Doc-sync batch (this commit) absorbs all three plus Lesson 9 candidate banking.
 
 ## Open questions (in `questions.md`)
 
@@ -101,7 +111,12 @@ Part of `3f448ab`. Public repo (`SerranoJ3/myinspector`) had no .gitignore. Budd
 ## Next move
 
 1. **Jorge:** distribute new firm code to Justin + Tyler out-of-band per the gitignored sync note `.coordination/buddy_firm_code_rotation_2026-05-07.md` (text/Slack, NOT public channel).
-2. **Jorge:** Vercel preview click-test pass on `demo-banner` alias — walk Phase 2c-form flow + GIS Lists tab + The Herald tab + verify MI-DEMO-UI v3 gate (login as demo-tenant inspector → user-role shows demo firm name; login as CP inspector → user-role shows '—'; super_admin badge always shows; signup flow shows generic toast). For Herald: open tab as inspector to verify August 2025 hero card + Photo of Month tile, then super_admin to upload the actual August 2025 PDF via the Upload modal.
+2. **Jorge:** Vercel preview click-test pass on `demo-banner` alias — round 2 of demo-feedback. Walk:
+   - **Submit Phase grid** (verify 4 tiles: Test Pit / Service Work / Restoration / No Work): click Test Pit → bottom inline "Switch to Assessment" link works; click Service Work → top-right "📋 Switch to Tapcard →" pill works; click Restoration → top-right "🗺️ Switch to GIS / Docs →" pill works.
+   - **GIS / Restorations tab** (verify v2 restructure): sidebar shows "🗺️ GIS / Restorations"; tab opens to GIS Lists sub-tab; click "🛠️ Restorations" pill → table renders reverse-chrono with whiteboard-presence chips (All / With whiteboard / Missing); search filters across address+city+work code; clicking View opens Property Detail.
+   - Phase 2c-form flow + The Herald tab.
+   - **MI-DEMO-UI v3 firm-name gate**: login as demo-tenant inspector → user-role shows demo firm name; login as CP inspector → user-role shows '—'; super_admin badge always renders; signup flow shows generic toast.
+   - For Herald: open tab as inspector to verify August 2025 hero card + Photo of Month tile, then super_admin to upload the actual August 2025 PDF via the Upload modal.
 3. **Lead / Buddy:** MI-DEMO-DEPLOY spec finalize + execute day-of (pitch-day deploy ritual, Vercel alias swap, post-demo wipe schedule). Buddy was drafting in parallel during MI-401/404 build window.
 4. **Lead next session:** MI-AUDIT-4 (firms audit trigger + `updated_at` column, ~30 min security gap close) — Buddy may have shipped this already in the parallel-track work; reconcile before re-shipping (Lesson 2).
 5. **Optional polish (if buffer remains, none demo-blocking):** MI-401 Unit 3 (supervisor stats + address autocomplete + CSV export); MI-401 fuzzy-match candidates UI; MI-401 mobile card view; MI-DEMO-UI v3.1 — backend RPC change to surface `firm_safe_to_display` in `lookup_firm_by_code` so the signup toast can be selectively gated rather than always-generic.
