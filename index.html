@@ -671,7 +671,8 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 }
 
 /* SERVICE TYPE GRID */
-.service-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+/* MI-101-reorg-v2 follow-up: 2x2 layout for the 4 visible Submit Phase tiles (Test Pit / Service Work / Restoration / No Work). Was repeat(3,1fr) for the older 6-8 tile grid which left 1 tile orphaned on row 2 after the v2 consolidation. No mobile media query override existed; 2 cols on <768px is still readable. */
+.service-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px}
 .service-opt{background:var(--surface2);border:1px solid var(--border);
   border-radius:var(--radius);padding:12px 10px;cursor:pointer;transition:all .2s;text-align:center}
 .service-opt:hover,.service-opt.selected{background:rgba(27,58,107,0.4);border-color:var(--blue-light)}
