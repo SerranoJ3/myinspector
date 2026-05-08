@@ -1112,7 +1112,8 @@ html,body{overflow-x:hidden}
                 <span class="svc-name">Service Work</span>
                 <span class="svc-sub">Install + photos</span>
               </div>
-              <div class="service-opt" onclick="selectServiceType(this,'gis_docs')">
+              <!-- MI-101-reorg-v2: GIS/Docs hidden from top-level grid; reachable via "Switch to GIS/Docs" sub-pill inside the Restoration form. Tile kept in DOM so selectServiceType wiring + the renderDynamicFields 'gis_docs' case + phase='gis_docs' write path stay intact. -->
+              <div class="service-opt" onclick="selectServiceType(this,'gis_docs')" style="display:none">
                 <span class="svc-name">GIS / Docs</span>
                 <span class="svc-sub">GPS + blueprint</span>
               </div>
@@ -1125,7 +1126,8 @@ html,body{overflow-x:hidden}
                 <span class="svc-name">No Work</span>
                 <span class="svc-sub">Showed up, no excavation</span>
               </div>
-              <div class="service-opt service-opt-tapcard" onclick="selectServiceType(this,'tapcard')">
+              <!-- MI-101-reorg-v2: Tapcard hidden from top-level grid; reachable via "Switch to Tapcard" sub-pill inside the Service Work form. Tile kept in DOM so the existing tapcard branch in selectServiceType (which opens the full-screen 3-page modal via openTapcardForProperty) + phase='tapcard' write path stay intact. -->
+              <div class="service-opt service-opt-tapcard" onclick="selectServiceType(this,'tapcard')" style="display:none">
                 <span class="svc-name">Tapcard</span>
                 <span class="svc-sub">3-page Normal mode form</span>
               </div>
@@ -3037,6 +3039,30 @@ function openAssessmentFromTestPit(){
   console.warn('[MI-101-reorg] Assessment tile not found');
 }
 
+// MI-101-reorg-v2: helpers for sub-pill toggles inside Service Work + Restoration forms.
+// Same pattern as openAssessmentFromTestPit — locate the hidden tile by onclick
+// signature and trigger its click() to invoke the existing selectServiceType pipeline.
+// Tapcard tile has special handling in selectServiceType (opens openTapcardForProperty
+// modal); GIS/Docs renders the standard inline form. Both write paths (phase='tapcard',
+// phase='gis_docs') unchanged.
+function openTapcardFromServiceWork(){
+  const tiles = document.querySelectorAll('#service-type-grid .service-opt');
+  for(const t of tiles){
+    const oc = t.getAttribute('onclick') || '';
+    if(oc.indexOf("'tapcard'") !== -1){ t.click(); return; }
+  }
+  console.warn('[MI-101-reorg-v2] Tapcard tile not found');
+}
+
+function openGisDocsFromRestoration(){
+  const tiles = document.querySelectorAll('#service-type-grid .service-opt');
+  for(const t of tiles){
+    const oc = t.getAttribute('onclick') || '';
+    if(oc.indexOf("'gis_docs'") !== -1){ t.click(); return; }
+  }
+  console.warn('[MI-101-reorg-v2] GIS/Docs tile not found');
+}
+
 function renderDynamicFields(type){
   const container = document.getElementById('dynamic-form-fields');
   let html='';
@@ -3076,7 +3102,12 @@ function renderDynamicFields(type){
   }
 
   if(type==='service_work'){
-    html+=`<div class="form-section">
+    html+=`<div class="form-section" style="display:flex;justify-content:flex-end;align-items:center;gap:10px;padding:10px 14px;background:transparent;border:0">
+      <!-- MI-101-reorg-v2: sub-pill jumps to the (hidden) Tapcard tile so inspectors can switch to the 3-page Tapcard form from inside the Service Work parent. phase='tapcard' write routing unchanged. -->
+      <span style="font-size:12px;color:var(--muted)">Need the 3-page Tapcard form?</span>
+      <button type="button" class="btn-sm btn-ghost" onclick="openTapcardFromServiceWork()" style="border-color:rgba(74,124,196,0.45);color:var(--blue-light)">📋 Switch to Tapcard →</button>
+    </div>
+    <div class="form-section">
       <div class="form-section-title">Cardinal Photos</div>
       ${renderPhotoSlot('curbstop_meterpit', 'Curbstop / Meterpit Photo', { whiteboardRequired: true })}
       ${renderPhotoSlot('watermain_corporation', 'Watermain / Corporation Photo', { whiteboardRequired: true })}
@@ -3136,7 +3167,12 @@ function renderDynamicFields(type){
   }
 
   if(type==='restoration'){
-    html+=`<div class="form-section">
+    html+=`<div class="form-section" style="display:flex;justify-content:flex-end;align-items:center;gap:10px;padding:10px 14px;background:transparent;border:0">
+      <!-- MI-101-reorg-v2: sub-pill jumps to the (hidden) GIS/Docs tile so inspectors can switch to the GIS/Docs form from inside the Restoration parent. phase='gis_docs' write routing unchanged. -->
+      <span style="font-size:12px;color:var(--muted)">GPS / blueprint / Bluebeam reference instead?</span>
+      <button type="button" class="btn-sm btn-ghost" onclick="openGisDocsFromRestoration()">🗺️ Switch to GIS / Docs →</button>
+    </div>
+    <div class="form-section">
       <div class="form-section-title">Restoration Photo</div>
       ${renderPhotoSlot('restoration', 'Restoration Photo', { whiteboardRequired: true })}
       ${renderPhotoSlot('other', 'Additional Photos', { optional: true })}
