@@ -225,6 +225,8 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .tc-input{background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;font-size:13px;color:var(--white);font-family:'Source Sans 3',sans-serif;outline:none;transition:border-color .15s}
 .tc-input:focus{border-color:var(--blue-light)}
 .tc-input:read-only,.tc-input[readonly]{background:rgba(94,122,154,0.08);color:rgba(237,242,248,0.65);cursor:default}
+/* MI-101-tapcard-polish v1: validation error highlight on tc-* form fields. Cleared on next submit attempt + on close. */
+.tc-input-error{border-color:var(--red) !important;background:rgba(200,74,74,0.08)}
 .tc-readonly-pill{display:inline-flex;align-items:center;gap:5px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;font-size:12px;color:rgba(237,242,248,0.85)}
 .tc-readonly-pill .tc-readonly-meta{color:var(--muted);font-size:10px;margin-left:4px}
 .tc-summary-card{background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px}
@@ -5637,6 +5639,39 @@ function closeTapcardModal(){
   // Hide asset picker if left open
   const picker = document.getElementById('tc-diagram-asset-picker');
   if(picker) picker.style.display = 'none';
+  // MI-101-tapcard-polish v1: reset all tc-* form fields so opening tapcard B
+  // after editing tapcard A doesn't surface ghost values from A. Also clears
+  // validation styling from any prior failed submit attempt.
+  tcResetAllFormFields();
+}
+
+// MI-101-tapcard-polish v1: walk every input/select/textarea inside #modal-tapcard
+// and reset to default. Skips disabled + readonly fields (auto-pulled mirrors from
+// the materials sheet header / property record stay alone — the next open repopulates
+// them). Material Installed table cleared entirely; row builder repopulates on re-open.
+function tcResetAllFormFields(){
+  const modal = document.getElementById('modal-tapcard');
+  if(!modal) return;
+  modal.querySelectorAll('input, select, textarea').forEach(f => {
+    if(f.disabled || f.readOnly) return;
+    const tag = f.tagName.toLowerCase();
+    const type = (f.type || '').toLowerCase();
+    if(tag === 'input'){
+      if(type === 'checkbox' || type === 'radio'){ f.checked = false; }
+      else { f.value = ''; }
+    } else if(tag === 'select'){
+      f.selectedIndex = 0;
+    } else if(tag === 'textarea'){
+      f.value = '';
+    }
+    f.classList.remove('tc-input-error');
+  });
+  // Clear the Material Installed dynamic rows entirely
+  const matTbody = document.getElementById('tc-mi-tbody');
+  if(matTbody) matTbody.innerHTML = '';
+  // Clear the Service / Old Service auto-pulled rows wrapper
+  const svcRows = document.getElementById('tc-co-service-rows');
+  if(svcRows) svcRows.innerHTML = '';
 }
 
 function tcSwitchPage(page){
@@ -7371,6 +7406,26 @@ async function submitTapcard(){
     showToast('No tapcard context — close and reopen.', 'error');
     return;
   }
+  // MI-101-tapcard-polish v1: pre-flight validation. Catches truly empty submits
+  // before they hit the DB and surface as raw RLS-style errors. Required minimum:
+  // Service Number + (≥1 Material Installed row OR Customer Material in footer).
+  const validationErrors = tcValidate();
+  // Always clear prior error highlights before re-applying
+  document.querySelectorAll('#modal-tapcard .tc-input-error').forEach(el => el.classList.remove('tc-input-error'));
+  if(validationErrors.length){
+    validationErrors.forEach(err => {
+      const el = document.getElementById(err.id);
+      if(el) el.classList.add('tc-input-error');
+    });
+    const labels = validationErrors.map(e => e.label).join(', ');
+    showToast('Please complete required fields: ' + labels, 'error');
+    tcSetFooterStatus('error', 'Required fields missing: ' + labels);
+    // Focus the first missing field so the inspector is guided to it
+    const first = document.getElementById(validationErrors[0].id);
+    if(first && typeof first.focus === 'function') first.focus();
+    return;
+  }
+
   const tapcard_data = tcReadForm();
   // Phase 2b refactor: Customer Side tab killed; service_number mirror logic dropped.
 
@@ -7389,8 +7444,11 @@ async function submitTapcard(){
   const { error } = await sb.from('phase_submissions').insert(payload);
   if(error){
     console.error('Tapcard submit error:', error);
-    tcSetFooterStatus('error', 'Submit failed: ' + (error.message || 'unknown'));
-    showToast('Tapcard submit failed: ' + (error.message || 'unknown'), 'error');
+    // MI-101-tapcard-polish v1: friendly toast wrapper. Raw error stays in console.error
+    // for debug; the user-facing surface no longer leaks postgres terminology.
+    const friendly = tcFriendlyError(error.message || '');
+    tcSetFooterStatus('error', friendly);
+    showToast(friendly, 'error');
     return;
   }
   tcSetFooterStatus('saved', 'Tapcard submitted ' + new Date().toLocaleTimeString());
@@ -7400,6 +7458,49 @@ async function submitTapcard(){
   closeTapcardModal();
   // Reset Submit Phase tile selection so next tile click works cleanly
   document.querySelectorAll('.service-opt').forEach(o => o.classList.remove('selected'));
+}
+
+// MI-101-tapcard-polish v1: pre-flight validation for tapcard submit. Returns
+// an array of {id, label} for inline highlighting + toast labeling. Empty array
+// = passes validation. Rules kept minimal to catch only "truly blank" submissions
+// without overconstraining inspectors who legitimately leave optional fields blank.
+function tcValidate(){
+  const errors = [];
+  const serviceNumber = document.getElementById('tc-co-service_number')?.value?.trim();
+  if(!serviceNumber){
+    errors.push({ id: 'tc-co-service_number', label: 'Service Number' });
+  }
+  const matRows = tcReadMaterialInstalledRows();
+  const custMat = document.getElementById('tc-co-cust_mat')?.value?.trim();
+  if((!matRows || matRows.length === 0) && !custMat){
+    errors.push({ id: 'tc-co-cust_mat', label: '≥1 Material Installed row or Customer Material' });
+  }
+  return errors;
+}
+
+// MI-101-tapcard-polish v1: pattern-match raw Supabase error messages into
+// friendly inspector-facing strings. Raw error kept in console.error for debug.
+// Same pattern should propagate to other write paths (rgUpdateEntry, rgSaveDraft,
+// confirmGisImport, confirmNewGisList, etc.) in a follow-up sweep — out of scope
+// for this v1 commit per Jorge's directive (tapcard polish only).
+function tcFriendlyError(rawMsg){
+  const m = (rawMsg || '').toLowerCase();
+  if(m.includes('row-level security') || m.includes('violates row-level') || m.includes('rls') || m.includes('policy')){
+    return "Couldn't save — please refresh and try again. If this keeps happening, contact your supervisor.";
+  }
+  if(m.includes('network') || m.includes('failed to fetch') || m.includes('timeout') || m.includes('offline')){
+    return 'Network issue saving submission. Try again when connection is stable.';
+  }
+  if(m.includes('check constraint') || m.includes('violates check')){
+    return 'Submission has invalid data — review the form and try again.';
+  }
+  if(m.includes('foreign key') || m.includes('violates foreign')){
+    return "Couldn't save — a referenced record is missing. Refresh and try again.";
+  }
+  if(m.includes('duplicate') || m.includes('unique constraint')){
+    return 'A submission with these details already exists.';
+  }
+  return 'Could not save submission. Try again or contact support.';
 }
 
 function showToast(msg,type='success'){
