@@ -6341,12 +6341,18 @@ const VTC_FIELDS = [
     const inn = (typeof dep === 'object') ? dep.in : '__';
     return `TOP OF ${sz||'__'} IN. ${m||'_______'} MAIN IS ${ft} FT. ${inn} IN. BELOW SURFACE`;
   }, size:9, family:'mono', static:false, underline:380},
-  {x:0.44, y:0.110, get:()=>'AND ___ FT. ___ IN. OF CURB ON ___________', size:9, family:'mono', static:true, color:'muted'},
+  {x:0.44, y:0.110, get:()=>{
+    const ss = vtcMs('service_side');
+    const sideLabel = ss === 'long' ? 'LONG SIDE' : ss === 'short' ? 'SHORT SIDE' : '___________';
+    return `AND ___ FT. ___ IN. OF CURB ON ${sideLabel}`;
+  }, size:9, family:'mono', static:false},
   // TAP IS [ft] FT. [in] IN. FROM INTERSECTING CURB MEDIAN LINE ON [direction]
   {x:0.44, y:0.135, get:()=>{
     const dist = vtcInchesToFtIn(vtcMs('cs_far_curb_inches'), 'verbose');
-    if(typeof dist !== 'object') return 'TAP IS ___ FT. ___ IN. FROM INTERSECTING CURB MEDIAN LINE ON ____';
-    return `TAP IS ${dist.ft} FT. ${dist.in} IN. FROM INTERSECTING CURB MEDIAN LINE ON ____`;
+    const ss = vtcMs('service_side');
+    const sideLabel = ss === 'long' ? 'LONG SIDE' : ss === 'short' ? 'SHORT SIDE' : '____';
+    if(typeof dist !== 'object') return `TAP IS ___ FT. ___ IN. FROM INTERSECTING CURB MEDIAN LINE ON ${sideLabel}`;
+    return `TAP IS ${dist.ft} FT. ${dist.in} IN. FROM INTERSECTING CURB MEDIAN LINE ON ${sideLabel}`;
   }, size:9, family:'mono', static:false, underline:380},
   // DISTANCE, TAP TO CURB STOP
   {x:0.44, y:0.160, get:()=>{
