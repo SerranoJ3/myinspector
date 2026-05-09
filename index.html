@@ -6461,7 +6461,10 @@ const VTC_FIELDS = [
     const notes = vtcMs('notes');
     return `Job Notes: ${notes || '________________________________________________________________________________________'}`;
   }, size:7.5, family:'mono', static:false, color:'muted', multiline:true, wrap:140, maxLines:1},
-  {x:0.50, y:0.995, get:()=>'THIS BOX FOR OFFICIAL USE ONLY. DO NOT WRITE WITHIN THIS BOX.', size:7, family:'sans', anchor:'middle', static:true, color:'muted', italic:true},
+  {x:0.50, y:0.995, get:()=>{
+    if(!currentUserIsSuperAdmin) return ''; // admin-gate per Ship 4 pattern (district ID strip hidden → disclaimer hidden too, no orphaned label)
+    return 'THIS BOX FOR OFFICIAL USE ONLY. DO NOT WRITE WITHIN THIS BOX.';
+  }, size:7, family:'sans', anchor:'middle', static:false, color:'muted', italic:true},
 ];
 
 function vtcWrap(text, n){
