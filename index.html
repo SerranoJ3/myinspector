@@ -6405,8 +6405,9 @@ const VTC_FIELDS = [
     if(!date && !by) return '';
     return `DATE INSTALLED ${date||'________'} BY ${by||'________'}`;
   }, size:10, family:'mono', static:false, underline:380},
-  // Clerical (blank in v1)
-  {x:0.04, y:0.885, get:()=>'POSTED BY ________   STOCK ENTERED BY ________   FAXED/SCANNED BY ________', size:9, family:'mono', static:true, color:'muted'},
+  // POSTED BY / STOCK ENTERED BY / FAXED/SCANNED BY REMOVED 5/9/26 — all 3 are office-fill per
+  // discovery/TAPCARD_VISUAL_REFERENCE.md scope decision (5/2/26): "DROP — office-fill".
+  // These surface in MI-104 admin override view (post-demo), not inspector modal.
   // TIED IN / PLUG LOCK
   {x:0.04, y:0.905, label:'Tied In', get:()=>vtcVal('tc-co-tied_in'), size:11, family:'mono', underline:120},
   {x:0.20, y:0.905, label:'Plug Lock Installed', get:()=>vtcVal('tc-co-plug_lock'), size:11, family:'mono', underline:120},
@@ -6417,9 +6418,10 @@ const VTC_FIELDS = [
     if(!mat && !sz) return '';
     return `CUSTOMER SERVICE MATERIAL ${mat||'_______'} SIZE ${sz||'__'} IN`;
   }, size:10, family:'mono', static:false, underline:380},
-  // COMPLETED DIAGRAM BY / PURPOSE OF INSTALLATION
+  // COMPLETED DIAGRAM BY (Purpose of Installation removed 5/9/26 — office-fill per
+  // discovery/TAPCARD_VISUAL_REFERENCE.md: "PURPOSE OF INSTALLATION (DROP — office-fill)";
+  // surfaces in MI-104 admin override view post-demo, not inspector modal)
   {x:0.04, y:0.945, label:'Completed Diagram By', get:()=>vtcVal('tc-co-completed_by'), size:10, family:'mono', underline:200},
-  {x:0.50, y:0.945, label:'Purpose of Installation', get:()=>vtcServiceTypePurpose(vtcMs('service_type')), size:10, family:'mono', underline:200},
 
   // ─── JOB NOTES / OFFICIAL USE box (very bottom, x 0.02-0.98, y 0.96-1.0) ───
   // Compact 2-line label band mirroring paper. Job Notes content + clerical fields.
