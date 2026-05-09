@@ -4018,7 +4018,12 @@ async function cycleGisStatus(entryId){
   }
   const {data, error} = await sb.from('gis_list_entries')
     .update(patch).eq('id', entryId).select('*').single();
-  if(error){ showToast('Status update failed: '+error.message, 'error'); return; }
+  if(error){
+    console.error('cycleGisStatus error:', error);
+    const friendly = tcFriendlyError(error.message || '');
+    showToast(friendly, 'error');
+    return;
+  }
   Object.assign(entry, data);
   renderGisEntries();
 }
@@ -4031,7 +4036,12 @@ async function saveGisNotes(entryId, value){
   if(pitchModeBlocked('GIS notes save')) return;
   const {data, error} = await sb.from('gis_list_entries')
     .update({ notes: newNotes }).eq('id', entryId).select('*').single();
-  if(error){ showToast('Notes save failed: '+error.message, 'error'); return; }
+  if(error){
+    console.error('saveGisNotes error:', error);
+    const friendly = tcFriendlyError(error.message || '');
+    showToast(friendly, 'error');
+    return;
+  }
   Object.assign(entry, data);
 }
 
@@ -4067,7 +4077,8 @@ async function confirmNewGisList(){
   };
   const {data, error} = await sb.from('gis_lists').insert(payload).select('*').single();
   if(error){
-    errEl.textContent = 'Create failed: '+error.message;
+    console.error('confirmNewGisList error:', error);
+    errEl.textContent = tcFriendlyError(error.message || '');
     errEl.style.display = 'block';
     btn.disabled = false;
     return;
@@ -4169,8 +4180,9 @@ async function confirmGisImport(){
   }));
   const {error} = await sb.from('gis_list_entries').insert(payload);
   if(error){
+    console.error('confirmGisImport error:', error);
     const errEl = document.getElementById('gi-error');
-    errEl.textContent = 'Import failed: '+error.message;
+    errEl.textContent = tcFriendlyError(error.message || '');
     errEl.style.display = 'block';
     btn.disabled = false;
     return;
@@ -5955,8 +5967,9 @@ async function rgSaveDraft(type){
   const { error } = await sb.from('restoration_grid_entries').insert(payload);
   if(error){
     console.error('rgSaveDraft error:', error);
-    rgSetStatus(type, 'Save failed: ' + (error.message || 'unknown'), 'err');
-    showToast('Restoration save failed: ' + (error.message || 'unknown'), 'error');
+    const friendly = tcFriendlyError(error.message || '');
+    rgSetStatus(type, friendly, 'err');
+    showToast(friendly, 'error');
     return;
   }
   rgSetStatus(type, `Saved at ${new Date().toLocaleTimeString()}`, 'ok');
@@ -6165,8 +6178,9 @@ async function rgUpdateEntry(){
   const { error } = await sb.from('restoration_grid_entries').update(patch).eq('id', rgEditingEntryId);
   if(error){
     console.error('rgUpdateEntry error:', error);
-    rgSetStatus(type, 'Update failed: ' + (error.message || 'unknown'), 'err');
-    showToast('Update failed: ' + (error.message || 'unknown'), 'error');
+    const friendly = tcFriendlyError(error.message || '');
+    rgSetStatus(type, friendly, 'err');
+    showToast(friendly, 'error');
     return;
   }
   showToast(`${type.replace(/_/g,' ')} entry updated`, 'success');
