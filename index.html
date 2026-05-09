@@ -6533,13 +6533,13 @@ function vtcRender(){
     if(row){
       const ty = ry + rowH * 0.65;
       if(row.quan){
-        out.push(`<text x="${(tblLeft+colQuanRight)/2}" y="${ty}" font-family="${tblFamilyMono}" font-size="8" fill="#1a2434" text-anchor="middle">${vtcEsc(row.quan)}</text>`);
+        out.push(`<text x="${(tblLeft+colQuanRight)/2}" y="${ty}" font-family="${tblFamilyMono}" font-size="9" fill="#1a2434" text-anchor="middle">${vtcEsc(row.quan)}</text>`);
       }
       if(row.size){
-        out.push(`<text x="${(colQuanRight+colSizeRight)/2}" y="${ty}" font-family="${tblFamilyMono}" font-size="8" fill="#1a2434" text-anchor="middle">${vtcEsc(row.size)}</text>`);
+        out.push(`<text x="${(colQuanRight+colSizeRight)/2}" y="${ty}" font-family="${tblFamilyMono}" font-size="9" fill="#1a2434" text-anchor="middle">${vtcEsc(row.size)}</text>`);
       }
       if(row.material){
-        out.push(`<text x="${colSizeRight + 4}" y="${ty}" font-family="${tblFamilyMono}" font-size="8" fill="#1a2434" text-anchor="start">${vtcEsc(row.material)}</text>`);
+        out.push(`<text x="${colSizeRight + 4}" y="${ty}" font-family="${tblFamilyMono}" font-size="9" fill="#1a2434" text-anchor="start">${vtcEsc(row.material)}</text>`);
       }
     }
   }
