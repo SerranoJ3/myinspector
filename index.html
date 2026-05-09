@@ -6425,7 +6425,10 @@ const VTC_FIELDS = [
 
   // ─── JOB NOTES / OFFICIAL USE box (very bottom, x 0.02-0.98, y 0.96-1.0) ───
   // Compact 2-line label band mirroring paper. Job Notes content + clerical fields.
+  // District ID strip is admin-only per discovery/TAPCARD_VISUAL_REFERENCE.md scope decision (5/2/26):
+  // "HIDE entirely behind admin/super_admin role toggle." Inspector view returns empty.
   {x:0.04, y:0.965, get:()=>{
+    if(!currentUserIsSuperAdmin) return ''; // admin-gate per locked scope
     const sec = vtcProp('sector');
     const dist = vtcSectorDistrictId(sec);
     const oc = vtcSectorOpCenter(sec);
