@@ -2493,7 +2493,7 @@ async function signup(){
     showAuthError('Invalid firm code. Check with your supervisor.');
     return;
   }
-  const firm = firms[0]; // { firm_id, firm_name } — note column rename vs prior id/name
+  const firm = firms[0]; // { firm_id, firm_name, firm_safe_to_display } — v3.1 RPC return shape (5/8/26 backend ship)
 
   const {data,error} = await sb.auth.signUp({
     email, password:pass,
@@ -2518,10 +2518,13 @@ async function signup(){
     await sb.auth.signOut();
   }
 
-  // MI-DEMO-UI v3: generic toast at signup — firm_safe_to_display flag isn't fetchable
-  // here (lookup_firm_by_code RPC doesn't return it; anon access to firms was dropped
-  // in MI-203 step 3). Default-redact to avoid leaking a firm name to onlookers.
-  showToast('Account created! Check your email to confirm and sign in.','success');
+  // MI-DEMO-UI v3.1: conditional toast at signup using firm_safe_to_display from RPC return shape.
+  // Demo / opted-in firms (firm_safe_to_display=true) show firm name in toast for friendly onboarding;
+  // production firms (default false) get generic toast to avoid leaking firm names to onlookers.
+  const toastMsg = firm.firm_safe_to_display === true
+    ? `Welcome to ${firm.firm_name}! Account created — check your email to confirm and sign in.`
+    : 'Account created! Check your email to confirm and sign in.';
+  showToast(toastMsg, 'success');
   showLogin();
 }
 
