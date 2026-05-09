@@ -2213,6 +2213,10 @@ let currentMaterialsSheet = null;
 // modal-materials-sheet is open. Drives vtcRender's sector dispatch and
 // property-sourced fields (address, municipality, lot_block, mapcall_id, sector).
 let currentMaterialsSheetProperty = null;
+// Ship 3.1: holds prior tapcard submission's tapcard_data jsonb (if any) when MS modal
+// opens. Populated by vtcLoadTapcardData() via cross-table query on phase_submissions.
+// VTC footer fields fall back to this via vtcTd() when tc-co-* form inputs are empty.
+let currentMaterialsSheetTapcardData = null;
 let currentPropertyDetailId = null;
 let msPastCorner = false;
 const MS_MEASURE_FIELDS = [
@@ -4991,6 +4995,9 @@ async function openMaterialsSheetForProperty(propertyId){
   // Phase 2d-revision Unit 2: autopop wiring lives via delegated listeners
   // attached on first open (idempotent) + chip/toggle/recalc patches.
   vtcAttachAutopopListeners();
+  // Ship 3.1: fetch prior tapcard's jsonb for footer fallback (fire-and-forget;
+  // vtcRender below renders without fallback first, then re-renders when query lands).
+  vtcLoadTapcardData(currentMaterialsSheet?.id).then(() => vtcRender());
   vtcRender();
   // Phase 2a polish: lazy-load autocomplete suggestions for free-text fields
   loadMaterialsSheetAutocomplete().catch(() => {});
@@ -5000,6 +5007,7 @@ function closeMaterialsSheetModal(){
   document.getElementById('modal-materials-sheet').classList.remove('open');
   currentMaterialsSheet = null;
   currentMaterialsSheetProperty = null;
+  currentMaterialsSheetTapcardData = null; // Ship 3.1 reset
   // Clear preview container so next open starts clean
   const container = document.getElementById('visual-tapcard-preview-container');
   if(container){
@@ -5471,6 +5479,9 @@ async function editMaterialsSheetById(sheetId){
     msSetSaveStatus('saved', data.deleted_at ? 'Loaded soft-deleted sheet (restore from history list)' : 'Loaded existing sheet');
     document.getElementById('modal-materials-sheet').classList.add('open');
     vtcAttachAutopopListeners();
+    // Ship 3.1: fetch prior tapcard's jsonb for footer fallback (fire-and-forget;
+    // vtcRender below renders without fallback first, then re-renders when query lands).
+    vtcLoadTapcardData(data.id).then(() => vtcRender());
     vtcRender();
     loadMaterialsSheetAutocomplete().catch(() => {});
   } catch(err){
@@ -6201,6 +6212,27 @@ const VTC_W = 800, VTC_H = 1100;
 // ── helpers ───────────────────────────────────────────────────
 function vtcVal(id){ const el = document.getElementById(id); return el ? el.value : ''; }
 function vtcEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+// Ship 3.1: cross-table fetch of prior tapcard submission's jsonb. Called from MS
+// modal-open paths to populate currentMaterialsSheetTapcardData. Footer fields fall
+// back via vtcTd() when tc-co-* form inputs are empty.
+async function vtcLoadTapcardData(materialsSheetId){
+  if(!materialsSheetId){ currentMaterialsSheetTapcardData = null; return; }
+  const { data, error } = await sb.from('phase_submissions')
+    .select('tapcard_data').eq('phase', 'tapcard').eq('materials_sheet_id', materialsSheetId)
+    .is('deleted_at', null).order('submitted_at', { ascending: false }).limit(1).maybeSingle();
+  if(error){ console.error('vtcLoadTapcardData error:', error); }
+  currentMaterialsSheetTapcardData = data?.tapcard_data || null;
+}
+// Ship 3.1: read field from currentMaterialsSheetTapcardData. For 'completed_diagram_by',
+// also check legacy 'completed_by' key (demo seed used that name; tcReadForm at line 7394+
+// writes canonical 'completed_diagram_by'). Returns '' if no fallback available.
+function vtcTd(field){
+  const td = currentMaterialsSheetTapcardData;
+  if(!td) return '';
+  if(field === 'completed_diagram_by') return td.completed_diagram_by || td.completed_by || '';
+  return td[field] || '';
+}
+
 function vtcMs(field){
   // Read from materials sheet form (#ms-<field>). Form values mirror
   // currentMaterialsSheet after msPopulateForm.
@@ -6427,8 +6459,8 @@ const VTC_FIELDS = [
   // discovery/TAPCARD_VISUAL_REFERENCE.md scope decision (5/2/26): "DROP — office-fill".
   // These surface in MI-104 admin override view (post-demo), not inspector modal.
   // TIED IN / PLUG LOCK
-  {x:0.04, y:0.905, label:'Tied In', get:()=>vtcVal('tc-co-tied_in'), size:11, family:'mono', underline:120},
-  {x:0.20, y:0.905, label:'Plug Lock Installed', get:()=>vtcVal('tc-co-plug_lock'), size:11, family:'mono', underline:120},
+  {x:0.04, y:0.905, label:'Tied In', get:()=>vtcVal('tc-co-tied_in') || vtcTd('tied_in'), size:11, family:'mono', underline:120},
+  {x:0.20, y:0.905, label:'Plug Lock Installed', get:()=>vtcVal('tc-co-plug_lock') || vtcTd('plug_lock'), size:11, family:'mono', underline:120},
   // CUSTOMER SERVICE MATERIAL [material] SIZE [size] IN
   {x:0.04, y:0.925, get:()=>{
     const mat = vtcVal('tc-co-cust_mat') || vtcMs('customer_new_material');
@@ -6439,7 +6471,7 @@ const VTC_FIELDS = [
   // COMPLETED DIAGRAM BY (Purpose of Installation removed 5/9/26 — office-fill per
   // discovery/TAPCARD_VISUAL_REFERENCE.md: "PURPOSE OF INSTALLATION (DROP — office-fill)";
   // surfaces in MI-104 admin override view post-demo, not inspector modal)
-  {x:0.04, y:0.945, label:'Completed Diagram By', get:()=>vtcVal('tc-co-completed_by'), size:10, family:'mono', underline:200},
+  {x:0.04, y:0.945, label:'Completed Diagram By', get:()=>vtcVal('tc-co-completed_by') || vtcTd('completed_diagram_by'), size:10, family:'mono', underline:200},
 
   // ─── JOB NOTES / OFFICIAL USE box (very bottom, x 0.02-0.98, y 0.96-1.0) ───
   // Compact 2-line label band mirroring paper. Job Notes content + clerical fields.
