@@ -6374,19 +6374,16 @@ const VTC_FIELDS = [
   }, size:9, family:'mono', static:false},
   {x:0.44, y:0.270, label:'Data Furnished By', get:()=>vtcMs('foreman_name'), size:10, family:'mono', underline:240},
 
-  // ─── OWNER block (mid-left, x 0.02-0.42, y 0.31-0.45) ───
-  {x:0.04, y:0.310, get:()=>'OWNER', size:11, weight:700, color:'header', static:true, family:'sans'},
-  {x:0.04, y:0.335, label:'Owner', get:()=>'', size:11, family:'mono', underline:280},
-  {x:0.04, y:0.365, label:'Location', get:()=>vtcProp('address'), size:11, family:'mono', underline:280},
-  {x:0.04, y:0.395, label:'Lot / Block', get:()=>vtcProp('lot_block'), size:11, family:'mono', underline:140},
-  {x:0.22, y:0.395, label:'Cross Street', get:()=>'', size:11, family:'mono', underline:140},
-  {x:0.04, y:0.425, label:'Municipality', get:()=>vtcProp('municipality'), size:11, family:'mono', underline:140},
-  {x:0.22, y:0.425, label:'Town Section', get:()=>vtcProp('municipality'), size:11, family:'mono', underline:140},
-  {x:0.04, y:0.455, label:'Development', get:()=>'', size:11, family:'mono', underline:280},
+  // ─── OWNER block REMOVED 5/9/26 per discovery/TAPCARD_VISUAL_REFERENCE.md scope decision (5/2/26) ───
+  // Reference: "DROP per Jorge — these aren't field-filled. Keep MUNICIPALITY (auto-pulled,
+  // shown as a badge). Drop the rest of that row entirely per scope."
+  // Municipality stays in the top-right title-row badge; no other owner-block fields render.
+  // Materials Installed table reflows up into freed vertical space (mid-left now y=0.31..0.795).
 
-  // ─── MATERIALS INSTALLED table (mid-left, x 0.02-0.42, y 0.48-0.79) ───
-  // Headers + empty rows. Unit 2 wires extrapolation per service_type.
-  {x:0.04, y:0.480, get:()=>'MATERIALS INSTALLED', size:11, weight:700, color:'header', static:true, family:'sans'},
+  // ─── MATERIALS INSTALLED table (mid-left, x 0.02-0.42, y 0.31-0.79) ───
+  // Centerpiece per TAPCARD_VISUAL_REFERENCE.md. OWNER block above dropped 5/9/26;
+  // table reflows into y=0.33..0.795 vertical range. Unit 2 wires extrapolation per service_type.
+  {x:0.04, y:0.315, get:()=>'MATERIALS INSTALLED', size:11, weight:700, color:'header', static:true, family:'sans'},
   // Column headers handled inline in vtcRender (table grid is structural, not field-based)
   // 11 empty rows are drawn structurally in vtcRender.
 
@@ -6488,15 +6485,14 @@ function vtcRender(){
   out.push(`<line x1="2" y1="${H*0.30}" x2="${W-2}" y2="${H*0.30}" stroke="#1a2434" stroke-width="1"/>`);
   // Mid-section vertical (Owner+Materials | Diagram)
   out.push(`<line x1="${W*0.42}" y1="${H*0.30}" x2="${W*0.42}" y2="${H*0.85}" stroke="#1a2434" stroke-width="1"/>`);
-  // Owner / Materials horizontal split at y=0.47
-  out.push(`<line x1="2" y1="${H*0.47}" x2="${W*0.42}" y2="${H*0.47}" stroke="#1a2434" stroke-width="0.8"/>`);
+  // Owner / Materials horizontal split removed 5/9/26 — OWNER block dropped, mid-left now contiguous Materials Installed
   // Mid/footer divider
   out.push(`<line x1="2" y1="${H*0.85}" x2="${W-2}" y2="${H*0.85}" stroke="#1a2434" stroke-width="1"/>`);
   // Footer/Job Notes divider
   out.push(`<line x1="2" y1="${H*0.955}" x2="${W-2}" y2="${H*0.955}" stroke="#1a2434" stroke-width="1"/>`);
 
-  // Materials Installed table grid (within mid-left, y 0.50-0.79)
-  const tblTop = H*0.495, tblBottom = H*0.795, tblLeft = W*0.04, tblRight = W*0.40;
+  // Materials Installed table grid (within mid-left, y 0.33-0.795 after OWNER drop 5/9/26)
+  const tblTop = H*0.330, tblBottom = H*0.795, tblLeft = W*0.04, tblRight = W*0.40;
   out.push(`<rect x="${tblLeft}" y="${tblTop}" width="${tblRight-tblLeft}" height="${tblBottom-tblTop}" fill="none" stroke="#1a2434" stroke-width="0.6"/>`);
   // Column dividers: QUAN | SIZE | MATERIAL INSTALLED
   const colQuanRight = tblLeft + (tblRight-tblLeft) * 0.18;
@@ -6513,7 +6509,7 @@ function vtcRender(){
   // Phase 2d-revision Unit 2: extrapolated rows from service_type. Empty for
   // unknown service_type (inspector will type into materials grid form rows;
   // future tickets may add a free-text materials_grid jsonb override).
-  const rowCount = 11;
+  const rowCount = 14;
   const rowH = (tblBottom - hdrBottom) / rowCount;
   const rows = vtcMaterialsRows();
   const tblFamilyMono = `'JetBrains Mono', ui-monospace, Consolas, monospace`;
