@@ -5289,7 +5289,8 @@ async function saveMaterialsSheet(){
     if(result.error){
       console.error('Materials sheet save error:', result.error);
       const msg = result.error.message || '';
-      let userMsg = 'Save failed: ' + msg;
+      // tcFriendlyError as initial userMsg (RLS / network / FK / duplicate / generic); specific CHECK-constraint matches below override when they fire
+      let userMsg = tcFriendlyError(msg);
       // Surface specific CHECK constraint violations cleanly
       if(msg.includes('materials_sheets_sky_condition_enum')) userMsg = 'Sky Condition must be sunny / cloudy / rain / snow / other.';
       else if(msg.includes('materials_sheets_curb_box_location_enum')) userMsg = 'Curb Box Location must be city_strip / sidewalk / driveway / lawn.';
