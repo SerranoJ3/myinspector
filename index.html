@@ -225,6 +225,10 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .tc-input{background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;font-size:13px;color:var(--white);font-family:'Source Sans 3',sans-serif;outline:none;transition:border-color .15s}
 .tc-input:focus{border-color:var(--blue-light)}
 .tc-input:read-only,.tc-input[readonly]{background:rgba(94,122,154,0.08);color:rgba(237,242,248,0.65);cursor:default}
+/* Sprint Polish 5/9/26: native <option> elements don't inherit parent .tc-input color/bg, so they
+   render OS-default (often dark text on dark theme = invisible). Force explicit colors. */
+.tc-input option,.tc-input optgroup{background:var(--surface3);color:var(--white);font-weight:500;padding:6px 8px}
+.tc-input optgroup{font-style:italic;color:var(--blue-light);font-size:11px;letter-spacing:0.04em;text-transform:uppercase}
 /* MI-101-tapcard-polish v1: validation error highlight on tc-* form fields. Cleared on next submit attempt + on close. */
 .tc-input-error{border-color:var(--red) !important;background:rgba(200,74,74,0.08)}
 .tc-readonly-pill{display:inline-flex;align-items:center;gap:5px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;font-size:12px;color:rgba(237,242,248,0.85)}
@@ -1810,7 +1814,7 @@ html,body{overflow-x:hidden}
             <div class="ms-field"><label class="ms-label">Date</label>
               <input class="ms-input" type="date" id="ms-sheet_date"></div>
             <div class="ms-field"><label class="ms-label">Contractor</label>
-              <input class="ms-input" type="text" id="ms-contractor_name" placeholder="Montana Construction" list="ms-contractor-options" autocomplete="off"></div>
+              <input class="ms-input" type="text" id="ms-contractor_name" placeholder="e.g. ABC Contractors" list="ms-contractor-options" autocomplete="off"></div>
           </div>
           <div class="ms-row">
             <div class="ms-field"><label class="ms-label">Service Type <span class="ms-label-hint">free text (B2 unconfirmed)</span></label>
@@ -5376,12 +5380,19 @@ async function confirmSoftDeleteMaterialsSheet(){
 // Phase 2a polish: free-text autocomplete + property history. Pulls distinct values
 // from prior firm sheets (RLS auto-isolates by firm). Always includes a small set of
 // common defaults so a fresh firm with zero sheets still gets useful suggestions.
+//
+// Polish round 2 (5/9/26 ~20:55 EDT): defense-in-depth firm scoping. RLS isolates
+// non-super_admin users automatically, but super_admin bypasses RLS and would see
+// every firm's contractor names — including real NJAW Montana on a demo session.
+// Explicit currentFirmId filter blocks the bleed regardless of role.
 async function loadMaterialsSheetAutocomplete(){
   try {
-    const { data, error } = await sb.from('materials_sheets')
+    let query = sb.from('materials_sheets')
       .select('contractor_name, njaw_old_material, njaw_new_material, customer_old_material, customer_new_material, type_of_main')
       .is('deleted_at', null)
       .limit(500);
+    if(currentFirmId) query = query.eq('firm_id', currentFirmId);
+    const { data, error } = await query;
     if(error){ console.warn('autocomplete load error:', error); return; }
     const contractors = new Set();
     const materials = new Set(['Copper','Lead','Galvanized','Cast Iron','PVC','PEX']);
@@ -6454,8 +6465,10 @@ const VTC_FIELDS = [
   // 11 empty rows are drawn structurally in vtcRender.
 
   // ─── DIAGRAM area (mid-right, x 0.42-0.98, y 0.31-0.85) ───
-  // Placeholder per Q-2d-revision-a=(b)
-  {x:0.70, y:0.580, get:()=>'Diagram populated from MI-110 Phase 4 — ships next ticket', size:11, family:'sans', anchor:'middle', static:true, color:'muted', italic:true},
+  // Inline diagram embed (Sprint Polish 5/9/26) — placeholder text removed; vtcRender injects
+  // a nested <svg> with _diagramInnerSVG output below the for-loop. The diagram pulls from
+  // currentMaterialsSheetTapcardData?.diagram if a tapcard exists for this materials sheet,
+  // else renders an empty scaffold (CS + reference geometry only).
 
   // ─── FOOTER (bottom span, x 0.02-0.98, y 0.86-0.95) ───
   // DATE INSTALLED [date] BY [contractor]
@@ -6641,6 +6654,14 @@ function vtcRender(){
       out.push(`<line x1="${cx}" y1="${cy + 4}" x2="${cx + f.underline}" y2="${cy + 4}" stroke="#cfd6df" stroke-width="1"/>`);
     }
   }
+
+  // Sprint Polish 5/9/26: embed live diagram in mid-right region (replaces the old "ships next ticket"
+  // placeholder). Pulls from saved tapcard's tapcard_data.diagram jsonb when present; renders empty
+  // scaffold (just CS + reference geometry) when no tapcard has been submitted yet for this sheet.
+  const _vtcDiagSrc = (currentMaterialsSheetTapcardData && currentMaterialsSheetTapcardData.diagram)
+    ? currentMaterialsSheetTapcardData.diagram
+    : { cs: { ...DIAGRAM_CS_DEFAULT }, mp: [], assets: [], house_number: '', compass_rotation_deg: 0 };
+  out.push(`<svg x="${W*0.43}" y="${H*0.32}" width="${W*0.55}" height="${H*0.52}" viewBox="0 0 ${DIAGRAM_VIEWBOX_W} ${DIAGRAM_VIEWBOX_H}" preserveAspectRatio="xMidYMid meet">${_diagramInnerSVG(_vtcDiagSrc, {onLight: true})}</svg>`);
   out.push('</svg>');
   container.innerHTML = out.join('');
 }
@@ -7021,9 +7042,10 @@ const DIAGRAM_VIEWBOX_H = 600;
 // diagrams so no migration burden. New diagrams use the new default.
 const DIAGRAM_CS_DEFAULT = { x: 0.5, y: 0.78 };
 const DIAGRAM_REF_LINES = {
-  main: { y: 0.10, label: 'MAIN', color: '#4a7cc4', strokeWidth: 4 },
-  cl:   { y: 0.70, label: 'C.L.', color: '#94a3b8', strokeWidth: 1.5, dash: '6,4' },
-  pl:   { y: 0.86, label: 'P.L.', color: '#94a3b8', strokeWidth: 1.5, dash: '6,4' }
+  main:    { y: 0.30, label: 'MAIN', color: '#4a7cc4', strokeWidth: 4 },
+  cl_far:  { y: 0.50, label: 'C.L.', color: '#94a3b8', strokeWidth: 1.5, dash: '6,4' },
+  cl:      { y: 0.70, label: 'C.L.', color: '#94a3b8', strokeWidth: 1.5, dash: '6,4' },
+  pl:      { y: 0.86, label: 'P.L.', color: '#94a3b8', strokeWidth: 1.5, dash: '6,4' }
 };
 const DIAGRAM_HOUSE = { x1: 0.32, y1: 0.90, x2: 0.68, y2: 0.99 };
 const DIAGRAM_COMPASS = { cx: 0.88, cy: 0.12, r: 0.05 };
@@ -7390,7 +7412,11 @@ function diagramRender(){
     const mainY = py(DIAGRAM_REF_LINES.main.y);
     refHtml += `<line x1="${px(0.04)}" y1="${mainY}" x2="${px(0.96)}" y2="${mainY}" stroke="${DIAGRAM_REF_LINES.main.color}" stroke-width="${DIAGRAM_REF_LINES.main.strokeWidth}" stroke-linecap="round"/>`;
     refHtml += `<text x="${px(0.06)}" y="${mainY - 8}" font-family="'Rajdhani', sans-serif" font-size="13" font-weight="700" fill="${DIAGRAM_REF_LINES.main.color}" letter-spacing="0.08em">MAIN</text>`;
-    // CL line — dashed grey
+    // CL_FAR line — dashed grey (curb across the street, between MAIN and near CL)
+    const clFarY = py(DIAGRAM_REF_LINES.cl_far.y);
+    refHtml += `<line x1="${px(0.04)}" y1="${clFarY}" x2="${px(0.96)}" y2="${clFarY}" stroke="${DIAGRAM_REF_LINES.cl_far.color}" stroke-width="${DIAGRAM_REF_LINES.cl_far.strokeWidth}" stroke-dasharray="${DIAGRAM_REF_LINES.cl_far.dash}"/>`;
+    refHtml += `<text x="${px(0.06)}" y="${clFarY - 6}" font-family="'Rajdhani', sans-serif" font-size="11" font-weight="700" fill="${DIAGRAM_REF_LINES.cl_far.color}" letter-spacing="0.06em">C.L.</text>`;
+    // CL line — dashed grey (near curb, property side)
     const clY = py(DIAGRAM_REF_LINES.cl.y);
     refHtml += `<line x1="${px(0.04)}" y1="${clY}" x2="${px(0.96)}" y2="${clY}" stroke="${DIAGRAM_REF_LINES.cl.color}" stroke-width="${DIAGRAM_REF_LINES.cl.strokeWidth}" stroke-dasharray="${DIAGRAM_REF_LINES.cl.dash}"/>`;
     refHtml += `<text x="${px(0.06)}" y="${clY - 6}" font-family="'Rajdhani', sans-serif" font-size="11" font-weight="700" fill="${DIAGRAM_REF_LINES.cl.color}" letter-spacing="0.06em">C.L.</text>`;
@@ -7440,7 +7466,7 @@ function diagramRender(){
     html += `<g class="dgm-mp" data-id="${m.id}">`;
     html += `<circle cx="${mx}" cy="${my}" r="12" fill="#4a7cc4" stroke="#fff" stroke-width="2.5"/>`;
     html += `<text x="${mx}" y="${my+4}" text-anchor="middle" fill="#fff" font-size="11" font-weight="800" font-family="Rajdhani, sans-serif">${(m.label||'').replace('MP','')}</text>`;
-    html += `<text x="${mx}" y="${my-19}" text-anchor="middle" fill="#cdd9eb" font-size="10" font-weight="600" font-family="sans-serif">${m.distance_to_cs_ft}ft &middot; ${m.bearing_to_cs_deg}&deg;</text>`;
+    html += `<text x="${mx}" y="${my+25}" text-anchor="middle" fill="#cdd9eb" font-size="10" font-weight="600" font-family="sans-serif">${m.distance_to_cs_ft}ft &middot; ${m.bearing_to_cs_deg}&deg;</text>`;
     html += `</g>`;
   });
   // Assets
@@ -7510,6 +7536,89 @@ function diagramAttachListeners(){
   });
 }
 
+// Sprint Polish 5/9/26: returns just the inner SVG markup for a diagram payload (no <svg> wrapper).
+// Used by VTC (visual tapcard preview) to embed the diagram in the right-mid region of the paper layout
+// without scrolling. The {onLight: true} option swaps light label colors (#cdd9eb, #fff) for darker ones
+// suitable for white paper background. House-number text is the most contrast-sensitive element.
+function _diagramInnerSVG(diagram, opts){
+  if(!diagram) return '';
+  opts = opts || {};
+  const onLight = !!opts.onLight;
+  const W = DIAGRAM_VIEWBOX_W, H = DIAGRAM_VIEWBOX_H;
+  const px = n => n * W, py = n => n * H;
+  const cs = diagram.cs || DIAGRAM_CS_DEFAULT;
+  const csX = px(cs.x), csY = py(cs.y);
+  const escapeStr = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const houseNumColor = onLight ? '#1a2434' : '#fff';
+  const labelTextColor = onLight ? '#475569' : '#cdd9eb';
+
+  let inner = '';
+  // Reference geometry
+  const mainY = py(DIAGRAM_REF_LINES.main.y);
+  inner += `<line x1="${px(0.04)}" y1="${mainY}" x2="${px(0.96)}" y2="${mainY}" stroke="${DIAGRAM_REF_LINES.main.color}" stroke-width="${DIAGRAM_REF_LINES.main.strokeWidth}" stroke-linecap="round"/>`;
+  inner += `<text x="${px(0.06)}" y="${mainY - 8}" font-family="'Rajdhani', sans-serif" font-size="13" font-weight="700" fill="${DIAGRAM_REF_LINES.main.color}" letter-spacing="0.08em">MAIN</text>`;
+  const clFarY = py(DIAGRAM_REF_LINES.cl_far.y);
+  inner += `<line x1="${px(0.04)}" y1="${clFarY}" x2="${px(0.96)}" y2="${clFarY}" stroke="${DIAGRAM_REF_LINES.cl_far.color}" stroke-width="${DIAGRAM_REF_LINES.cl_far.strokeWidth}" stroke-dasharray="${DIAGRAM_REF_LINES.cl_far.dash}"/>`;
+  inner += `<text x="${px(0.06)}" y="${clFarY - 6}" font-family="'Rajdhani', sans-serif" font-size="11" font-weight="700" fill="${DIAGRAM_REF_LINES.cl_far.color}" letter-spacing="0.06em">C.L.</text>`;
+  const clY = py(DIAGRAM_REF_LINES.cl.y);
+  inner += `<line x1="${px(0.04)}" y1="${clY}" x2="${px(0.96)}" y2="${clY}" stroke="${DIAGRAM_REF_LINES.cl.color}" stroke-width="${DIAGRAM_REF_LINES.cl.strokeWidth}" stroke-dasharray="${DIAGRAM_REF_LINES.cl.dash}"/>`;
+  inner += `<text x="${px(0.06)}" y="${clY - 6}" font-family="'Rajdhani', sans-serif" font-size="11" font-weight="700" fill="${DIAGRAM_REF_LINES.cl.color}" letter-spacing="0.06em">C.L.</text>`;
+  const plY = py(DIAGRAM_REF_LINES.pl.y);
+  inner += `<line x1="${px(0.04)}" y1="${plY}" x2="${px(0.96)}" y2="${plY}" stroke="${DIAGRAM_REF_LINES.pl.color}" stroke-width="${DIAGRAM_REF_LINES.pl.strokeWidth}" stroke-dasharray="${DIAGRAM_REF_LINES.pl.dash}"/>`;
+  inner += `<text x="${px(0.06)}" y="${plY - 6}" font-family="'Rajdhani', sans-serif" font-size="11" font-weight="700" fill="${DIAGRAM_REF_LINES.pl.color}" letter-spacing="0.06em">P.L.</text>`;
+  const hx = px(DIAGRAM_HOUSE.x1), hy = py(DIAGRAM_HOUSE.y1);
+  const hw = px(DIAGRAM_HOUSE.x2) - hx, hh = py(DIAGRAM_HOUSE.y2) - hy;
+  inner += `<rect x="${hx}" y="${hy}" width="${hw}" height="${hh}" fill="rgba(94,122,154,0.08)" stroke="#cdd9eb" stroke-width="1.5" rx="3"/>`;
+  inner += `<text x="${hx + hw/2}" y="${hy + 14}" text-anchor="middle" font-family="'Rajdhani', sans-serif" font-size="10" font-weight="700" fill="#94a3b8" letter-spacing="0.1em">HOUSE</text>`;
+  const hn = (diagram.house_number || '').trim();
+  inner += `<text x="${hx + hw/2}" y="${hy + hh/2 + 8}" text-anchor="middle" font-family="'Rajdhani', sans-serif" font-size="22" font-weight="700" fill="${hn ? houseNumColor : '#5e7a9a'}">${hn ? escapeStr(hn) : '____'}</text>`;
+  // CS anchor
+  inner += `<g class="dgm-cs"><circle cx="${csX}" cy="${csY}" r="13" fill="#f4a820" stroke="#fff" stroke-width="2"/><text x="${csX}" y="${csY+4}" text-anchor="middle" fill="#1a1a1a" font-size="11" font-weight="800" font-family="Rajdhani, sans-serif">CS</text></g>`;
+  // Connectors
+  (diagram.mp || []).forEach(m => {
+    inner += `<line x1="${csX}" y1="${csY}" x2="${px(m.x)}" y2="${py(m.y)}" stroke="rgba(74,124,196,0.5)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
+  });
+  // MPs
+  (diagram.mp || []).forEach(m => {
+    const mx = px(m.x), my = py(m.y);
+    inner += `<g class="dgm-mp"><circle cx="${mx}" cy="${my}" r="11" fill="#4a7cc4" stroke="#fff" stroke-width="2"/>`;
+    inner += `<text x="${mx}" y="${my+4}" text-anchor="middle" fill="#fff" font-size="10" font-weight="800" font-family="Rajdhani, sans-serif">${escapeStr((m.label||'').replace('MP',''))}</text>`;
+    if(m.distance_to_cs_ft != null && m.bearing_to_cs_deg != null){
+      inner += `<text x="${mx}" y="${my+22}" text-anchor="middle" fill="${labelTextColor}" font-size="9" font-weight="600" font-family="sans-serif">${escapeStr(m.distance_to_cs_ft)}ft &middot; ${escapeStr(m.bearing_to_cs_deg)}&deg;</text>`;
+    }
+    inner += `</g>`;
+  });
+  // Assets
+  const assetColors = { watermain_tap:'#16a34a', meterpit:'#dc2626', hydrant:'#eab308', pole:'#a78bfa', other:'#94a3b8' };
+  const assetLetter = { watermain_tap:'T', meterpit:'M', hydrant:'H', pole:'P', other:'?' };
+  (diagram.assets || []).forEach(a => {
+    const ax = px(a.x), ay = py(a.y);
+    const color = assetColors[a.type] || '#94a3b8';
+    const letter = assetLetter[a.type] || '?';
+    inner += `<g class="dgm-asset"><rect x="${ax-11}" y="${ay-11}" width="22" height="22" rx="3" fill="${color}" stroke="#fff" stroke-width="2"/>`;
+    inner += `<text x="${ax}" y="${ay+4}" text-anchor="middle" fill="#fff" font-size="12" font-weight="800" font-family="Rajdhani, sans-serif">${escapeStr(letter)}</text>`;
+    inner += `<text x="${ax}" y="${ay-16}" text-anchor="middle" fill="${labelTextColor}" font-size="9" font-weight="600" font-family="sans-serif">${escapeStr(a.label)}</text>`;
+    inner += `</g>`;
+  });
+  // Compass widget
+  const ccx = px(DIAGRAM_COMPASS.cx), ccy = py(DIAGRAM_COMPASS.cy), cr = px(DIAGRAM_COMPASS.r);
+  const crot = diagram.compass_rotation_deg || 0;
+  inner += `<circle cx="${ccx}" cy="${ccy}" r="${cr}" fill="rgba(20,28,42,0.85)" stroke="rgba(244,168,32,0.5)" stroke-width="1.5"/>`;
+  inner += `<g transform="rotate(${crot} ${ccx} ${ccy})">`;
+  const aTipY = ccy - cr * 0.65;
+  const aBaseY = ccy + cr * 0.15;
+  const aHalfW = cr * 0.28;
+  inner += `<polygon points="${ccx},${aTipY} ${ccx-aHalfW},${aBaseY} ${ccx+aHalfW},${aBaseY}" fill="#f4a820" stroke="#fff" stroke-width="1"/>`;
+  inner += `<line x1="${ccx}" y1="${aBaseY}" x2="${ccx}" y2="${ccy + cr * 0.55}" stroke="rgba(244,168,32,0.45)" stroke-width="1.5"/>`;
+  inner += `<text x="${ccx}" y="${aTipY - 4}" text-anchor="middle" font-family="'Rajdhani', sans-serif" font-size="11" font-weight="800" fill="#f4a820">N</text>`;
+  inner += `</g>`;
+  inner += `<circle cx="${ccx}" cy="${ccy}" r="2" fill="#fff"/>`;
+  if(crot !== 0){
+    inner += `<text x="${ccx}" y="${ccy + cr + 14}" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="9" font-weight="600" fill="#94a3b8">${crot}°</text>`;
+  }
+  return inner;
+}
+
 // Read-only diagram embed — returns standalone SVG markup for any tapcard_data.diagram
 // payload. Used in property detail submissions list to render saved diagrams without
 // instantiating the editor. Multiple embeds can coexist on one page (no shared IDs).
@@ -7530,6 +7639,9 @@ function diagramReadOnlyEmbed(diagram, opts){
   const mainY = py(DIAGRAM_REF_LINES.main.y);
   inner += `<line x1="${px(0.04)}" y1="${mainY}" x2="${px(0.96)}" y2="${mainY}" stroke="${DIAGRAM_REF_LINES.main.color}" stroke-width="${DIAGRAM_REF_LINES.main.strokeWidth}" stroke-linecap="round"/>`;
   inner += `<text x="${px(0.06)}" y="${mainY - 8}" font-family="'Rajdhani', sans-serif" font-size="13" font-weight="700" fill="${DIAGRAM_REF_LINES.main.color}" letter-spacing="0.08em">MAIN</text>`;
+  const clFarY = py(DIAGRAM_REF_LINES.cl_far.y);
+  inner += `<line x1="${px(0.04)}" y1="${clFarY}" x2="${px(0.96)}" y2="${clFarY}" stroke="${DIAGRAM_REF_LINES.cl_far.color}" stroke-width="${DIAGRAM_REF_LINES.cl_far.strokeWidth}" stroke-dasharray="${DIAGRAM_REF_LINES.cl_far.dash}"/>`;
+  inner += `<text x="${px(0.06)}" y="${clFarY - 6}" font-family="'Rajdhani', sans-serif" font-size="11" font-weight="700" fill="${DIAGRAM_REF_LINES.cl_far.color}" letter-spacing="0.06em">C.L.</text>`;
   const clY = py(DIAGRAM_REF_LINES.cl.y);
   inner += `<line x1="${px(0.04)}" y1="${clY}" x2="${px(0.96)}" y2="${clY}" stroke="${DIAGRAM_REF_LINES.cl.color}" stroke-width="${DIAGRAM_REF_LINES.cl.strokeWidth}" stroke-dasharray="${DIAGRAM_REF_LINES.cl.dash}"/>`;
   inner += `<text x="${px(0.06)}" y="${clY - 6}" font-family="'Rajdhani', sans-serif" font-size="11" font-weight="700" fill="${DIAGRAM_REF_LINES.cl.color}" letter-spacing="0.06em">C.L.</text>`;
@@ -7551,7 +7663,7 @@ function diagramReadOnlyEmbed(diagram, opts){
     inner += `<g class="dgm-mp"><circle cx="${mx}" cy="${my}" r="11" fill="#4a7cc4" stroke="#fff" stroke-width="2"/>`;
     inner += `<text x="${mx}" y="${my+4}" text-anchor="middle" fill="#fff" font-size="10" font-weight="800" font-family="Rajdhani, sans-serif">${escapeStr((m.label||'').replace('MP',''))}</text>`;
     if(m.distance_to_cs_ft != null && m.bearing_to_cs_deg != null){
-      inner += `<text x="${mx}" y="${my-17}" text-anchor="middle" fill="#cdd9eb" font-size="9" font-weight="600" font-family="sans-serif">${escapeStr(m.distance_to_cs_ft)}ft &middot; ${escapeStr(m.bearing_to_cs_deg)}&deg;</text>`;
+      inner += `<text x="${mx}" y="${my+22}" text-anchor="middle" fill="#cdd9eb" font-size="9" font-weight="600" font-family="sans-serif">${escapeStr(m.distance_to_cs_ft)}ft &middot; ${escapeStr(m.bearing_to_cs_deg)}&deg;</text>`;
     }
     inner += `</g>`;
   });
