@@ -2733,33 +2733,58 @@ async function loadDashboard(){
   document.getElementById('stat-inprog').textContent   = inprog;
   document.getElementById('stat-pending').textContent  = pending;
 
+  // Phase 2 5/10/26: bumped fetch limit + group by property_id (same pattern as
+  // renderAllSubmissions ff384e9). Trims to top 8 groups so dashboard density holds.
   const {data:subs} = await sb.from('phase_submissions')
     .select('*,properties(address,city)')
     .order('submitted_at',{ascending:false})
-    .limit(8);
+    .limit(25);
 
   const container = document.getElementById('recent-submissions');
   if(!subs||subs.length===0){
     container.innerHTML='<div class="loading">No submissions yet. Submit your first phase to get started.</div>';
     return;
   }
-  let html=`<table><thead><tr><th>Address</th><th>Phase</th><th>Work Code</th><th>Submitted</th><th>WB</th></tr></thead><tbody>`;
-  subs.forEach(s=>{
-    const addr = s.properties?.address||'Unknown';
-    const city = s.properties?.city||'';
-    const phaseClass = 'ph-'+(s.phase||'pending').replace(/_/g,'');
-    const dt = new Date(s.submitted_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
-    const wb = (s.photo_curbstop_whiteboard||s.photo_watermain_whiteboard||s.photo_restoration_whiteboard)?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--muted)">—</span>';
-    html+=`<tr>
-      <td><div style="font-weight:600;color:var(--white)">${addr}</div><div style="font-size:11px;color:var(--muted)">${city}</div></td>
-      <td><span class="phase-badge ${phaseClass}">${(s.phase||'pending').replace(/_/g,' ')}</span></td>
-      <td style="font-size:12px;color:var(--muted)">${s.work_order_code||'—'}</td>
+  // Group by property
+  const groups = new Map();
+  subs.forEach(s => {
+    const key = s.property_id;
+    if(!key) return;
+    if(!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(s);
+  });
+  const groupArr = Array.from(groups.entries()).map(([property_id, ss]) => {
+    ss.sort((a,b) => new Date(a.submitted_at) - new Date(b.submitted_at));
+    return { property_id, ss, latest: ss.reduce((m,s) => Math.max(m, new Date(s.submitted_at).getTime()), 0) };
+  });
+  groupArr.sort((a,b) => b.latest - a.latest);
+  const top = groupArr.slice(0, 8);
+
+  let html=`<table><thead><tr><th>Address</th><th>Phases</th><th>Work Codes</th><th>Latest</th><th>WB</th></tr></thead><tbody>`;
+  top.forEach(g => {
+    const head = g.ss[0];
+    const addr = head.properties?.address || 'Unknown';
+    const city = head.properties?.city || '';
+    const phaseBadges = g.ss.map(s => {
+      const ph = 'ph-' + (s.phase || 'pending').replace(/_/g,'');
+      return `<span class="phase-badge ${ph}" style="margin-right:4px">${(s.phase||'pending').replace(/_/g,' ')}</span>`;
+    }).join('');
+    const codes = Array.from(new Set(g.ss.map(s => s.work_order_code).filter(Boolean)));
+    const codeStr = codes.length ? codes.join(', ') : '—';
+    const dt = new Date(g.latest).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+    const anyWb = g.ss.some(s => s.photo_curbstop_whiteboard || s.photo_watermain_whiteboard || s.photo_restoration_whiteboard);
+    const wb = anyWb ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--muted)">—</span>';
+    const countSuffix = g.ss.length > 1 ? ` <span style="color:var(--muted);font-size:11px">(${g.ss.length})</span>` : '';
+    html += `<tr style="cursor:pointer" onclick="openPropertyDetail('${g.property_id}')">
+      <td><div style="font-weight:600;color:var(--white)">${addr}${countSuffix}</div><div style="font-size:11px;color:var(--muted)">${city}</div></td>
+      <td>${phaseBadges}</td>
+      <td style="font-size:12px;color:var(--muted)">${codeStr}</td>
       <td style="font-size:12px;color:var(--muted)">${dt}</td>
       <td>${wb}</td>
     </tr>`;
   });
-  html+=`</tbody></table>`;
-  container.innerHTML=html;
+  html += `</tbody></table>`;
+  container.innerHTML = html;
 }
 
 // ── PROPERTIES ────────────────────────────────────────
