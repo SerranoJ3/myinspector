@@ -1624,32 +1624,12 @@ html,body{overflow-x:hidden}
           <div id="tc-property-summary" class="tc-row-3"></div>
         </div>
         <div class="tc-section">
-          <div class="tc-section-title">Materials Sheet — Header <span class="tc-readonly-meta">read-only mirror of attached sheet</span></div>
-          <div id="tc-ms-header" class="tc-row-3"></div>
-        </div>
-        <div class="tc-section">
-          <div class="tc-section-title">Test Pit Information</div>
-          <div id="tc-ms-testpit" class="tc-row-4"></div>
-        </div>
-        <div class="tc-section">
-          <div class="tc-section-title">Service Materials Grid</div>
-          <div id="tc-ms-materials-grid"></div>
-        </div>
-        <div class="tc-section">
-          <div class="tc-section-title">Measurements <span class="tc-readonly-meta">CDM-Smith rules d + e captured</span></div>
-          <div id="tc-ms-measurements" class="tc-row-3"></div>
-        </div>
-        <div class="tc-section">
-          <div class="tc-section-title">Multi-Tenant Housing</div>
-          <div id="tc-ms-multitenant" class="tc-row-3"></div>
-        </div>
-        <div class="tc-section">
-          <div class="tc-section-title">Downtime</div>
-          <div id="tc-ms-downtime" class="tc-row"></div>
-        </div>
-        <div class="tc-section">
-          <div class="tc-section-title">Notes</div>
-          <div id="tc-ms-notes" style="font-size:12px;line-height:1.6;color:rgba(237,242,248,0.85);background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;min-height:50px"></div>
+          <div class="tc-section-title">Materials Sheet — Editable <span class="tc-readonly-meta">live mirror, saves to materials_sheets row</span></div>
+          <div id="tc-ms-form-host"></div>
+          <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+            <span class="ms-save-status" id="tc-ms-save-status">Not saved</span>
+            <button class="btn-sm btn-orange" id="tc-ms-save-btn" onclick="saveMaterialsSheet()">Save Materials Sheet</button>
+          </div>
         </div>
         <div class="tc-section">
           <div class="tc-section-title">Tapcard Preview <span class="tc-readonly-meta">read-only mirror of paper tapcard, auto-populated from materials sheet</span></div>
@@ -5282,13 +5262,16 @@ function msReadForm(){
 }
 
 function msSetSaveStatus(state, message){
-  const el = document.getElementById('ms-save-status');
-  if(!el) return;
-  el.classList.remove('saving','saved','error');
-  if(state === 'saving') el.classList.add('saving');
-  else if(state === 'saved') el.classList.add('saved');
-  else if(state === 'error') el.classList.add('error');
-  el.textContent = message || '';
+  // Phase 2 5/9/26: mirror status into both MS and TC save badges (form may be hosted in either modal).
+  ['ms-save-status','tc-ms-save-status'].forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.classList.remove('saving','saved','error');
+    if(state === 'saving') el.classList.add('saving');
+    else if(state === 'saved') el.classList.add('saved');
+    else if(state === 'error') el.classList.add('error');
+    el.textContent = message || '';
+  });
 }
 
 async function saveMaterialsSheet(){
@@ -5650,20 +5633,21 @@ async function openTapcardForProperty(propertyId){
     currentTapcard.materials_sheet_id = sheet.id;
   }
 
-  tcRenderMaterialsFullView(sheet);
   tcRenderPropertySummary(prop);
   tcAutoPopulateCompanySide(prop, sheet);
   tcApplyOfficeFillVisibility();
 
-  // Phase 1 5/9/26: VTC mirror — populate _vtcMsData from sheet record (no MS form needed),
-  // mark external so vtcRender skips DOM-sync, set currentMaterialsSheetProperty so sector
-  // dispatch works. Render once now; vtcLoadTapcardData re-renders when tapcard_data lands.
-  _vtcMsData = {};
-  if(sheet){
-    Object.keys(sheet).forEach(k => { _vtcMsData[k] = sheet[k] == null ? '' : sheet[k]; });
-  }
-  _vtcMsDataExternal = true;
+  // Phase 2 5/9/26: mount the live MS form node into TC page-1, populate it, attach
+  // listeners. Same DOM nodes / global ms-* IDs — saveMaterialsSheet just works because
+  // currentMaterialsSheet is primed below. _vtcMsDataExternal=false so vtcRender DOM-syncs
+  // from the (now-mounted-in-TC) form on each render.
+  tcMountMsForm();
+  vtcAttachAutopopListeners();
+  currentMaterialsSheet = sheet || { id: null, property_id: propertyId };
   currentMaterialsSheetProperty = prop;
+  _vtcMsDataExternal = false;
+  if(sheet){ msPopulateForm(sheet); } else { msClearForm(); }
+  msSetSaveStatus('', sheet?.id ? 'Loaded — unsaved' : 'New sheet — unsaved');
   if(typeof vtcRender === 'function'){
     if(sheet?.id){ vtcLoadTapcardData(sheet.id).then(() => vtcRender()); }
     vtcRender();
@@ -5713,7 +5697,9 @@ function closeTapcardModal(){
   // after editing tapcard A doesn't surface ghost values from A. Also clears
   // validation styling from any prior failed submit attempt.
   tcResetAllFormFields();
-  // Phase 1 5/9/26: clear external VTC data flag so MS modal returns to DOM-sync on next open.
+  // Phase 2 5/9/26: return MS form node to MS modal so MS modal can open standalone.
+  tcUnmountMsForm();
+  currentMaterialsSheet = null;
   _vtcMsDataExternal = false;
   _vtcMsData = {};
 }
@@ -6288,7 +6274,8 @@ let _vtcMsDataExternal = false;
 
 function _vtcSyncMsDataFromDom(){
   _vtcMsData = {};
-  document.querySelectorAll('#modal-materials-sheet [id^="ms-"]').forEach(el => {
+  // Phase 2 5/9/26: form node may be hosted in MS modal OR tapcard modal — query both surfaces.
+  document.querySelectorAll('#modal-materials-sheet [id^="ms-"], #modal-tapcard [id^="ms-"]').forEach(el => {
     _vtcMsData[el.id.slice(3)] = el.value || '';
   });
 }
@@ -6734,6 +6721,25 @@ function msMobileView(view){
 // chip/toggle/measure inputs don't fire 'input' events, so msSelectChip /
 // msToggleBoolean / msTogglePastCorner / msRecalcMeasure also call
 // vtcDebouncedRender directly.
+// Phase 2 5/9/26: relocate the entire MS form node (.ms-modal-body) between MS modal and
+// tapcard modal. Same DOM nodes, same global ms-* IDs — no duplication, no helper rename.
+// Only one surface hosts the form at a time (MS and TC modals don't coexist in normal use).
+function tcMountMsForm(){
+  const formBody = document.querySelector('#modal-materials-sheet .ms-modal-body, #tc-ms-form-host > .ms-modal-body');
+  const host = document.getElementById('tc-ms-form-host');
+  if(formBody && host && formBody.parentElement !== host){
+    host.appendChild(formBody);
+  }
+}
+function tcUnmountMsForm(){
+  const formBody = document.querySelector('#tc-ms-form-host > .ms-modal-body');
+  const split = document.querySelector('#modal-materials-sheet .ms-split');
+  const preview = document.getElementById('visual-tapcard-preview-container');
+  if(formBody && split && preview && formBody.parentElement !== split){
+    split.insertBefore(formBody, preview);
+  }
+}
+
 let _vtcListenersAttached = false;
 function vtcAttachAutopopListeners(){
   if(_vtcListenersAttached) return;
@@ -6759,6 +6765,23 @@ function vtcAttachAutopopListeners(){
     el.addEventListener('input', vtcDebouncedRender);
     el.addEventListener('change', vtcDebouncedRender);
   });
+  // Phase 2 5/9/26: when MS form is mounted into the tapcard modal, the same ms-* inputs
+  // need a parallel debounced render listener (the msModal listener above only catches
+  // events while the form is in MS modal). Delegated, filtered to ms-* IDs only.
+  const tcModal = document.getElementById('modal-tapcard');
+  if(tcModal){
+    tcModal.addEventListener('input', (e) => {
+      const t = e.target;
+      if(!t || t.type === 'hidden' || !t.id || !t.id.startsWith('ms-')) return;
+      if(t.tagName === 'SELECT' || t.type === 'date'){ vtcRender(); }
+      else { vtcDebouncedRender(); }
+    });
+    tcModal.addEventListener('change', (e) => {
+      const t = e.target;
+      if(!t || !t.id || !t.id.startsWith('ms-')) return;
+      if(t.tagName === 'SELECT' || t.type === 'date' || t.type === 'number') vtcRender();
+    });
+  }
 }
 
 function tcSetFooterStatus(kind, message){
