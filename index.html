@@ -351,6 +351,10 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 #visual-tapcard-preview-container.vtc-shorthills{display:flex;align-items:center;justify-content:center;padding:40px;text-align:center}
 .vtc-svg{width:100%;height:auto;display:block;background:#ffffff;border:1px solid var(--border);border-radius:8px}
 .vtc-shorthills-msg{font-family:'Rajdhani',sans-serif;color:var(--muted);font-size:14px;line-height:1.6;max-width:320px}
+/* Phase 1 5/9/26: VTC mirror inside tapcard modal — basic block layout, no split-pane */
+#visual-tapcard-preview-container-tc{display:none;background:var(--bg)}
+#visual-tapcard-preview-container-tc.vtc-active{display:block;padding:18px 22px}
+#visual-tapcard-preview-container-tc.vtc-shorthills{display:flex;align-items:center;justify-content:center;padding:40px;text-align:center}
 .ms-mobile-tabs{display:none;gap:4px;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
 .ms-mobile-tab{flex:1;padding:7px 10px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);cursor:pointer;border:1px solid var(--border);background:transparent;text-align:center;transition:all .15s}
 .ms-mobile-tab.active{background:rgba(27,58,107,0.4);color:var(--blue-light);border-color:rgba(74,124,196,0.3)}
@@ -1755,6 +1759,11 @@ html,body{overflow-x:hidden}
             </svg>
             <div id="tc-diagram-readonly-pill" class="tc-diagram-readonly-pill" style="display:none;"></div>
           </div>
+        </div>
+
+        <div class="tc-section">
+          <div class="tc-section-title">Tapcard Preview <span class="tc-readonly-meta">read-only mirror of paper tapcard, auto-populated from materials sheet</span></div>
+          <div id="visual-tapcard-preview-container-tc"></div>
         </div>
 
         <div class="tc-section">
@@ -5647,6 +5656,20 @@ async function openTapcardForProperty(propertyId){
   tcAutoPopulateCompanySide(prop, sheet);
   tcApplyOfficeFillVisibility();
 
+  // Phase 1 5/9/26: VTC mirror — populate _vtcMsData from sheet record (no MS form needed),
+  // mark external so vtcRender skips DOM-sync, set currentMaterialsSheetProperty so sector
+  // dispatch works. Render once now; vtcLoadTapcardData re-renders when tapcard_data lands.
+  _vtcMsData = {};
+  if(sheet){
+    Object.keys(sheet).forEach(k => { _vtcMsData[k] = sheet[k] == null ? '' : sheet[k]; });
+  }
+  _vtcMsDataExternal = true;
+  currentMaterialsSheetProperty = prop;
+  if(typeof vtcRender === 'function'){
+    if(sheet?.id){ vtcLoadTapcardData(sheet.id).then(() => vtcRender()); }
+    vtcRender();
+  }
+
   // Reset Material Installed table to a single empty row
   document.getElementById('tc-mi-tbody').innerHTML = '';
   tcAddMaterialInstalledRow();
@@ -5691,6 +5714,9 @@ function closeTapcardModal(){
   // after editing tapcard A doesn't surface ghost values from A. Also clears
   // validation styling from any prior failed submit attempt.
   tcResetAllFormFields();
+  // Phase 1 5/9/26: clear external VTC data flag so MS modal returns to DOM-sync on next open.
+  _vtcMsDataExternal = false;
+  _vtcMsData = {};
 }
 
 // MI-101-tapcard-polish v1: walk every input/select/textarea inside #modal-tapcard
@@ -6546,30 +6572,43 @@ function vtcWrap(text, n){
 }
 
 function vtcRender(){
-  const container = document.getElementById('visual-tapcard-preview-container');
-  const modal = document.getElementById('modal-materials-sheet');
-  if(!container || !modal) return;
+  // Phase 1 5/9/26: dual-container — render into MS modal preview AND tapcard modal mirror
+  // (whichever exists). Single SVG built once, injected into all present containers.
+  const containers = [
+    document.getElementById('visual-tapcard-preview-container'),
+    document.getElementById('visual-tapcard-preview-container-tc')
+  ].filter(Boolean);
+  if(containers.length === 0) return;
+  // .vtc-disabled is MS-modal-only (drives ms-split layout); TC modal doesn't use it.
+  const msModal = document.getElementById('modal-materials-sheet');
   // Phase 0 5/9/26: refresh MS field cache from DOM unless caller provides external data.
   if(!_vtcMsDataExternal) _vtcSyncMsDataFromDom();
   const prop = currentMaterialsSheetProperty;
 
   // Sector dispatch — Q-2c locked: visual tapcard renders for NJ6_NORMAL only.
   if(!prop){
-    container.innerHTML = '';
-    container.classList.remove('vtc-active','vtc-shorthills');
-    modal.classList.add('vtc-disabled');
+    containers.forEach(c => {
+      c.innerHTML = '';
+      c.classList.remove('vtc-active','vtc-shorthills');
+    });
+    if(msModal) msModal.classList.add('vtc-disabled');
     return;
   }
   if(prop.sector === 'NJAW_SHORT_HILLS'){
-    container.innerHTML = '<div class="vtc-shorthills-msg">Visual tapcard unavailable for ShortHills sector — paper format differs from NJ6 Normal.</div>';
-    container.classList.add('vtc-active','vtc-shorthills');
-    modal.classList.remove('vtc-disabled');
+    const msg = '<div class="vtc-shorthills-msg">Visual tapcard unavailable for ShortHills sector — paper format differs from NJ6 Normal.</div>';
+    containers.forEach(c => {
+      c.innerHTML = msg;
+      c.classList.add('vtc-active','vtc-shorthills');
+    });
+    if(msModal) msModal.classList.remove('vtc-disabled');
     return;
   }
   // NJ6_NORMAL render
-  container.classList.remove('vtc-shorthills');
-  container.classList.add('vtc-active');
-  modal.classList.remove('vtc-disabled');
+  containers.forEach(c => {
+    c.classList.remove('vtc-shorthills');
+    c.classList.add('vtc-active');
+  });
+  if(msModal) msModal.classList.remove('vtc-disabled');
 
   const W = VTC_W, H = VTC_H;
   const out = [];
@@ -6675,7 +6714,8 @@ function vtcRender(){
     : { cs: { ...DIAGRAM_CS_DEFAULT }, mp: [], assets: [], house_number: '', compass_rotation_deg: 0 };
   out.push(`<svg x="${W*0.43}" y="${H*0.32}" width="${W*0.55}" height="${H*0.52}" viewBox="0 0 ${DIAGRAM_VIEWBOX_W} ${DIAGRAM_VIEWBOX_H}" preserveAspectRatio="xMidYMid meet">${_diagramInnerSVG(_vtcDiagSrc, {onLight: true})}</svg>`);
   out.push('</svg>');
-  container.innerHTML = out.join('');
+  const html = out.join('');
+  containers.forEach(c => { c.innerHTML = html; });
 }
 
 let _vtcDebounceT = null;
