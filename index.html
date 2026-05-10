@@ -6435,7 +6435,7 @@ const VTC_FIELDS = [
   // ─── LOCATION DATA block (top-right, x 0.42-0.98, y 0.02-0.30) ───
   {x:0.70, y:0.025, get:()=>{
     const m = vtcProp('municipality') || '___________';
-    return `New Jersey American Water, ${m}`;
+    return `${m}, NJ`;
   }, size:11, weight:700, anchor:'middle', static:false},
   {x:0.44, y:0.055, get:()=>'LOCATION DATA', size:11, weight:700, color:'header', static:true, family:'sans'},
   // TOP OF [size] IN. [material] MAIN IS [ft] FT. [in] IN. BELOW SURFACE
@@ -7635,22 +7635,6 @@ function _diagramInnerSVG(diagram, opts){
     inner += `<text x="${ax}" y="${ay-16}" text-anchor="middle" fill="${labelTextColor}" font-size="9" font-weight="600" font-family="sans-serif">${escapeStr(a.label)}</text>`;
     inner += `</g>`;
   });
-  // Compass widget
-  const ccx = px(DIAGRAM_COMPASS.cx), ccy = py(DIAGRAM_COMPASS.cy), cr = px(DIAGRAM_COMPASS.r);
-  const crot = diagram.compass_rotation_deg || 0;
-  inner += `<circle cx="${ccx}" cy="${ccy}" r="${cr}" fill="rgba(20,28,42,0.85)" stroke="rgba(244,168,32,0.5)" stroke-width="1.5"/>`;
-  inner += `<g transform="rotate(${crot} ${ccx} ${ccy})">`;
-  const aTipY = ccy - cr * 0.65;
-  const aBaseY = ccy + cr * 0.15;
-  const aHalfW = cr * 0.28;
-  inner += `<polygon points="${ccx},${aTipY} ${ccx-aHalfW},${aBaseY} ${ccx+aHalfW},${aBaseY}" fill="#f4a820" stroke="#fff" stroke-width="1"/>`;
-  inner += `<line x1="${ccx}" y1="${aBaseY}" x2="${ccx}" y2="${ccy + cr * 0.55}" stroke="rgba(244,168,32,0.45)" stroke-width="1.5"/>`;
-  inner += `<text x="${ccx}" y="${aTipY - 4}" text-anchor="middle" font-family="'Rajdhani', sans-serif" font-size="11" font-weight="800" fill="#f4a820">N</text>`;
-  inner += `</g>`;
-  inner += `<circle cx="${ccx}" cy="${ccy}" r="2" fill="#fff"/>`;
-  if(crot !== 0){
-    inner += `<text x="${ccx}" y="${ccy + cr + 14}" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="9" font-weight="600" fill="#94a3b8">${crot}°</text>`;
-  }
   return inner;
 }
 
