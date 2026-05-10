@@ -6378,10 +6378,10 @@ function vtcCurbBoxLocLabel(enumVal){
   return ({city_strip:'City Strip', sidewalk:'Sidewalk', driveway:'Driveway', lawn:'Lawn'})[enumVal] || '';
 }
 function vtcSectorOpCenter(sector){
-  return sector === 'NJAW_SHORT_HILLS' ? 'Short Hills NJAW' : 'NJ6';
+  return sector === 'NJAW_SHORT_HILLS' ? 'Short Hills' : 'NJ6';
 }
 function vtcSectorDistrictId(sector){
-  return sector === 'NJAW_SHORT_HILLS' ? 'ShortHills' : '';
+  return sector === 'NJAW_SHORT_HILLS' ? 'Short Hills' : '';
 }
 function vtcParseAddress(address){
   if(!address) return { number:'', street:'' };
@@ -6866,116 +6866,6 @@ function tcSetFooterStatus(kind, message){
   else if(kind === 'saved') el.classList.add('saved');
   else if(kind === 'error') el.classList.add('error');
   el.textContent = message || '';
-}
-
-// Phase 2b refactor: Page 1 now shows every column from the attached materials_sheet
-// in scannable read-only sections matching the paper Tapcard layout. Inspector
-// verifies "is the right sheet attached?" by glance, no jumping to Property Detail.
-function tcRenderMaterialsFullView(sheet){
-  const sectionIds = ['tc-ms-header','tc-ms-testpit','tc-ms-materials-grid','tc-ms-measurements','tc-ms-multitenant','tc-ms-downtime','tc-ms-notes'];
-  if(!sheet){
-    sectionIds.forEach(id => {
-      const el = document.getElementById(id);
-      if(el) el.innerHTML = '<div class="tc-summary-empty">No Materials Sheet attached for this property. Submit one via Property Detail (Phase 2a UI) before this Tapcard can auto-pull values.</div>';
-    });
-    return;
-  }
-  const pill = (label, val) => `
-    <div>
-      <div class="tc-ms-readout-label">${label}</div>
-      <div class="tc-ms-readout-value${val === null || val === undefined || val === '' ? ' empty' : ''}">${val === null || val === undefined || val === '' ? '—' : val}</div>
-    </div>`;
-  const inOrNull = v => (v === null || v === undefined) ? null : (v + ' in');
-  const ynOrNull = v => v === true ? 'Yes' : (v === false ? 'No' : null);
-
-  // Header
-  const dt = sheet.sheet_date || (sheet.created_at ? new Date(sheet.created_at).toLocaleDateString() : null);
-  document.getElementById('tc-ms-header').innerHTML = `<div class="tc-ms-readout">
-    ${pill('Date', dt)}
-    ${pill('Contractor', sheet.contractor_name)}
-    ${pill('Foreman', sheet.foreman_name)}
-    ${pill('Service Type', sheet.service_type)}
-    ${pill('Kill Location', sheet.kill_location)}
-    ${pill('Sky Condition', sheet.sky_condition)}
-    ${pill('Temperature °F', sheet.temperature_f)}
-    ${pill('Test Pit', ynOrNull(sheet.test_pit))}
-  </div>`;
-
-  // Test Pit Information
-  document.getElementById('tc-ms-testpit').innerHTML = `<div class="tc-ms-readout">
-    ${pill('Curb Box Location', sheet.curb_box_location)}
-    ${pill('Curb Box Replaced', ynOrNull(sheet.curb_box_replaced))}
-    ${pill('# Excavations', sheet.num_excavations)}
-    ${pill('Existing MP Noted', ynOrNull(sheet.existing_mp_noted))}
-  </div>`;
-
-  // Service Materials Grid (NJAW + Customer rows × Old/New)
-  document.getElementById('tc-ms-materials-grid').innerHTML = `
-    <table class="tc-ms-grid-table">
-      <thead><tr><th></th><th>Old Size (in)</th><th>Old Material</th><th>New Size (in)</th><th>New Material</th><th>New Amt (ft)</th></tr></thead>
-      <tbody>
-        <tr>
-          <td class="row-label">NJAW</td>
-          <td>${sheet.njaw_old_size_inches ?? '—'}</td>
-          <td>${sheet.njaw_old_material || '—'}</td>
-          <td>${sheet.njaw_new_size_inches ?? '—'}</td>
-          <td>${sheet.njaw_new_material || '—'}</td>
-          <td>${sheet.njaw_new_amount_feet ?? '—'}</td>
-        </tr>
-        <tr>
-          <td class="row-label">Customer</td>
-          <td>${sheet.customer_old_size_inches ?? '—'}</td>
-          <td>${sheet.customer_old_material || '—'}</td>
-          <td>${sheet.customer_new_size_inches ?? '—'}</td>
-          <td>${sheet.customer_new_material || '—'}</td>
-          <td>${sheet.customer_new_amount_feet ?? '—'}</td>
-        </tr>
-      </tbody>
-    </table>`;
-
-  // Measurements — 9 cs_*/corp + mp_horn_copper + size_of_main + type_of_main + service_side
-  document.getElementById('tc-ms-measurements').innerHTML = `<div class="tc-ms-readout">
-    ${pill('Corp Depth', inOrNull(sheet.corp_depth_inches))}
-    ${pill('CS Depth', inOrNull(sheet.cs_depth_inches))}
-    ${pill('CS-House', inOrNull(sheet.cs_house_inches))}
-    ${pill('CS-RS', inOrNull(sheet.cs_rs_inches))}
-    ${pill('CS-LS', inOrNull(sheet.cs_ls_inches))}
-    ${pill('CS-Near Curb', inOrNull(sheet.cs_near_curb_inches))}
-    ${pill('CS-Far Curb', inOrNull(sheet.cs_far_curb_inches))}
-    ${pill('CS-Corp', inOrNull(sheet.cs_corp_inches))}
-    ${pill('CS-MP', inOrNull(sheet.cs_mp_inches))}
-    ${pill('MP Horn Copper', inOrNull(sheet.mp_horn_copper_inches))}
-    ${pill('Size of Main', inOrNull(sheet.size_of_main_inches))}
-    ${pill('Type of Main', sheet.type_of_main)}
-    ${pill('Service Side', sheet.service_side)}
-  </div>`;
-
-  // Multi-tenant
-  document.getElementById('tc-ms-multitenant').innerHTML = `<div class="tc-ms-readout">
-    ${pill('Multi-Tenant', ynOrNull(sheet.multi_tenant))}
-    ${pill('# Units', sheet.num_units)}
-    ${pill('Pitcher Delivered', ynOrNull(sheet.pitcher_delivered))}
-  </div>`;
-
-  // Downtime
-  document.getElementById('tc-ms-downtime').innerHTML = `<div class="tc-ms-readout">
-    ${pill('Downtime Hours', sheet.downtime_hours)}
-    ${pill('Notified', ynOrNull(sheet.downtime_notified))}
-  </div>`;
-
-  // Notes (free-text block — show or "no notes" placeholder)
-  const notesEl = document.getElementById('tc-ms-notes');
-  if(notesEl){
-    if(sheet.notes && sheet.notes.trim()){
-      notesEl.textContent = sheet.notes;
-      notesEl.style.fontStyle = 'normal';
-      notesEl.style.color = 'rgba(237,242,248,0.85)';
-    } else {
-      notesEl.textContent = '— no free-text notes captured on this sheet —';
-      notesEl.style.fontStyle = 'italic';
-      notesEl.style.color = 'var(--muted)';
-    }
-  }
 }
 
 // Phase 2 demo-neutralize 5/9/26: human-readable sector label for UI display.
