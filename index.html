@@ -592,6 +592,17 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .alert-title{font-weight:700;display:block;margin-bottom:2px}
 .alert-orange .alert-title{color:var(--orange)}
 
+/* Daily Reports — expandable per-report detail rows */
+.report-row{cursor:pointer}
+.report-detail-row td{padding:0;background:rgba(74,124,196,0.04);border-top:0}
+.report-detail-content{padding:10px 16px}
+.report-detail-item{padding:8px 0;border-bottom:1px solid var(--border)}
+.report-detail-item:last-child{border-bottom:none}
+.report-detail-addr{font-size:13px;font-weight:600;color:var(--white)}
+.report-detail-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.report-chevron{display:inline-block;width:12px;color:var(--muted);font-size:10px;transition:transform .15s ease;transform-origin:center}
+.report-chevron.expanded{transform:rotate(90deg)}
+
 /* GPS PING */
 .gps-pill{display:inline-flex;align-items:center;gap:5px;background:rgba(61,155,94,0.12);
   border:1px solid rgba(61,155,94,0.25);border-radius:99px;padding:3px 10px;
@@ -3856,16 +3867,78 @@ async function loadReports(){
   let html=`<table><thead><tr><th>Date</th><th>Properties</th><th>Completed</th><th>Gaps</th><th>Generated</th></tr></thead><tbody>`;
   data.forEach(r=>{
     const dt=new Date(r.generated_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
-    html+=`<tr>
-      <td style="font-weight:600;color:var(--white)">${r.report_date}</td>
+    html+=`<tr class="report-row" onclick="toggleReportDetail(this, '${r.id}', '${r.report_date}')">
+      <td style="font-weight:600;color:var(--white)"><span class="report-chevron">▶</span> ${r.report_date}</td>
       <td>${r.total_properties||0}</td>
       <td style="color:var(--green)">${r.completed||0}</td>
       <td style="color:${r.gaps_flagged>0?'var(--orange)':'var(--muted)'}">${r.gaps_flagged||0}</td>
       <td style="font-size:12px;color:var(--muted)">${dt}</td>
+    </tr>
+    <tr id="report-detail-${r.id}" class="report-detail-row" style="display:none">
+      <td colspan="5"><div class="report-detail-content">Loading…</div></td>
     </tr>`;
   });
   html+=`</tbody></table>`;
   container.innerHTML=html;
+}
+
+function toggleReportDetail(rowEl, reportId, reportDate){
+  const detail = document.getElementById('report-detail-' + reportId);
+  if(!detail) return;
+  const chev = rowEl.querySelector('.report-chevron');
+  const expanded = detail.style.display !== 'none';
+  if(expanded){
+    detail.style.display = 'none';
+    if(chev) chev.classList.remove('expanded');
+  } else {
+    detail.style.display = '';
+    if(chev) chev.classList.add('expanded');
+    if(detail.dataset.loaded !== 'true'){
+      loadReportSubmissions(reportId, reportDate);
+    }
+  }
+}
+
+async function loadReportSubmissions(reportId, reportDate){
+  const detail = document.getElementById('report-detail-' + reportId);
+  if(!detail) return;
+  const content = detail.querySelector('.report-detail-content');
+  if(!content) return;
+  const {data:subs, error} = await sb.from('phase_submissions')
+    .select('*,properties(address,city)')
+    .eq('firm_id', currentFirmId)
+    .gte('submitted_at', reportDate + 'T00:00:00')
+    .lte('submitted_at', reportDate + 'T23:59:59')
+    .order('submitted_at', {ascending: true});
+  if(error){
+    content.innerHTML = `<div class="loading">Error loading submissions: ${error.message}</div>`;
+    return;
+  }
+  if(!subs || subs.length === 0){
+    content.innerHTML = '<div class="loading">No submissions for this date.</div>';
+    detail.dataset.loaded = 'true';
+    return;
+  }
+  // Inspector name lookup — mirror pattern at openPropertyDetail (~line 4817)
+  const inspectorIds = [...new Set(subs.map(s => s.submitted_by).filter(Boolean))];
+  let inspectorMap = {};
+  if(inspectorIds.length){
+    const {data:profs} = await sb.from('profiles').select('id,full_name').in('id', inspectorIds);
+    (profs||[]).forEach(p => { inspectorMap[p.id] = p.full_name; });
+  }
+  content.innerHTML = subs.map(s => {
+    const addr = s.properties ? ((s.properties.address || '—') + (s.properties.city ? ', ' + s.properties.city : '')) : '—';
+    const phase = (s.phase || 'pending').replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+    const inspector = inspectorMap[s.submitted_by] || 'Unknown';
+    const time = s.submitted_at ? new Date(s.submitted_at).toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'}) : '—';
+    const photoCount = Array.isArray(s.photos) ? s.photos.length : 0;
+    const photoBadge = photoCount > 0 ? ` · ${photoCount} photo${photoCount===1?'':'s'}` : '';
+    return `<div class="report-detail-item">
+      <div class="report-detail-addr">${addr}</div>
+      <div class="report-detail-meta">${phase} · ${inspector} · ${time}${photoBadge}</div>
+    </div>`;
+  }).join('');
+  detail.dataset.loaded = 'true';
 }
 
 async function generateReport(){
