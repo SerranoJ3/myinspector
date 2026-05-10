@@ -6769,7 +6769,10 @@ function vtcRender(){
   // Sprint Polish 5/9/26: embed live diagram in mid-right region (replaces the old "ships next ticket"
   // placeholder). Pulls from saved tapcard's tapcard_data.diagram jsonb when present; renders empty
   // scaffold (just CS + reference geometry) when no tapcard has been submitted yet for this sheet.
-  const _vtcDiagSrc = (currentMaterialsSheetTapcardData && currentMaterialsSheetTapcardData.diagram)
+  const tcOpen = document.getElementById('modal-tapcard')?.classList.contains('open');
+  const _vtcDiagSrc = (tcOpen && diagramState)
+    ? diagramState
+    : (currentMaterialsSheetTapcardData && currentMaterialsSheetTapcardData.diagram)
     ? currentMaterialsSheetTapcardData.diagram
     : { cs: { ...DIAGRAM_CS_DEFAULT }, mp: [], assets: [], house_number: '', compass_rotation_deg: 0 };
   out.push(`<svg x="${W*0.43}" y="${H*0.32}" width="${W*0.55}" height="${H*0.52}" viewBox="0 0 ${DIAGRAM_VIEWBOX_W} ${DIAGRAM_VIEWBOX_H}" preserveAspectRatio="xMidYMid meet">${_diagramInnerSVG(_vtcDiagSrc, {onLight: true})}</svg>`);
@@ -7545,6 +7548,7 @@ function diagramRender(){
     }
     compassSvg.innerHTML = cmp;
   }
+  if(typeof vtcDebouncedRender === 'function') vtcDebouncedRender();
 }
 
 function diagramAttachListeners(){
