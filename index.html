@@ -7035,11 +7035,6 @@ function tcReadMaterialInstalledRows(){
 
 const DIAGRAM_VIEWBOX_W = 800;
 const DIAGRAM_VIEWBOX_H = 600;
-// Sprint A 5/9/26: CS moved up from y=0.95 to y=0.78 to make room for house rectangle below.
-// Reference geometry layout (top→bottom): MAIN (street, y=0.10), CL (curb, y=0.70), CS at y=0.78,
-// PL (property, y=0.86), HOUSE rectangle (y=0.90→1.0) with house number input.
-// Old saved diagrams with cs.y=0.95 will render with CS too low; demo currently has 0 saved
-// diagrams so no migration burden. New diagrams use the new default.
 const DIAGRAM_CS_DEFAULT = { x: 0.5, y: 0.7333 };
 const DIAGRAM_REF_LINES = {
   cl_far:  { y: 0.1333, label: 'C.L.', color: '#94a3b8', strokeWidth: 1.5, dash: '6,4' },
