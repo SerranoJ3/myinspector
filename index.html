@@ -6968,22 +6968,30 @@ function tcAutoPopulateCompanySide(prop, sheet){
   const lb = document.getElementById('tc-co-location-block');
   if(lb){
     if(effective){
+      // Phase 2 fix 5/10/26: format inches values as "X ft Y in" via vtcInchesToFtIn('verbose')
+      // for the 10 ft/in measurements. Size of Main and Service Side stay as-is.
+      const fmtIn = (val) => {
+        if(val === null || val === undefined || val === '') return '—';
+        const r = vtcInchesToFtIn(val, 'verbose');
+        if(typeof r !== 'object') return '—';
+        return `${r.ft} ft ${r.in} in`;
+      };
       const measures = [
-        ['Corp Depth', effective.corp_depth_inches],
-        ['CS Depth', effective.cs_depth_inches],
-        ['CS-House', effective.cs_house_inches],
-        ['CS-RS', effective.cs_rs_inches],
-        ['CS-LS', effective.cs_ls_inches],
-        ['CS-Near Curb', effective.cs_near_curb_inches],
-        ['CS-Far Curb', effective.cs_far_curb_inches],
-        ['CS-Corp', effective.cs_corp_inches],
-        ['CS-MP', effective.cs_mp_inches],
-        ['MP Horn Copper', effective.mp_horn_copper_inches],
-        ['Size of Main', effective.size_of_main_inches ? effective.size_of_main_inches + ' in' : null],
-        ['Service Side', effective.service_side],
+        ['Corp Depth', fmtIn(effective.corp_depth_inches)],
+        ['CS Depth', fmtIn(effective.cs_depth_inches)],
+        ['CS-House', fmtIn(effective.cs_house_inches)],
+        ['CS-RS', fmtIn(effective.cs_rs_inches)],
+        ['CS-LS', fmtIn(effective.cs_ls_inches)],
+        ['CS-Near Curb', fmtIn(effective.cs_near_curb_inches)],
+        ['CS-Far Curb', fmtIn(effective.cs_far_curb_inches)],
+        ['CS-Corp', fmtIn(effective.cs_corp_inches)],
+        ['CS-MP', fmtIn(effective.cs_mp_inches)],
+        ['MP Horn Copper', fmtIn(effective.mp_horn_copper_inches)],
+        ['Size of Main', effective.size_of_main_inches ? effective.size_of_main_inches + ' in' : '—'],
+        ['Service Side', effective.service_side || '—'],
       ];
       lb.innerHTML = measures.map(([label, val]) =>
-        `<div class="tc-readonly-pill"><span style="color:var(--muted);font-size:10px">${label}:</span> <span>${val === null || val === undefined ? '—' : val}</span></div>`
+        `<div class="tc-readonly-pill"><span style="color:var(--muted);font-size:10px">${label}:</span> <span>${val}</span></div>`
       ).join('');
     } else {
       lb.innerHTML = '<div class="tc-summary-empty">No Materials Sheet — Location Data unpopulated.</div>';
