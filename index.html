@@ -6558,6 +6558,43 @@ const VTC_FIELDS = [
     const sz = inches ? `${inches}"` : '___"';
     return `METER PIT LOCATION ${sz} OF CURB STOP`;
   }, size:9, family:'mono', static:false},
+  // ─── TRIANGULATION FROM CS — auto-populated from diagram assets/MPs ───
+  // Combines assets[] + mp[] from the live diagram, sorts by distance ascending,
+  // takes 3 closest as A/B/C. Same data source as the diagram embed below.
+  {x:0.44, y:0.295, get:()=>'TRIANGULATION FROM CS', size:11, weight:700, color:'header', static:true, family:'sans'},
+  {x:0.44, y:0.310, get:()=>{
+    const src = (typeof tcOpen !== 'undefined' && tcOpen && diagramState) ? diagramState
+      : (currentMaterialsSheetTapcardData && currentMaterialsSheetTapcardData.diagram) ? currentMaterialsSheetTapcardData.diagram
+      : null;
+    if(!src) return 'A: ____________________';
+    const all = [...(src.mp||[]), ...(src.assets||[])].filter(a => a && typeof a.distance_to_cs_ft === 'number');
+    if(all.length === 0) return 'A: (no assets placed yet)';
+    all.sort((a,b) => a.distance_to_cs_ft - b.distance_to_cs_ft);
+    const a = all[0];
+    return `A: ${a.label || '?'} — ${a.distance_to_cs_ft} ft @ ${a.bearing_to_cs_deg}°`;
+  }, size:9, family:'mono', static:false},
+  {x:0.44, y:0.320, get:()=>{
+    const src = (typeof tcOpen !== 'undefined' && tcOpen && diagramState) ? diagramState
+      : (currentMaterialsSheetTapcardData && currentMaterialsSheetTapcardData.diagram) ? currentMaterialsSheetTapcardData.diagram
+      : null;
+    if(!src) return 'B: ____________________';
+    const all = [...(src.mp||[]), ...(src.assets||[])].filter(a => a && typeof a.distance_to_cs_ft === 'number');
+    if(all.length < 2) return 'B: ____________________';
+    all.sort((a,b) => a.distance_to_cs_ft - b.distance_to_cs_ft);
+    const b = all[1];
+    return `B: ${b.label || '?'} — ${b.distance_to_cs_ft} ft @ ${b.bearing_to_cs_deg}°`;
+  }, size:9, family:'mono', static:false},
+  {x:0.44, y:0.330, get:()=>{
+    const src = (typeof tcOpen !== 'undefined' && tcOpen && diagramState) ? diagramState
+      : (currentMaterialsSheetTapcardData && currentMaterialsSheetTapcardData.diagram) ? currentMaterialsSheetTapcardData.diagram
+      : null;
+    if(!src) return 'C: ____________________';
+    const all = [...(src.mp||[]), ...(src.assets||[])].filter(a => a && typeof a.distance_to_cs_ft === 'number');
+    if(all.length < 3) return 'C: ____________________';
+    all.sort((a,b) => a.distance_to_cs_ft - b.distance_to_cs_ft);
+    const c = all[2];
+    return `C: ${c.label || '?'} — ${c.distance_to_cs_ft} ft @ ${c.bearing_to_cs_deg}°`;
+  }, size:9, family:'mono', static:false},
   {x:0.44, y:0.270, label:'Data Furnished By', get:()=>vtcMs('foreman_name'), size:10, family:'mono', underline:240},
 
   // ─── OWNER block REMOVED 5/9/26 per discovery/TAPCARD_VISUAL_REFERENCE.md scope decision (5/2/26) ───
@@ -6656,6 +6693,9 @@ function vtcRender(){
   const msModal = document.getElementById('modal-materials-sheet');
   // Phase 0 5/9/26: refresh MS field cache from DOM unless caller provides external data.
   if(!_vtcMsDataExternal) _vtcSyncMsDataFromDom();
+  // Phase 2 fix 5/10/26: hoisted from the diagram embed block so VTC_FIELDS get() functions
+  // (e.g. triangulation block) can reference tcOpen — they evaluate before the embed code.
+  const tcOpen = document.getElementById('modal-tapcard')?.classList.contains('open');
   const prop = currentMaterialsSheetProperty;
 
   // Sector dispatch — Q-2c locked: visual tapcard renders for NJ6_NORMAL only.
@@ -6782,7 +6822,6 @@ function vtcRender(){
   // Sprint Polish 5/9/26: embed live diagram in mid-right region (replaces the old "ships next ticket"
   // placeholder). Pulls from saved tapcard's tapcard_data.diagram jsonb when present; renders empty
   // scaffold (just CS + reference geometry) when no tapcard has been submitted yet for this sheet.
-  const tcOpen = document.getElementById('modal-tapcard')?.classList.contains('open');
   const _vtcDiagSrc = (tcOpen && diagramState)
     ? diagramState
     : (currentMaterialsSheetTapcardData && currentMaterialsSheetTapcardData.diagram)
