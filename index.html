@@ -3861,7 +3861,7 @@ async function loadReports(){
     .select('*').order('report_date',{ascending:false}).limit(20);
   const container=document.getElementById('reports-list');
   if(!data||data.length===0){
-    container.innerHTML='<div class="loading">No reports yet. Reports generate automatically at 5:00 PM or click Generate Now.</div>';
+    container.innerHTML='<div class="loading">No reports yet. Click Generate Now to compile today\'s submissions.</div>';
     return;
   }
   let html=`<table><thead><tr><th>Date</th><th>Properties</th><th>Completed</th><th>Gaps</th><th>Generated</th></tr></thead><tbody>`;
