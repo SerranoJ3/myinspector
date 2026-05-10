@@ -6790,6 +6790,13 @@ function vtcRender(){
   out.push('</svg>');
   const html = out.join('');
   containers.forEach(c => { c.innerHTML = html; });
+  // Phase 2 fix 5/10/26: re-pull TC Page 2 Company Side pills using the live _vtcMsData
+  // overlay so unsaved MS form edits propagate immediately. Only fires when TC modal is open.
+  if(document.getElementById('modal-tapcard')?.classList.contains('open')
+     && currentMaterialsSheetProperty
+     && typeof tcAutoPopulateCompanySide === 'function'){
+    tcAutoPopulateCompanySide(currentMaterialsSheetProperty, currentMaterialsSheet);
+  }
 }
 
 let _vtcDebounceT = null;
@@ -6915,13 +6922,24 @@ function tcApplyOfficeFillVisibility(){
 }
 
 function tcAutoPopulateCompanySide(prop, sheet){
+  // Phase 2 fix 5/10/26: merge live _vtcMsData over saved sheet so Page 2 auto-pull
+  // pills reflect live edits in embedded MS form on Page 1 before save.
+  let effective = sheet ? { ...sheet } : null;
+  if(typeof _vtcMsData !== 'undefined' && _vtcMsData && Object.keys(_vtcMsData).length > 0){
+    if(!effective) effective = {};
+    Object.keys(_vtcMsData).forEach(k => {
+      const v = _vtcMsData[k];
+      if(v !== '' && v !== null && v !== undefined) effective[k] = v;
+    });
+  }
+
   // Service / Old Service rows from materials_sheet.service_materials grid (NJAW row)
   const sr = document.getElementById('tc-co-service-rows');
   if(sr){
-    if(sheet){
+    if(effective){
       sr.innerHTML = `
-        <div class="tc-readonly-pill"><span style="color:var(--muted);font-size:10px">Old Size:</span> ${sheet.njaw_old_size_inches ?? '—'} in · <span style="color:var(--muted)">Old Mat:</span> ${sheet.njaw_old_material || '—'}</div>
-        <div class="tc-readonly-pill"><span style="color:var(--muted);font-size:10px">New Size:</span> ${sheet.njaw_new_size_inches ?? '—'} in · <span style="color:var(--muted)">New Mat:</span> ${sheet.njaw_new_material || '—'} · <span style="color:var(--muted)">Amt:</span> ${sheet.njaw_new_amount_feet ?? '—'} ft</div>`;
+        <div class="tc-readonly-pill"><span style="color:var(--muted);font-size:10px">Old Size:</span> ${effective.njaw_old_size_inches ?? '—'} in · <span style="color:var(--muted)">Old Mat:</span> ${effective.njaw_old_material || '—'}</div>
+        <div class="tc-readonly-pill"><span style="color:var(--muted);font-size:10px">New Size:</span> ${effective.njaw_new_size_inches ?? '—'} in · <span style="color:var(--muted)">New Mat:</span> ${effective.njaw_new_material || '—'} · <span style="color:var(--muted)">Amt:</span> ${effective.njaw_new_amount_feet ?? '—'} ft</div>`;
     } else {
       sr.innerHTML = '<div class="tc-summary-empty">No Materials Sheet — Service rows unpopulated.</div>';
     }
@@ -6947,20 +6965,20 @@ function tcAutoPopulateCompanySide(prop, sheet){
   // Location Data from materials_sheet measurements
   const lb = document.getElementById('tc-co-location-block');
   if(lb){
-    if(sheet){
+    if(effective){
       const measures = [
-        ['Corp Depth', sheet.corp_depth_inches],
-        ['CS Depth', sheet.cs_depth_inches],
-        ['CS-House', sheet.cs_house_inches],
-        ['CS-RS', sheet.cs_rs_inches],
-        ['CS-LS', sheet.cs_ls_inches],
-        ['CS-Near Curb', sheet.cs_near_curb_inches],
-        ['CS-Far Curb', sheet.cs_far_curb_inches],
-        ['CS-Corp', sheet.cs_corp_inches],
-        ['CS-MP', sheet.cs_mp_inches],
-        ['MP Horn Copper', sheet.mp_horn_copper_inches],
-        ['Size of Main', sheet.size_of_main_inches ? sheet.size_of_main_inches + ' in' : null],
-        ['Service Side', sheet.service_side],
+        ['Corp Depth', effective.corp_depth_inches],
+        ['CS Depth', effective.cs_depth_inches],
+        ['CS-House', effective.cs_house_inches],
+        ['CS-RS', effective.cs_rs_inches],
+        ['CS-LS', effective.cs_ls_inches],
+        ['CS-Near Curb', effective.cs_near_curb_inches],
+        ['CS-Far Curb', effective.cs_far_curb_inches],
+        ['CS-Corp', effective.cs_corp_inches],
+        ['CS-MP', effective.cs_mp_inches],
+        ['MP Horn Copper', effective.mp_horn_copper_inches],
+        ['Size of Main', effective.size_of_main_inches ? effective.size_of_main_inches + ' in' : null],
+        ['Service Side', effective.service_side],
       ];
       lb.innerHTML = measures.map(([label, val]) =>
         `<div class="tc-readonly-pill"><span style="color:var(--muted);font-size:10px">${label}:</span> <span>${val === null || val === undefined ? '—' : val}</span></div>`
