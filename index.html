@@ -7817,25 +7817,24 @@ function diagramReadOnlyEmbed(diagram, opts){
     inner += `</g>`;
   });
 
-  // Sprint A 5/9/26: compass widget parity (top-right, rotates with saved compass_rotation_deg).
-  const ccx = px(DIAGRAM_COMPASS.cx), ccy = py(DIAGRAM_COMPASS.cy), cr = px(DIAGRAM_COMPASS.r);
+  // Sprint Polish 5/10/26: compass moved OUT of the diagram canvas and into the
+  // top-right pill (see return statement below). Avoids collision with assets
+  // placed near corners of the diagram. Only crot is computed here for use in pill.
   const crot = diagram.compass_rotation_deg || 0;
-  inner += `<circle cx="${ccx}" cy="${ccy}" r="${cr}" fill="rgba(20,28,42,0.85)" stroke="rgba(244,168,32,0.5)" stroke-width="1.5"/>`;
-  inner += `<g transform="rotate(${crot} ${ccx} ${ccy})">`;
-  const aTipY = ccy - cr * 0.65;
-  const aBaseY = ccy + cr * 0.15;
-  const aHalfW = cr * 0.28;
-  inner += `<polygon points="${ccx},${aTipY} ${ccx-aHalfW},${aBaseY} ${ccx+aHalfW},${aBaseY}" fill="#f4a820" stroke="#fff" stroke-width="1"/>`;
-  inner += `<line x1="${ccx}" y1="${aBaseY}" x2="${ccx}" y2="${ccy + cr * 0.55}" stroke="rgba(244,168,32,0.45)" stroke-width="1.5"/>`;
-  inner += `<text x="${ccx}" y="${aTipY - 4}" text-anchor="middle" font-family="'Rajdhani', sans-serif" font-size="11" font-weight="800" fill="#f4a820">N</text>`;
-  inner += `</g>`;
-  inner += `<circle cx="${ccx}" cy="${ccy}" r="2" fill="#fff"/>`;
-  if(crot !== 0){
-    inner += `<text x="${ccx}" y="${ccy + cr + 14}" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="9" font-weight="600" fill="#94a3b8">${crot}°</text>`;
-  }
 
   const pillText = escapeStr(opts.pillText || 'Read-only');
-  return `<div class="pd-diagram-embed"><div class="pd-diagram-pill">${pillText}</div><svg class="pd-diagram-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${inner}</svg></div>`;
+  // Sprint Polish 5/10/26: inline compass SVG inside the pill (left of pill text).
+  // 16x16, same N-arrow geometry as the canvas compass, rotates with crot.
+  const compassInline = `<svg width="14" height="14" viewBox="0 0 20 20" style="display:inline-block;vertical-align:middle;margin-right:5px;flex-shrink:0">
+    <circle cx="10" cy="10" r="9" fill="rgba(255,255,255,0.18)" stroke="rgba(26,26,26,0.6)" stroke-width="1"/>
+    <g transform="rotate(${crot} 10 10)">
+      <polygon points="10,3 7,11 13,11" fill="#1a1a1a" stroke="#fff" stroke-width="0.5"/>
+      <text x="10" y="2.5" text-anchor="middle" font-family="'Rajdhani',sans-serif" font-size="5" font-weight="800" fill="#1a1a1a">N</text>
+    </g>
+    <circle cx="10" cy="10" r="1" fill="#fff"/>
+  </svg>`;
+  const pillRotSuffix = crot !== 0 ? ` · ${crot}° rot` : '';
+  return `<div class="pd-diagram-embed"><div class="pd-diagram-pill" style="display:flex;align-items:center;gap:0">${compassInline}<span>${pillText}${pillRotSuffix}</span></div><svg class="pd-diagram-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${inner}</svg></div>`;
 }
 
 // ─────────────────────────────────────────────────────────────
