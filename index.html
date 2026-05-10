@@ -7210,7 +7210,9 @@ const DIAGRAM_REF_LINES = {
   pl:      { y: 0.80,   label: 'P.L.', color: '#94a3b8', strokeWidth: 1.5, dash: '6,4' }
 };
 const DIAGRAM_HOUSE = { x1: 0.32, y1: 0.90, x2: 0.68, y2: 0.99 };
-const DIAGRAM_COMPASS = { cx: 0.88, cy: 0.06, r: 0.05 };
+// Sprint Polish 5/10/26: moved from top-right (0.88) to top-left to avoid
+// collision with the property-detail diagram pill and top-right assets.
+const DIAGRAM_COMPASS = { cx: 0.06, cy: 0.06, r: 0.05 };
 const DIAGRAM_SNAP_STEP = 0.05;
 const DIAGRAM_UNDO_CAP = 30;
 const DIAGRAM_FT_PER_NORM = 50;
