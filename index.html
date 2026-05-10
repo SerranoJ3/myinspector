@@ -3834,25 +3834,49 @@ function renderAllSubmissions(data){
     container.innerHTML='<div class="loading">No submissions match your filters.</div>';
     return;
   }
-  let html=`<table><thead><tr><th>Address</th><th>Phase</th><th>Work Code</th><th>WB Confirmed</th><th>Out of Seq</th><th>Submitted</th></tr></thead><tbody>`;
-  data.forEach(s=>{
-    const addr=s.properties?.address||'Unknown';
-    const city=s.properties?.city||'';
-    const phClass='ph-'+(s.phase||'pending').replace(/_/g,'');
-    const dt=new Date(s.submitted_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
-    const wb=(s.photo_curbstop_whiteboard||s.photo_watermain_whiteboard||s.photo_restoration_whiteboard)?
-      '<span style="color:var(--green);font-weight:600">✓ Yes</span>':'<span style="color:var(--muted)">N/A</span>';
-    const oos=s.out_of_sequence?'<span style="color:var(--orange);font-size:11px">Flagged</span>':'<span style="color:var(--muted)">—</span>';
-    html+=`<tr onclick="openPropertyDetail('${s.property_id}')">
-      <td><div style="font-weight:600;color:var(--white)">${addr}</div><div style="font-size:11px;color:var(--muted)">${city}</div></td>
-      <td><span class="phase-badge ${phClass}">${(s.phase||'—').replace(/_/g,' ')}</span></td>
-      <td style="font-size:12px;color:var(--muted)">${s.work_order_code||'—'}</td>
+  // Phase 2 5/10/26: group by property_id — one row per property, phases as multiple badges.
+  // Tapcard + service_work + restoration for the same property collapse into one clickable row.
+  const groups = new Map();
+  data.forEach(s => {
+    const key = s.property_id;
+    if(!key) return;
+    if(!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(s);
+  });
+  // Sort phases within each group chronologically; sort groups by latest submission desc
+  const groupArr = Array.from(groups.entries()).map(([property_id, subs]) => {
+    subs.sort((a,b) => new Date(a.submitted_at) - new Date(b.submitted_at));
+    return { property_id, subs, latest: subs.reduce((m,s) => Math.max(m, new Date(s.submitted_at).getTime()), 0) };
+  });
+  groupArr.sort((a,b) => b.latest - a.latest);
+
+  let html=`<table><thead><tr><th>Address</th><th>Phases</th><th>Work Codes</th><th>WB Confirmed</th><th>Out of Seq</th><th>Latest</th></tr></thead><tbody>`;
+  groupArr.forEach(g => {
+    const head = g.subs[0];
+    const addr = head.properties?.address || 'Unknown';
+    const city = head.properties?.city || '';
+    const phaseBadges = g.subs.map(s => {
+      const phClass = 'ph-' + (s.phase || 'pending').replace(/_/g,'');
+      return `<span class="phase-badge ${phClass}" style="margin-right:4px">${(s.phase||'—').replace(/_/g,' ')}</span>`;
+    }).join('');
+    const codes = Array.from(new Set(g.subs.map(s => s.work_order_code).filter(Boolean)));
+    const codeStr = codes.length ? codes.join(', ') : '—';
+    const anyWb = g.subs.some(s => s.photo_curbstop_whiteboard || s.photo_watermain_whiteboard || s.photo_restoration_whiteboard);
+    const wb = anyWb ? '<span style="color:var(--green);font-weight:600">✓ Yes</span>' : '<span style="color:var(--muted)">N/A</span>';
+    const anyOos = g.subs.some(s => s.out_of_sequence);
+    const oos = anyOos ? '<span style="color:var(--orange);font-size:11px">Flagged</span>' : '<span style="color:var(--muted)">—</span>';
+    const dt = new Date(g.latest).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+    const countSuffix = g.subs.length > 1 ? ` <span style="color:var(--muted);font-size:11px">(${g.subs.length} phases)</span>` : '';
+    html += `<tr onclick="openPropertyDetail('${g.property_id}')">
+      <td><div style="font-weight:600;color:var(--white)">${addr}${countSuffix}</div><div style="font-size:11px;color:var(--muted)">${city}</div></td>
+      <td>${phaseBadges}</td>
+      <td style="font-size:12px;color:var(--muted)">${codeStr}</td>
       <td>${wb}</td><td>${oos}</td>
       <td style="font-size:12px;color:var(--muted)">${dt}</td>
     </tr>`;
   });
-  html+=`</tbody></table>`;
-  container.innerHTML=html;
+  html += `</tbody></table>`;
+  container.innerHTML = html;
 }
 
 // ── REPORTS ───────────────────────────────────────────
