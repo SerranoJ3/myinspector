@@ -267,6 +267,9 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .pd-diagram-embed{position:relative;margin-top:10px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:#0a1220}
 .pd-diagram-pill{position:absolute;top:6px;right:6px;background:rgba(244,168,32,0.92);color:#1a1a1a;font-size:9px;font-weight:700;padding:3px 8px;border-radius:99px;font-family:'Rajdhani',sans-serif;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 2px 6px rgba(0,0,0,0.4);max-width:75%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2}
 .pd-diagram-svg{display:block;width:100%;height:auto;max-height:280px}
+.pd-aerial-map{height:280px;width:100%;border:1px solid var(--border);border-radius:var(--radius);margin-top:14px;overflow:hidden;background:#0a1220}
+.pd-aerial-map .leaflet-container{height:100%;width:100%;background:#0a1220;font-family:inherit}
+.pd-aerial-map-empty{height:280px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;border:1px dashed var(--border);border-radius:var(--radius);margin-top:14px;background:#0a1220}
 .rg-meta{font-size:11px;color:var(--muted);margin-bottom:12px;font-style:italic}
 .rg-fieldset{border:1px solid var(--border);border-radius:var(--radius);padding:14px;background:var(--surface);margin-bottom:14px;min-width:0}
 .rg-legend{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--blue-light);padding:0 8px;display:inline-flex;gap:8px;align-items:baseline}
@@ -849,6 +852,8 @@ html,body{overflow-x:hidden}
 .photo-slot-wb-row.checked .photo-slot-wb-box{background:var(--green);border-color:var(--green)}
 .photo-slot-wb-label{font-size:11px;color:var(--white);line-height:1.3}
 </style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 </head>
 <body>
 
@@ -4851,6 +4856,43 @@ async function confirmBulkImport(){
 }
 
 // ── PROPERTY DETAIL ──────────────────────────────────
+// MI-115 5/10/26: aerial property map via Leaflet + ESRI World Imagery (no API key).
+// Renders into the supplied container with a pin at prop.lat/lng. Replaces any
+// previously-rendered map in the same container (idempotent on re-open).
+let _pdAerialMapInstance = null;
+function renderPropertyAerialMap(prop, containerId){
+  const el = document.getElementById(containerId);
+  if(!el) return;
+  // Tear down any prior instance to avoid Leaflet "container already initialized" error
+  if(_pdAerialMapInstance){
+    try { _pdAerialMapInstance.remove(); } catch(e){}
+    _pdAerialMapInstance = null;
+  }
+  el.innerHTML = '';
+  if(!prop || prop.lat == null || prop.lng == null){
+    el.outerHTML = `<div class="pd-aerial-map-empty">No GPS coordinates on file for this property.</div>`;
+    return;
+  }
+  el.className = 'pd-aerial-map';
+  const lat = Number(prop.lat), lng = Number(prop.lng);
+  const map = L.map(el, {
+    center: [lat, lng],
+    zoom: 19,
+    zoomControl: true,
+    scrollWheelZoom: false, // don't hijack page scroll
+    attributionControl: true
+  });
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community',
+    maxZoom: 23
+  }).addTo(map);
+  const addrLine = `<strong>${prop.address || 'Property'}</strong><br>${[prop.city, prop.state, prop.zip].filter(Boolean).join(', ')}`;
+  L.marker([lat, lng]).addTo(map).bindPopup(addrLine).openPopup();
+  _pdAerialMapInstance = map;
+  // Re-fix sizing after modal opens (Leaflet sometimes mis-measures inside hidden modal)
+  setTimeout(() => map.invalidateSize(), 100);
+}
+
 async function openPropertyDetail(propertyId){
   const modal = document.getElementById('modal-property-detail');
   modal.classList.add('open');
@@ -4909,6 +4951,17 @@ async function openPropertyDetail(propertyId){
     <div class="pd-stat"><div class="pd-stat-label">Added</div>
       <div class="pd-stat-val">${prop.created_at ? new Date(prop.created_at).toLocaleDateString() : '—'}</div></div>
   `;
+
+  // MI-115 5/10/26: aerial map between header grid and Materials Sheet bar
+  const headerGrid = document.getElementById('pd-header-grid');
+  let mapHost = document.getElementById('pd-aerial-map');
+  if(!mapHost){
+    mapHost = document.createElement('div');
+    mapHost.id = 'pd-aerial-map';
+    mapHost.className = 'pd-aerial-map';
+    headerGrid.parentNode.insertBefore(mapHost, headerGrid.nextSibling);
+  }
+  renderPropertyAerialMap(prop, 'pd-aerial-map');
 
   // MI-101 Phase 2a: surface the Materials Sheet bar with current sheet status
   // (most-recent active sheet for this property, or "no sheet yet" placeholder).
