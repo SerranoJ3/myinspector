@@ -6352,6 +6352,17 @@ function _vtcSyncMsDataFromDom(){
   document.querySelectorAll('#modal-materials-sheet [id^="ms-"], #modal-tapcard [id^="ms-"]').forEach(el => {
     _vtcMsData[el.id.slice(3)] = el.value || '';
   });
+  // Phase 2 fix 5/10/26: derive *_inches totals from ft+in pairs so VTC measurement reads
+  // (vtcMs('cs_house_inches') etc.) hit real values. Past Corner flips sign on cs_house only.
+  MS_MEASURE_FIELDS.forEach(name => {
+    const ftEl = document.querySelector(`#modal-materials-sheet #ms-${name}-ft, #modal-tapcard #ms-${name}-ft`);
+    const inEl = document.querySelector(`#modal-materials-sheet #ms-${name}-in, #modal-tapcard #ms-${name}-in`);
+    if(!ftEl || !inEl) return;
+    if(ftEl.value === '' && inEl.value === '') return;
+    let total = msFeetInchesToTotal(ftEl.value, inEl.value);
+    if(name === 'cs_house' && typeof msPastCorner !== 'undefined' && msPastCorner) total = -total;
+    _vtcMsData[name + '_inches'] = total;
+  });
 }
 
 function vtcMs(field){
