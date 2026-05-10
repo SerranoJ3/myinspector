@@ -1731,6 +1731,7 @@ html,body{overflow-x:hidden}
             <label class="tc-diagram-toggle"><input type="checkbox" id="tc-diagram-snap" checked onchange="diagramSetSnap(this.checked)"> Snap</label>
             <span class="tc-diagram-sep"></span>
             <button type="button" class="tc-diagram-btn" onclick="diagramRotateCompass()" title="Rotate compass 45° clockwise">↺ N</button>
+            <svg id="tc-diagram-compass" width="50" height="50" viewBox="0 0 50 50" style="display:block;flex-shrink:0" aria-label="Compass"></svg>
             <span class="tc-diagram-sep"></span>
             <label class="tc-diagram-toggle" style="gap:4px">House #
               <input type="text" id="tc-diagram-house-num" placeholder="1234" maxlength="8" oninput="diagramSetHouseNumber(this.value)"
@@ -1752,7 +1753,6 @@ html,body{overflow-x:hidden}
               <g id="tc-diagram-reference"></g>
               <g id="tc-diagram-content"></g>
               <g id="tc-diagram-cs-layer"></g>
-              <g id="tc-diagram-overlay"></g>
             </svg>
             <div id="tc-diagram-readonly-pill" class="tc-diagram-readonly-pill" style="display:none;"></div>
           </div>
@@ -7042,8 +7042,8 @@ const DIAGRAM_VIEWBOX_H = 600;
 // diagrams so no migration burden. New diagrams use the new default.
 const DIAGRAM_CS_DEFAULT = { x: 0.5, y: 0.78 };
 const DIAGRAM_REF_LINES = {
-  main:    { y: 0.30, label: 'MAIN', color: '#4a7cc4', strokeWidth: 4 },
-  cl_far:  { y: 0.50, label: 'C.L.', color: '#94a3b8', strokeWidth: 1.5, dash: '6,4' },
+  cl_far:  { y: 0.30, label: 'C.L.', color: '#94a3b8', strokeWidth: 1.5, dash: '6,4' },
+  main:    { y: 0.50, label: 'MAIN', color: '#4a7cc4', strokeWidth: 4 },
   cl:      { y: 0.70, label: 'C.L.', color: '#94a3b8', strokeWidth: 1.5, dash: '6,4' },
   pl:      { y: 0.86, label: 'P.L.', color: '#94a3b8', strokeWidth: 1.5, dash: '6,4' }
 };
@@ -7398,7 +7398,6 @@ function diagramRender(){
   const csLayer = document.getElementById('tc-diagram-cs-layer');
   const content = document.getElementById('tc-diagram-content');
   const refLayer = document.getElementById('tc-diagram-reference');
-  const overlay = document.getElementById('tc-diagram-overlay');
   if(!csLayer || !content) return;
   const W = DIAGRAM_VIEWBOX_W, H = DIAGRAM_VIEWBOX_H;
   const px = n => n * W, py = n => n * H;
@@ -7484,37 +7483,27 @@ function diagramRender(){
   });
   content.innerHTML = html;
 
-  // ─── Sprint A 5/9/26: COMPASS WIDGET (overlay, top-right) ───
-  // Rotates 45° per click via toolbar button. 0° = N up. Always renders on top.
-  if(overlay){
-    const cx = px(DIAGRAM_COMPASS.cx);
-    const cy = py(DIAGRAM_COMPASS.cy);
-    const r = px(DIAGRAM_COMPASS.r);
+  // ─── Polish 5/9/26: COMPASS WIDGET (toolbar SVG, outside canvas) ───
+  // Lives in #tc-diagram-compass (50×50 viewBox). Rotates 45° per click. 0° = N up.
+  const compassSvg = document.getElementById('tc-diagram-compass');
+  if(compassSvg){
+    const cx = 25, cy = 22, r = 15;
     const rot = diagramState.compass_rotation_deg || 0;
     let cmp = '';
-    // Background circle (transparent fill, soft border)
     cmp += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="rgba(20,28,42,0.85)" stroke="rgba(244,168,32,0.5)" stroke-width="1.5"/>`;
-    // Inner ring tick marks (S/E/W small)
-    const innerR = r * 0.85;
-    // Rotation applied to the arrow + N letter group
     cmp += `<g transform="rotate(${rot} ${cx} ${cy})">`;
-    // N arrow (triangle pointing up)
     const arrowTipY = cy - r * 0.65;
     const arrowBaseY = cy + r * 0.15;
     const arrowHalfW = r * 0.28;
     cmp += `<polygon points="${cx},${arrowTipY} ${cx-arrowHalfW},${arrowBaseY} ${cx+arrowHalfW},${arrowBaseY}" fill="#f4a820" stroke="#fff" stroke-width="1"/>`;
-    // Tail of arrow (subtle line down)
     cmp += `<line x1="${cx}" y1="${arrowBaseY}" x2="${cx}" y2="${cy + r * 0.55}" stroke="rgba(244,168,32,0.45)" stroke-width="1.5"/>`;
-    // N letter just above arrow tip (also rotates with the arrow)
-    cmp += `<text x="${cx}" y="${arrowTipY - 4}" text-anchor="middle" font-family="'Rajdhani', sans-serif" font-size="11" font-weight="800" fill="#f4a820">N</text>`;
+    cmp += `<text x="${cx}" y="${arrowTipY - 1}" text-anchor="middle" font-family="'Rajdhani', sans-serif" font-size="6" font-weight="800" fill="#f4a820">N</text>`;
     cmp += `</g>`;
-    // Center dot
-    cmp += `<circle cx="${cx}" cy="${cy}" r="2" fill="#fff"/>`;
-    // Rotation badge (shows current degrees, doesn't rotate)
+    cmp += `<circle cx="${cx}" cy="${cy}" r="1.2" fill="#fff"/>`;
     if(rot !== 0){
-      cmp += `<text x="${cx}" y="${cy + r + 14}" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="9" font-weight="600" fill="#94a3b8">${rot}°</text>`;
+      cmp += `<text x="${cx}" y="${cy + r + 8}" text-anchor="middle" font-family="'Source Sans 3', sans-serif" font-size="6" font-weight="600" fill="#94a3b8">${rot}°</text>`;
     }
-    overlay.innerHTML = cmp;
+    compassSvg.innerHTML = cmp;
   }
 }
 
