@@ -6520,9 +6520,11 @@ const VTC_FIELDS = [
     return `TOP OF ${sz||'__'} IN. ${m||'_______'} MAIN IS ${ft} FT. ${inn} IN. BELOW SURFACE`;
   }, size:9, family:'mono', static:false, underline:380},
   {x:0.44, y:0.110, get:()=>{
+    const dist = vtcInchesToFtIn(vtcMs('cs_far_curb_inches'), 'verbose');
     const ss = vtcMs('service_side');
     const sideLabel = ss === 'long' ? 'LONG SIDE' : ss === 'short' ? 'SHORT SIDE' : '___________';
-    return `AND ___ FT. ___ IN. OF CURB ON ${sideLabel}`;
+    if(typeof dist !== 'object') return `AND ___ FT. ___ IN. OF CURB ON ${sideLabel}`;
+    return `AND ${dist.ft} FT. ${dist.in} IN. OF CURB ON ${sideLabel}`;
   }, size:9, family:'mono', static:false},
   // TAP IS [ft] FT. [in] IN. FROM INTERSECTING CURB MEDIAN LINE ON [direction]
   {x:0.44, y:0.135, get:()=>{
@@ -6554,7 +6556,7 @@ const VTC_FIELDS = [
   {x:0.44, y:0.235, get:()=>{
     const inches = vtcMs('cs_mp_inches');
     const sz = inches ? `${inches}"` : '___"';
-    return `METER PIT LOCATION ${sz} ____ OF CURB STOP`;
+    return `METER PIT LOCATION ${sz} OF CURB STOP`;
   }, size:9, family:'mono', static:false},
   {x:0.44, y:0.270, label:'Data Furnished By', get:()=>vtcMs('foreman_name'), size:10, family:'mono', underline:240},
 
