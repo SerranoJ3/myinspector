@@ -1651,6 +1651,10 @@ html,body{overflow-x:hidden}
           <div class="tc-section-title">Notes</div>
           <div id="tc-ms-notes" style="font-size:12px;line-height:1.6;color:rgba(237,242,248,0.85);background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;min-height:50px"></div>
         </div>
+        <div class="tc-section">
+          <div class="tc-section-title">Tapcard Preview <span class="tc-readonly-meta">read-only mirror of paper tapcard, auto-populated from materials sheet</span></div>
+          <div id="visual-tapcard-preview-container-tc"></div>
+        </div>
       </div>
 
       <!-- Page 2: Service Line Renewal Company Side -->
@@ -1759,11 +1763,6 @@ html,body{overflow-x:hidden}
             </svg>
             <div id="tc-diagram-readonly-pill" class="tc-diagram-readonly-pill" style="display:none;"></div>
           </div>
-        </div>
-
-        <div class="tc-section">
-          <div class="tc-section-title">Tapcard Preview <span class="tc-readonly-meta">read-only mirror of paper tapcard, auto-populated from materials sheet</span></div>
-          <div id="visual-tapcard-preview-container-tc"></div>
         </div>
 
         <div class="tc-section">
@@ -7095,7 +7094,7 @@ const DIAGRAM_REF_LINES = {
   pl:      { y: 0.80,   label: 'P.L.', color: '#94a3b8', strokeWidth: 1.5, dash: '6,4' }
 };
 const DIAGRAM_HOUSE = { x1: 0.32, y1: 0.90, x2: 0.68, y2: 0.99 };
-const DIAGRAM_COMPASS = { cx: 0.88, cy: 0.12, r: 0.05 };
+const DIAGRAM_COMPASS = { cx: 0.88, cy: 0.06, r: 0.05 };
 const DIAGRAM_SNAP_STEP = 0.05;
 const DIAGRAM_UNDO_CAP = 30;
 const DIAGRAM_FT_PER_NORM = 50;
