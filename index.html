@@ -7040,12 +7040,12 @@ const DIAGRAM_VIEWBOX_H = 600;
 // PL (property, y=0.86), HOUSE rectangle (y=0.90→1.0) with house number input.
 // Old saved diagrams with cs.y=0.95 will render with CS too low; demo currently has 0 saved
 // diagrams so no migration burden. New diagrams use the new default.
-const DIAGRAM_CS_DEFAULT = { x: 0.5, y: 0.78 };
+const DIAGRAM_CS_DEFAULT = { x: 0.5, y: 0.7333 };
 const DIAGRAM_REF_LINES = {
-  cl_far:  { y: 0.17, label: 'C.L.', color: '#94a3b8', strokeWidth: 1.5, dash: '6,4' },
-  main:    { y: 0.43, label: 'MAIN', color: '#4a7cc4', strokeWidth: 4 },
-  cl:      { y: 0.70, label: 'C.L.', color: '#94a3b8', strokeWidth: 1.5, dash: '6,4' },
-  pl:      { y: 0.83, label: 'P.L.', color: '#94a3b8', strokeWidth: 1.5, dash: '6,4' }
+  cl_far:  { y: 0.1333, label: 'C.L.', color: '#94a3b8', strokeWidth: 1.5, dash: '6,4' },
+  main:    { y: 0.40,   label: 'MAIN', color: '#4a7cc4', strokeWidth: 4 },
+  cl:      { y: 0.6667, label: 'C.L.', color: '#94a3b8', strokeWidth: 1.5, dash: '6,4' },
+  pl:      { y: 0.80,   label: 'P.L.', color: '#94a3b8', strokeWidth: 1.5, dash: '6,4' }
 };
 const DIAGRAM_HOUSE = { x1: 0.32, y1: 0.90, x2: 0.68, y2: 0.99 };
 const DIAGRAM_COMPASS = { cx: 0.88, cy: 0.12, r: 0.05 };
