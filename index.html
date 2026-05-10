@@ -3874,12 +3874,13 @@ async function generateReport(){
     .select('*').gte('submitted_at',today+'T00:00:00').lte('submitted_at',today+'T23:59:59');
   const total = subs?.length||0;
   const {error} = await sb.from('daily_reports').upsert({
+    firm_id:currentFirmId,
     report_date:today,
     generated_by:currentUser.id,
     total_properties:total,
     completed:total,
     gaps_flagged:0,
-  }, { onConflict: 'report_date' });
+  }, { onConflict: 'firm_id,report_date' });
   if(error){ showToast('Error generating report: '+error.message,'error'); return; }
   showToast('Daily report generated!','success');
   await loadReports();
