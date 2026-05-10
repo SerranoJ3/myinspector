@@ -1720,7 +1720,6 @@ html,body{overflow-x:hidden}
             <div class="tc-diagram-asset-wrap">
               <button type="button" class="tc-diagram-btn" onclick="diagramToggleAssetPicker()" title="Add asset">+ Asset</button>
               <div id="tc-diagram-asset-picker" class="tc-diagram-asset-picker" style="display:none;">
-                <button type="button" onclick="diagramArmAsset('watermain_tap')">WM Tap</button>
                 <button type="button" onclick="diagramArmAsset('meterpit')">MP</button>
                 <button type="button" onclick="diagramArmAsset('pole')">P#</button>
                 <button type="button" onclick="diagramArmAsset('hydrant')">Hydrant</button>
@@ -7210,7 +7209,7 @@ function diagramSetStatus(msg){
 function diagramArmAsset(type){
   if(diagramReadOnly) return;
   diagramArmedAssetType = type;
-  const labels = { watermain_tap:'WM Tap', meterpit:'MP', hydrant:'Hydrant', pole:'P#', other:'Other' };
+  const labels = { meterpit:'MP', hydrant:'Hydrant', pole:'P#', other:'Other' };
   diagramSetStatus(`Tap canvas to place ${labels[type] || type}`);
   const picker = document.getElementById('tc-diagram-asset-picker');
   if(picker) picker.style.display = 'none';
@@ -7281,7 +7280,7 @@ function _diagramPointerDown(evt){
     diagramSnapshot();
     const x = _diagramSnap(pt.x), y = _diagramSnap(pt.y);
     const id = `asset-${Date.now()}-${diagramState.assets.length}`;
-    const labels = { watermain_tap:'WM Tap', meterpit:'MP', hydrant:'Hydrant', pole:'P#', other:'Asset' };
+    const labels = { meterpit:'MP', hydrant:'Hydrant', pole:'P#', other:'Asset' };
     const sameTypeCount = diagramState.assets.filter(a => a.type === diagramArmedAssetType).length + 1;
     let label;
     if(diagramArmedAssetType === 'pole'){
@@ -7445,8 +7444,8 @@ function diagramRender(){
       <text x="${csX}" y="${csY+5}" text-anchor="middle" fill="#1a1a1a" font-size="12" font-weight="800" font-family="Rajdhani, sans-serif">CS</text>
       <text x="${csX}" y="${csY+34}" text-anchor="middle" fill="#f4a820" font-size="11" font-weight="700" font-family="Rajdhani, sans-serif" letter-spacing="0.06em">ANCHOR</text>
     </g>`;
-  const assetColors = { watermain_tap:'#16a34a', meterpit:'#dc2626', hydrant:'#eab308', pole:'#a78bfa', other:'#94a3b8' };
-  const assetLetter = { watermain_tap:'T', meterpit:'M', hydrant:'H', pole:'P', other:'?' };
+  const assetColors = { meterpit:'#dc2626', hydrant:'#eab308', pole:'#a78bfa', other:'#94a3b8' };
+  const assetLetter = { meterpit:'M', hydrant:'H', pole:'P', other:'?' };
   let html = '';
   // Connectors first (under markers)
   diagramState.mp.forEach(m => {
@@ -7573,8 +7572,8 @@ function _diagramInnerSVG(diagram, opts){
     inner += `</g>`;
   });
   // Assets
-  const assetColors = { watermain_tap:'#16a34a', meterpit:'#dc2626', hydrant:'#eab308', pole:'#a78bfa', other:'#94a3b8' };
-  const assetLetter = { watermain_tap:'T', meterpit:'M', hydrant:'H', pole:'P', other:'?' };
+  const assetColors = { meterpit:'#dc2626', hydrant:'#eab308', pole:'#a78bfa', other:'#94a3b8' };
+  const assetLetter = { meterpit:'M', hydrant:'H', pole:'P', other:'?' };
   (diagram.assets || []).forEach(a => {
     const ax = px(a.x), ay = py(a.y);
     const color = assetColors[a.type] || '#94a3b8';
@@ -7651,8 +7650,8 @@ function diagramReadOnlyEmbed(diagram, opts){
     }
     inner += `</g>`;
   });
-  const assetColors = { watermain_tap:'#16a34a', meterpit:'#dc2626', hydrant:'#eab308', pole:'#a78bfa', other:'#94a3b8' };
-  const assetLetter = { watermain_tap:'T', meterpit:'M', hydrant:'H', pole:'P', other:'?' };
+  const assetColors = { meterpit:'#dc2626', hydrant:'#eab308', pole:'#a78bfa', other:'#94a3b8' };
+  const assetLetter = { meterpit:'M', hydrant:'H', pole:'P', other:'?' };
   (diagram.assets || []).forEach(a => {
     const ax = px(a.x), ay = py(a.y);
     const color = assetColors[a.type] || '#94a3b8';
