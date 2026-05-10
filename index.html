@@ -5096,7 +5096,7 @@ async function openMaterialsSheetForProperty(propertyId){
   vtcAttachAutopopListeners();
   // Ship 3.1: fetch prior tapcard's jsonb for footer fallback (fire-and-forget;
   // vtcRender below renders without fallback first, then re-renders when query lands).
-  vtcLoadTapcardData(currentMaterialsSheet?.id).then(() => vtcRender());
+  vtcLoadTapcardData(currentMaterialsSheet?.id, currentMaterialsSheet?.property_id || currentMaterialsSheetProperty?.id).then(() => vtcRender());
   vtcRender();
   // Phase 2a polish: lazy-load autocomplete suggestions for free-text fields
   loadMaterialsSheetAutocomplete().catch(() => {});
@@ -5590,7 +5590,7 @@ async function editMaterialsSheetById(sheetId){
     vtcAttachAutopopListeners();
     // Ship 3.1: fetch prior tapcard's jsonb for footer fallback (fire-and-forget;
     // vtcRender below renders without fallback first, then re-renders when query lands).
-    vtcLoadTapcardData(data.id).then(() => vtcRender());
+    vtcLoadTapcardData(data.id, data.property_id).then(() => vtcRender());
     vtcRender();
     loadMaterialsSheetAutocomplete().catch(() => {});
   } catch(err){
@@ -5747,7 +5747,7 @@ async function openTapcardForProperty(propertyId){
   if(sheet){ msPopulateForm(sheet); } else { msClearForm(); }
   msSetSaveStatus('', sheet?.id ? 'Loaded — unsaved' : 'New sheet — unsaved');
   if(typeof vtcRender === 'function'){
-    if(sheet?.id){ vtcLoadTapcardData(sheet.id).then(() => vtcRender()); }
+    if(sheet?.id){ vtcLoadTapcardData(sheet.id, sheet.property_id).then(() => vtcRender()); }
     vtcRender();
   }
 
@@ -6344,13 +6344,30 @@ function vtcEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').
 // Ship 3.1: cross-table fetch of prior tapcard submission's jsonb. Called from MS
 // modal-open paths to populate currentMaterialsSheetTapcardData. Footer fields fall
 // back via vtcTd() when tc-co-* form inputs are empty.
-async function vtcLoadTapcardData(materialsSheetId){
-  if(!materialsSheetId){ currentMaterialsSheetTapcardData = null; return; }
-  const { data, error } = await sb.from('phase_submissions')
-    .select('tapcard_data').eq('phase', 'tapcard').eq('materials_sheet_id', materialsSheetId)
-    .is('deleted_at', null).order('submitted_at', { ascending: false }).limit(1).maybeSingle();
-  if(error){ console.error('vtcLoadTapcardData error:', error); }
-  currentMaterialsSheetTapcardData = data?.tapcard_data || null;
+async function vtcLoadTapcardData(materialsSheetId, propertyIdFallback){
+  // Primary: match by materials_sheet_id (canonical link from properly-linked tapcard).
+  if(materialsSheetId){
+    const { data, error } = await sb.from('phase_submissions')
+      .select('tapcard_data').eq('phase', 'tapcard').eq('materials_sheet_id', materialsSheetId)
+      .is('deleted_at', null).order('submitted_at', { ascending: false }).limit(1).maybeSingle();
+    if(error){ console.error('vtcLoadTapcardData primary error:', error); }
+    if(data?.tapcard_data){
+      currentMaterialsSheetTapcardData = data.tapcard_data;
+      return;
+    }
+  }
+  // Fallback: orphan-recovery — when tapcard was submitted before MS existed,
+  // its materials_sheet_id is null. Re-query by property_id to surface the most
+  // recent tapcard for this property regardless of sheet linkage.
+  if(propertyIdFallback){
+    const { data: fallback, error: fbErr } = await sb.from('phase_submissions')
+      .select('tapcard_data').eq('phase', 'tapcard').eq('property_id', propertyIdFallback)
+      .is('deleted_at', null).order('submitted_at', { ascending: false }).limit(1).maybeSingle();
+    if(fbErr){ console.error('vtcLoadTapcardData fallback error:', fbErr); }
+    currentMaterialsSheetTapcardData = fallback?.tapcard_data || null;
+    return;
+  }
+  currentMaterialsSheetTapcardData = null;
 }
 // Ship 3.1: read field from currentMaterialsSheetTapcardData. For 'completed_diagram_by',
 // also check legacy 'completed_by' key (demo seed used that name; tcReadForm at line 7394+
