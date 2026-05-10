@@ -6253,12 +6253,23 @@ function vtcTd(field){
   return td[field] || '';
 }
 
+// Phase 0 5/9/26: VTC field source-of-truth is a plain object, not the MS form DOM.
+// Decouples vtcRender from the MS modal so other modals (next: tapcard) can render
+// the visual tapcard without the MS form being in the DOM. MS modal still owns the
+// data — vtcRender re-syncs from #ms-* inputs at the top of each render unless
+// _vtcMsDataExternal === true (set by callers that populate _vtcMsData themselves).
+let _vtcMsData = {};
+let _vtcMsDataExternal = false;
+
+function _vtcSyncMsDataFromDom(){
+  _vtcMsData = {};
+  document.querySelectorAll('#modal-materials-sheet [id^="ms-"]').forEach(el => {
+    _vtcMsData[el.id.slice(3)] = el.value || '';
+  });
+}
+
 function vtcMs(field){
-  // Read from materials sheet form (#ms-<field>). Form values mirror
-  // currentMaterialsSheet after msPopulateForm.
-  const el = document.getElementById('ms-' + field);
-  if(!el) return '';
-  return el.value || '';
+  return _vtcMsData[field] || '';
 }
 function vtcProp(field){
   return (currentMaterialsSheetProperty && currentMaterialsSheetProperty[field]) || '';
@@ -6538,6 +6549,8 @@ function vtcRender(){
   const container = document.getElementById('visual-tapcard-preview-container');
   const modal = document.getElementById('modal-materials-sheet');
   if(!container || !modal) return;
+  // Phase 0 5/9/26: refresh MS field cache from DOM unless caller provides external data.
+  if(!_vtcMsDataExternal) _vtcSyncMsDataFromDom();
   const prop = currentMaterialsSheetProperty;
 
   // Sector dispatch — Q-2c locked: visual tapcard renders for NJ6_NORMAL only.
