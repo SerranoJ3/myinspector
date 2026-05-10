@@ -1012,7 +1012,7 @@ html,body{overflow-x:hidden}
         </div>
         <div class="search-wrap">
           <span class="search-icon">&#128269;</span>
-          <input class="search-input" type="text" id="prop-search" placeholder="Search address, city, lot, MapCall ID..." oninput="filterProperties(this.value)" onkeydown="if(event.key==='Enter')filterProperties(this.value)">
+          <input class="search-input" type="text" id="prop-search" placeholder="Search address, city, lot, Map ID..." oninput="filterProperties(this.value)" onkeydown="if(event.key==='Enter')filterProperties(this.value)">
         </div>
         <div class="table-wrap">
           <div class="table-header">
@@ -1169,7 +1169,7 @@ html,body{overflow-x:hidden}
           </div>
           <div class="search-wrap" style="margin:0">
             <span class="search-icon">&#128269;</span>
-            <input class="search-input" type="text" id="subs-prop-search" placeholder="Then filter by house #, lot, or MapCall ID..." oninput="filterAllSubmissions()" onkeydown="if(event.key==='Enter')filterAllSubmissions()">
+            <input class="search-input" type="text" id="subs-prop-search" placeholder="Then filter by house #, lot, or Map ID..." oninput="filterAllSubmissions()" onkeydown="if(event.key==='Enter')filterAllSubmissions()">
           </div>
         </div>
         <div id="all-submissions-list">
@@ -1187,7 +1187,7 @@ html,body{overflow-x:hidden}
         <div class="alert alert-green">
           <div>
             <span class="alert-title">Reports auto-generate at 5:00 PM</span>
-            All phase submissions for the day are compiled automatically. Each report includes GPS coordinates, photo references, and MapCall-ready data.
+            All phase submissions for the day are compiled automatically. Each report includes GPS coordinates, photo references, and GIS-ready data.
           </div>
         </div>
         <div class="table-wrap">
@@ -1285,14 +1285,14 @@ html,body{overflow-x:hidden}
       </div>
     </div>
     <div class="modal-field">
-      <label class="modal-label">MapCall ID (optional)</label>
+      <label class="modal-label">Map ID (optional)</label>
       <input class="modal-input" type="text" id="prop-mapcall" placeholder="UTIL-XXXX">
     </div>
     <div class="modal-field">
       <label class="modal-label">Sector</label>
       <div class="sector-radio-group" id="prop-sector-group">
         <label class="sector-radio selected" data-value="NJ6_NORMAL" onclick="selectPropSector('NJ6_NORMAL')">
-          <span class="sector-radio-name">NJ6 Normal</span>
+          <span class="sector-radio-name">Normal</span>
           <span class="sector-radio-sub">Default — standard workflow</span>
         </label>
         <label class="sector-radio" data-value="NJAW_SHORT_HILLS" onclick="selectPropSector('NJAW_SHORT_HILLS')">
@@ -1330,7 +1330,7 @@ html,body{overflow-x:hidden}
       <label class="modal-label">To</label>
       <div class="sector-radio-group" id="sector-edit-to-group">
         <label class="sector-radio" data-value="NJ6_NORMAL" onclick="selectSectorEditTarget('NJ6_NORMAL')">
-          <span class="sector-radio-name">NJ6 Normal</span>
+          <span class="sector-radio-name">Normal</span>
           <span class="sector-radio-sub">Standard workflow</span>
         </label>
         <label class="sector-radio" data-value="NJAW_SHORT_HILLS" onclick="selectSectorEditTarget('NJAW_SHORT_HILLS')">
@@ -1367,7 +1367,7 @@ html,body{overflow-x:hidden}
       <div class="bi-hint">
         <strong>Accepted column names</strong> (case-insensitive, any order):<br>
         <code>address</code> (required) · <code>city</code> · <code>zip</code> · <code>lot_block</code> · <code>company_material</code> · <code>customer_material</code> · <code>mapcall_id</code><br>
-        Common variations like "street address", "town", "zipcode", "mapcall", "njaw id" also recognized.
+        Common variations like "street address", "town", "zipcode", "mapcall" also recognized.
       </div>
     </div>
     <div id="bi-step-preview" style="display:none">
@@ -1783,7 +1783,7 @@ html,body{overflow-x:hidden}
     <div class="modal-header">
       <div>
         <div class="modal-title" id="ms-modal-title">New Materials Sheet</div>
-        <div class="modal-sub" id="ms-modal-sub">Property — paper Tapcard page 1 (CDM-Smith fields)</div>
+        <div class="modal-sub" id="ms-modal-sub">Property — paper Tapcard page 1</div>
       </div>
       <button class="modal-close" onclick="closeMaterialsSheetModal()">&#10005;</button>
     </div>
@@ -1862,7 +1862,7 @@ html,body{overflow-x:hidden}
             <div class="ms-field"><label class="ms-label">Number of Excavations</label>
               <input class="ms-input" type="number" id="ms-num_excavations" min="0" placeholder="0"></div>
             <div class="ms-field">
-              <label class="ms-label">Existing MP Noted <span class="ms-label-hint">CDM-Smith rule b</span></label>
+              <label class="ms-label">Existing MP Noted</label>
               <div class="ms-toggle" id="ms-existing_mp_noted-toggle" onclick="msToggleBoolean('existing_mp_noted')">
                 <div class="ms-toggle-box"></div>
                 <div class="ms-toggle-label" id="ms-existing_mp_noted-label">No</div>
@@ -1899,7 +1899,7 @@ html,body{overflow-x:hidden}
             </thead>
             <tbody>
               <tr>
-                <td class="ms-grid-row-label">NJAW (Company side)</td>
+                <td class="ms-grid-row-label">Company Side</td>
                 <td><input class="ms-input" type="number" id="ms-njaw_old_size_inches" step="0.25" min="0" placeholder="0.75"></td>
                 <td><input class="ms-input" type="text" id="ms-njaw_old_material" placeholder="Copper / Lead / Galv" list="ms-material-options" autocomplete="off"></td>
                 <td><input class="ms-input" type="number" id="ms-njaw_new_size_inches" step="0.25" min="0" placeholder="1"></td>
@@ -1922,7 +1922,7 @@ html,body{overflow-x:hidden}
       <details class="ms-section">
         <summary>Section E — Measurements</summary>
         <div class="ms-section-body">
-          <div class="ms-warn">All depths/distances entered as feet + inches; saved as total inches in DB. Most must be ≥ 0; only CS-House allows negative via the Past Corner toggle (CDM-Smith rule e).</div>
+          <div class="ms-warn">All depths/distances entered as feet + inches; saved as total inches in DB. Most must be ≥ 0; only CS-House allows negative via the Past Corner toggle.</div>
           <div class="ms-row">
             <div class="ms-field">
               <label class="ms-label">Corp Depth</label>
@@ -1947,7 +1947,7 @@ html,body{overflow-x:hidden}
           </div>
           <div class="ms-row">
             <div class="ms-field">
-              <label class="ms-label">CS-House <span class="ms-label-hint">CDM-Smith rule e</span></label>
+              <label class="ms-label">CS-House</label>
               <div class="ms-feet-inches" data-measure="cs_house">
                 <input class="ms-input" type="number" min="0" id="ms-cs_house-ft" placeholder="ft" oninput="msRecalcMeasure('cs_house')">
                 <span class="ms-feet-inches-suffix">ft</span>
@@ -1955,7 +1955,7 @@ html,body{overflow-x:hidden}
                 <span class="ms-feet-inches-suffix">in</span>
                 <span class="ms-feet-inches-total" id="ms-cs_house-total">→ 0 in</span>
               </div>
-              <div class="ms-past-corner" id="ms-cs_house-past_corner-toggle" onclick="msTogglePastCorner()" title="Toggle on if curbstop is past the corner (sign-convention exception per CDM-Smith)">
+              <div class="ms-past-corner" id="ms-cs_house-past_corner-toggle" onclick="msTogglePastCorner()" title="Toggle on if curbstop is past the corner (sign-convention exception)">
                 <div class="ms-past-corner-box" id="ms-cs_house-past_corner-box"></div>
                 <span>Past corner (stores as negative)</span>
               </div>
@@ -2027,7 +2027,7 @@ html,body{overflow-x:hidden}
               </div>
             </div>
             <div class="ms-field">
-              <label class="ms-label">MP Horn Copper <span class="ms-label-hint">CDM-Smith rule d</span></label>
+              <label class="ms-label">MP Horn Copper</label>
               <div class="ms-feet-inches" data-measure="mp_horn_copper">
                 <input class="ms-input" type="number" min="0" id="ms-mp_horn_copper-ft" placeholder="ft" oninput="msRecalcMeasure('mp_horn_copper')">
                 <span class="ms-feet-inches-suffix">ft</span>
@@ -2780,7 +2780,7 @@ function filterProperties(query) {
     container.innerHTML='<div class="loading">No properties yet. Add your first property to get started.</div>';
     return;
   }
-  let html=`<table><thead><tr><th>Address</th><th>Phase</th><th>Company Side</th><th>Customer Side</th><th>MapCall ID</th></tr></thead><tbody>`;
+  let html=`<table><thead><tr><th>Address</th><th>Phase</th><th>Company Side</th><th>Customer Side</th><th>Map ID</th></tr></thead><tbody>`;
  data.forEach(p=>{
     const phaseClass='ph-'+(p.current_phase||'pending').replace(/_/g,'');
     const cmClass = p.company_material==='lead'?'mat-lead':p.company_material==='copper'?'mat-copper':p.company_material==='galvanized'?'mat-galvanized':'mat-unknown';
@@ -2988,7 +2988,7 @@ async function saveProperty(){
   if(error){
     // CHECK guard — controlled UI shouldn't trigger this, but surface cleanly if it does
     if((error.message || '').includes('properties_sector_enum')){
-      showToast('Invalid sector value — pick NJ6 Normal or Service Area B.', 'error');
+      showToast('Invalid sector value — pick Normal or Service Area B.', 'error');
     } else {
       showToast('Error: ' + error.message, 'error');
     }
@@ -4659,7 +4659,7 @@ function renderBulkPreview(){
     valid.length ? `Import ${valid.length} Properties` : 'Nothing to Import';
   document.getElementById('bi-confirm-btn').disabled = !valid.length;
 
-  let html = '<thead><tr><th>#</th><th>Address</th><th>City</th><th>Zip</th><th>Lot/Block</th><th>Company Mat</th><th>Customer Mat</th><th>MapCall ID</th><th>Status</th></tr></thead><tbody>';
+  let html = '<thead><tr><th>#</th><th>Address</th><th>City</th><th>Zip</th><th>Lot/Block</th><th>Company Mat</th><th>Customer Mat</th><th>Map ID</th><th>Status</th></tr></thead><tbody>';
   bulkParsedRows.forEach(r => {
     const d = r.data;
     html += `<tr class="${r.skip?'bi-skip':''}">
@@ -4761,7 +4761,7 @@ async function openPropertyDetail(propertyId){
 
   const sectorVal = prop.sector || 'NJ6_NORMAL';
   const sectorClass = sectorVal === 'NJAW_SHORT_HILLS' ? 'sector-short-hills' : 'sector-nj6';
-  const sectorLabel = sectorVal === 'NJAW_SHORT_HILLS' ? 'Service Area B' : 'NJ6 Normal';
+  const sectorLabel = sectorVal === 'NJAW_SHORT_HILLS' ? 'Service Area B' : 'Normal';
 
   document.getElementById('pd-header-grid').innerHTML = `
     <div class="pd-stat"><div class="pd-stat-label">Current Phase</div>
@@ -4777,7 +4777,7 @@ async function openPropertyDetail(propertyId){
       <div class="pd-stat-val" style="color:${cmColor}">${prop.company_material || 'unknown'}</div></div>
     <div class="pd-stat"><div class="pd-stat-label">Customer Material</div>
       <div class="pd-stat-val" style="color:${ckColor}">${prop.customer_material || 'unknown'}</div></div>
-    <div class="pd-stat"><div class="pd-stat-label">MapCall ID</div>
+    <div class="pd-stat"><div class="pd-stat-label">Map ID</div>
       <div class="pd-stat-val">${prop.mapcall_id || '—'}</div></div>
     <div class="pd-stat"><div class="pd-stat-label">Municipality</div>
       <div class="pd-stat-val">${prop.municipality || prop.city || '—'}</div></div>
@@ -5524,7 +5524,7 @@ let pendingSectorEdit = null;
 function openSectorEditModal(propId, currentSector){
   pendingSectorEdit = { propId, currentSector, target: null };
   const fromEl = document.getElementById('sector-edit-from');
-  const fromLabel = currentSector === 'NJAW_SHORT_HILLS' ? 'Service Area B' : 'NJ6 Normal';
+  const fromLabel = currentSector === 'NJAW_SHORT_HILLS' ? 'Service Area B' : 'Normal';
   if(fromEl) fromEl.textContent = fromLabel + ' (' + currentSector + ')';
 
   // Reset target selection — pre-select the OPPOSITE sector since the user
@@ -5575,7 +5575,7 @@ async function confirmSectorEdit(){
     const msg = error.message || '';
     let userMsg;
     if(msg.includes('properties_sector_enum')){
-      userMsg = 'Invalid sector value — only NJ6 Normal and Service Area B are accepted.';
+      userMsg = 'Invalid sector value — only Normal and Service Area B are accepted.';
     } else {
       userMsg = 'Sector update failed: ' + msg;
     }
@@ -5585,7 +5585,7 @@ async function confirmSectorEdit(){
     return;
   }
 
-  showToast('Sector updated to ' + (target === 'NJAW_SHORT_HILLS' ? 'Service Area B' : 'NJ6 Normal') + '.', 'success');
+  showToast('Sector updated to ' + (target === 'NJAW_SHORT_HILLS' ? 'Service Area B' : 'Normal') + '.', 'success');
   pendingSectorEdit = null;
   document.getElementById('modal-sector-edit').classList.remove('open');
 
@@ -6533,7 +6533,7 @@ const VTC_FIELDS = [
     const lb = vtcParseLotBlock(vtcProp('lot_block'));
     const mc = vtcProp('mapcall_id') || '____';
     const date = vtcMs('sheet_date') || vtcVal('tc-co-date_installed') || '____';
-    return `District ID: ${dist||'__'}   OC: ${oc}   Muni: ${muni}   Svc#: ${svc}   Premise#: ${svc}   Street#: ${addr.number||'__'}   Street Name: ${addr.street||'__'}   Lot: ${lb.lot||'__'}   Block: ${lb.block||'__'}   MapCall: ${mc}   Date: ${date}`;
+    return `District ID: ${dist||'__'}   OC: ${oc}   Muni: ${muni}   Svc#: ${svc}   Premise#: ${svc}   Street#: ${addr.number||'__'}   Street Name: ${addr.street||'__'}   Lot: ${lb.lot||'__'}   Block: ${lb.block||'__'}   Map: ${mc}   Date: ${date}`;
   }, size:7.5, family:'mono', static:false, color:'muted'},
   {x:0.04, y:0.980, get:()=>{
     const notes = vtcMs('notes');
@@ -6581,7 +6581,7 @@ function vtcRender(){
     return;
   }
   if(prop.sector === 'NJAW_SHORT_HILLS'){
-    const msg = '<div class="vtc-shorthills-msg">Visual tapcard unavailable for ShortHills sector — paper format differs from NJ6 Normal.</div>';
+    const msg = '<div class="vtc-shorthills-msg">Visual tapcard unavailable for ShortHills sector — paper format differs from Normal.</div>';
     containers.forEach(c => {
       c.innerHTML = msg;
       c.classList.add('vtc-active','vtc-shorthills');
@@ -6904,6 +6904,13 @@ function tcRenderMaterialsFullView(sheet){
   }
 }
 
+// Phase 2 demo-neutralize 5/9/26: human-readable sector label for UI display.
+// Keep enum values (NJ6_NORMAL / NJAW_SHORT_HILLS) untouched in DB and code paths.
+function sectorFriendlyLabel(s){
+  if(s === 'NJAW_SHORT_HILLS') return 'Short Hills';
+  return 'Normal';
+}
+
 function tcRenderPropertySummary(prop){
   const container = document.getElementById('tc-property-summary');
   if(!container) return;
@@ -6912,8 +6919,8 @@ function tcRenderPropertySummary(prop){
   const fields = [
     ['Address', prop.address || '—'],
     ['City / State / Zip', [prop.city, prop.state, prop.zip].filter(Boolean).join(', ') || '—'],
-    ['MapCall ID', prop.mapcall_id || '—'],
-    ['Sector', prop.sector || 'NJ6_NORMAL'],
+    ['Map ID', prop.mapcall_id || '—'],
+    ['Sector', sectorFriendlyLabel(prop.sector)],
     ['Current Phase', (prop.current_phase || 'pending').replace(/_/g,' ')],
   ];
   container.innerHTML = fields.map(([label, val]) =>
@@ -6944,7 +6951,7 @@ function tcAutoPopulateCompanySide(prop, sheet){
 
   // Owner / Location block from property — Phase 2b refactor: Lot/Block dropped from
   // this row (acceptance criterion: "LOT / BLOCK / TOWN SECTION line is gone"). Kept
-  // Owner, Location, Municipality, Cross Street, MapCall ID — the operationally useful set.
+  // Owner, Location, Municipality, Cross Street, Map ID — the operationally useful set.
   const ob = document.getElementById('tc-co-owner-block');
   if(ob){
     const fields = [
@@ -6952,7 +6959,7 @@ function tcAutoPopulateCompanySide(prop, sheet){
       ['Location', prop.address || '—'],
       ['Municipality', prop.municipality || prop.city || '—'],
       ['Cross Street', prop.cross_street || '—'],
-      ['MapCall ID', prop.mapcall_id || '—'],
+      ['Map ID', prop.mapcall_id || '—'],
     ];
     ob.innerHTML = fields.map(([label, val]) =>
       `<div class="tc-readonly-pill"><span style="color:var(--muted);font-size:10px">${label}:</span> <span>${val}</span></div>`
@@ -7963,7 +7970,7 @@ You help inspectors and PMs with:
 - Six phases: Test Pit, Assessment, Work Order, Service Work, GIS Documentation, Restoration
 - Whiteboard photo rules (LOCKED): Required when open excavation exists (curbstop area, watermain area, restoration — INCLUDING final restoration photos and rainy-day restorations). Also required when reporting a failed restoration with compliance issues. NOT required for tapcard/triangulation, GIS docs, blueprints, property exterior, backlog collection. Simple rule: hole in the ground OR compliance failure = whiteboard. No hole and no failure = no whiteboard.
 - Pipe materials: lead, copper, galvanized, unknown
-- MapCall data entry requirements
+- GIS data entry requirements
 - ADA: max ramp slope 1:12 (8.33%), truncated domes required, min 36in curb cut width
 - Roadway: asphalt ratings, Belgian block pointing, pavement distress
 - Regulatory requirements (DEP, EPA, utility-side)
