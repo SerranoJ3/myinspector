@@ -7498,6 +7498,12 @@ function diagramClear(){
   diagramRender();
 }
 
+// Inset clamp keeps draggable items (MPs, assets, selection rings up to r=22) fully inside
+// the canvas. Asset rect half-width is 12 SVG units; selection ring r=22 is the widest visual.
+// 0.03 inset = 24px in x (800w) / 18px in y (600h) — covers asset + ring with breathing room.
+// Side effect: auto-computed distance/bearing read from the clamped position, so measurements
+// automatically reflect what the inspector physically placed within the canvas bounds.
+const DIAGRAM_DRAG_INSET = 0.03;
 function _diagramSvgPoint(evt){
   const svg = document.getElementById('tc-diagram-canvas');
   if(!svg) return null;
@@ -7507,7 +7513,11 @@ function _diagramSvgPoint(evt){
   const ctm = svg.getScreenCTM();
   if(!ctm) return null;
   const local = pt.matrixTransform(ctm.inverse());
-  return { x: _diagramClamp(local.x / DIAGRAM_VIEWBOX_W), y: _diagramClamp(local.y / DIAGRAM_VIEWBOX_H) };
+  const lo = DIAGRAM_DRAG_INSET, hi = 1 - DIAGRAM_DRAG_INSET;
+  return {
+    x: Math.max(lo, Math.min(hi, local.x / DIAGRAM_VIEWBOX_W)),
+    y: Math.max(lo, Math.min(hi, local.y / DIAGRAM_VIEWBOX_H))
+  };
 }
 
 function _diagramHit(point){
