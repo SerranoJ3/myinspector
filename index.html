@@ -269,6 +269,8 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .pd-diagram-svg{display:block;width:100%;height:auto;max-height:280px}
 .pd-aerial-map{height:280px;width:100%;border:1px solid var(--border);border-radius:var(--radius);margin-top:14px;overflow:hidden;background:#0a1220}
 .pd-aerial-map .leaflet-container{height:100%;width:100%;background:#0a1220;font-family:inherit}
+.pd-aerial-map .leaflet-control-attribution{font-size:6px;line-height:1.1;padding:0 3px;background:rgba(10,18,32,0.5);color:rgba(255,255,255,0.55);font-family:inherit;border-radius:2px 0 0 0}
+.pd-aerial-map .leaflet-control-attribution a{color:rgba(255,255,255,0.65);text-decoration:none}
 .pd-aerial-map-empty{height:280px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;border:1px dashed var(--border);border-radius:var(--radius);margin-top:14px;background:#0a1220}
 .rg-meta{font-size:11px;color:var(--muted);margin-bottom:12px;font-style:italic}
 .rg-fieldset{border:1px solid var(--border);border-radius:var(--radius);padding:14px;background:var(--surface);margin-bottom:14px;min-width:0}
@@ -4627,7 +4629,9 @@ async function confirmHeraldUpload(){
     if(msg.includes('bucket') || msg.includes('not found') || msg.includes('does not exist')){
       showToast('Herald storage not configured yet — ping Jorge to enable the bucket','error');
     } else {
-      showToast('Upload failed — try again or ping Jorge','error');
+      // B1 sweep: route storage errors through tcFriendlyError for consistency with DB write paths
+      console.error('Herald upload error:', uploadErr);
+      showToast(tcFriendlyError(uploadErr.message || ''),'error');
     }
     return;
   }
@@ -4655,7 +4659,9 @@ async function confirmHeraldUpload(){
   if(insertErr){
     progEl.style.display = 'none';
     btn.disabled = false;
-    showToast('Save failed — try again or ping Jorge','error');
+    // B1 sweep: friendly-error wrapper pattern propagated from MI-101-tapcard-polish v1
+    console.error('Herald insert error:', insertErr);
+    showToast(tcFriendlyError(insertErr.message || ''),'error');
     return;
   }
   progEl.style.display = 'none';
