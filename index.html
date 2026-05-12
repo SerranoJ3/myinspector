@@ -259,12 +259,12 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .tc-diagram-asset-picker{position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px;display:flex;flex-direction:column;gap:4px;z-index:50;box-shadow:0 6px 18px rgba(0,0,0,0.45);min-width:120px}
 .tc-diagram-asset-picker button{background:transparent;border:1px solid transparent;color:var(--white);font-size:12px;padding:6px 10px;border-radius:4px;cursor:pointer;text-align:left;font-family:'Rajdhani',sans-serif;font-weight:600}
 .tc-diagram-asset-picker button:hover{background:rgba(74,124,196,0.2);border-color:var(--blue-light)}
-.tc-diagram-canvas-wrap{position:relative;border:1px solid var(--border);border-radius:0 0 var(--radius) var(--radius);overflow:hidden;background:#0a1220}
+.tc-diagram-canvas-wrap{position:relative;border:1px solid var(--border);border-radius:0 0 var(--radius) var(--radius);overflow:hidden;background:#f5f1e6}
 .tc-diagram-canvas{display:block;width:100%;height:auto;max-height:60vh;touch-action:none;-webkit-user-select:none;user-select:none;cursor:crosshair}
 .tc-diagram-canvas g.dgm-mp,.tc-diagram-canvas g.dgm-asset{cursor:grab}
 .tc-diagram-canvas g.dgm-mp:active,.tc-diagram-canvas g.dgm-asset:active{cursor:grabbing}
 .tc-diagram-readonly-pill{position:absolute;top:8px;right:8px;background:rgba(244,168,32,0.95);color:#1a1a1a;font-size:11px;font-weight:700;padding:5px 10px;border-radius:99px;font-family:'Rajdhani',sans-serif;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 2px 8px rgba(0,0,0,0.4)}
-.pd-diagram-embed{position:relative;margin-top:10px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:#0a1220}
+.pd-diagram-embed{position:relative;margin-top:10px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:#f5f1e6}
 .pd-diagram-pill{position:absolute;top:6px;right:6px;background:rgba(244,168,32,0.92);color:#1a1a1a;font-size:9px;font-weight:700;padding:3px 8px;border-radius:99px;font-family:'Rajdhani',sans-serif;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 2px 6px rgba(0,0,0,0.4);max-width:75%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2}
 .pd-diagram-svg{display:block;width:100%;height:auto;max-height:280px}
 .pd-aerial-map{height:280px;width:100%;border:1px solid var(--border);border-radius:var(--radius);margin-top:14px;overflow:hidden;background:#0a1220}
@@ -4934,6 +4934,10 @@ async function openPropertyDetail(propertyId){
   const sectorClass = sectorVal === 'NJAW_SHORT_HILLS' ? 'sector-short-hills' : 'sector-nj6';
   const sectorLabel = sectorVal === 'NJAW_SHORT_HILLS' ? 'Service Area B' : 'Normal';
 
+  // Hide Service Area B tab on Normal sector properties — tab is sector-specific role-inversion surface
+  const shTab = modal.querySelector('.pd-tab[data-page="shorthills"]');
+  if(shTab) shTab.style.display = sectorVal === 'NJAW_SHORT_HILLS' ? '' : 'none';
+
   document.getElementById('pd-header-grid').innerHTML = `
     <div class="pd-stat"><div class="pd-stat-label">Current Phase</div>
       <div class="pd-stat-val"><span class="phase-badge ${phaseClass}">${(prop.current_phase||'pending').replace(/_/g,' ')}</span></div></div>
@@ -7674,12 +7678,12 @@ function diagramRender(){
     // HOUSE rectangle (below P.L., contains house number text)
     const hx = px(DIAGRAM_HOUSE.x1), hy = py(DIAGRAM_HOUSE.y1);
     const hw = px(DIAGRAM_HOUSE.x2) - hx, hh = py(DIAGRAM_HOUSE.y2) - hy;
-    refHtml += `<rect x="${hx}" y="${hy}" width="${hw}" height="${hh}" fill="rgba(94,122,154,0.08)" stroke="#cdd9eb" stroke-width="1.5" rx="3"/>`;
-    // House label (top of rectangle, small)
-    refHtml += `<text x="${hx + hw/2}" y="${hy + 14}" text-anchor="middle" font-family="'Rajdhani', sans-serif" font-size="10" font-weight="700" fill="#94a3b8" letter-spacing="0.1em">HOUSE</text>`;
-    // House number (centered in rectangle, large) — falls back to dashed placeholder
+    refHtml += `<rect x="${hx}" y="${hy}" width="${hw}" height="${hh}" fill="rgba(94,122,154,0.10)" stroke="#94a3b8" stroke-width="1.5" rx="3"/>`;
+    // House label (top of rectangle, small) — slate-500 on cream
+    refHtml += `<text x="${hx + hw/2}" y="${hy + 14}" text-anchor="middle" font-family="'Rajdhani', sans-serif" font-size="10" font-weight="700" fill="#64748b" letter-spacing="0.1em">HOUSE</text>`;
+    // House number (centered in rectangle, large) — dark navy on cream, falls back to slate placeholder
     const hn = (diagramState.house_number || '').trim();
-    refHtml += `<text x="${hx + hw/2}" y="${hy + hh/2 + 8}" text-anchor="middle" font-family="'Rajdhani', sans-serif" font-size="22" font-weight="700" fill="${hn ? '#fff' : '#5e7a9a'}">${hn ? gisEscape(hn) : '____'}</text>`;
+    refHtml += `<text x="${hx + hw/2}" y="${hy + hh/2 + 8}" text-anchor="middle" font-family="'Rajdhani', sans-serif" font-size="22" font-weight="700" fill="${hn ? '#1a2434' : '#94a3b8'}">${hn ? gisEscape(hn) : '____'}</text>`;
     refLayer.innerHTML = refHtml;
   }
 
@@ -7703,7 +7707,7 @@ function diagramRender(){
   let html = '';
   // Connectors first (under markers)
   diagramState.mp.forEach(m => {
-    html += `<line x1="${csX}" y1="${csY}" x2="${px(m.x)}" y2="${py(m.y)}" stroke="rgba(74,124,196,0.5)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
+    html += `<line x1="${csX}" y1="${csY}" x2="${px(m.x)}" y2="${py(m.y)}" stroke="rgba(0,0,0,0.55)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
   });
   // MPs
   diagramState.mp.forEach(m => {
@@ -7713,7 +7717,7 @@ function diagramRender(){
     html += `<g class="dgm-mp" data-id="${m.id}">`;
     html += `<circle cx="${mx}" cy="${my}" r="12" fill="#4a7cc4" stroke="#fff" stroke-width="2.5"/>`;
     html += `<text x="${mx}" y="${my+4}" text-anchor="middle" fill="#fff" font-size="11" font-weight="800" font-family="Rajdhani, sans-serif">${(m.label||'').replace('MP','')}</text>`;
-    html += `<text x="${mx}" y="${my+25}" text-anchor="middle" fill="#cdd9eb" font-size="10" font-weight="600" font-family="sans-serif">${m.distance_to_cs_ft}ft &middot; ${m.bearing_to_cs_deg}&deg;</text>`;
+    html += `<text x="${mx}" y="${my+25}" text-anchor="middle" fill="#1a1a1a" font-size="10" font-weight="600" font-family="sans-serif">${m.distance_to_cs_ft}ft &middot; ${m.bearing_to_cs_deg}&deg;</text>`;
     html += `</g>`;
   });
   // Assets
@@ -7726,7 +7730,7 @@ function diagramRender(){
     html += `<g class="dgm-asset" data-id="${a.id}">`;
     html += `<rect x="${ax-12}" y="${ay-12}" width="24" height="24" rx="3" fill="${color}" stroke="#fff" stroke-width="2"/>`;
     html += `<text x="${ax}" y="${ay+5}" text-anchor="middle" fill="#fff" font-size="13" font-weight="800" font-family="Rajdhani, sans-serif">${letter}</text>`;
-    html += `<text x="${ax}" y="${ay-18}" text-anchor="middle" fill="#cdd9eb" font-size="10" font-weight="600" font-family="sans-serif">${a.label}</text>`;
+    html += `<text x="${ax}" y="${ay-18}" text-anchor="middle" fill="#1a1a1a" font-size="10" font-weight="600" font-family="sans-serif">${a.label}</text>`;
     html += `</g>`;
   });
   content.innerHTML = html;
@@ -7872,20 +7876,20 @@ function diagramReadOnlyEmbed(diagram, opts){
   inner += `<text x="${px(0.06)}" y="${plY - 6}" font-family="'Rajdhani', sans-serif" font-size="11" font-weight="700" fill="${DIAGRAM_REF_LINES.pl.color}" letter-spacing="0.06em">P.L.</text>`;
   const hx = px(DIAGRAM_HOUSE.x1), hy = py(DIAGRAM_HOUSE.y1);
   const hw = px(DIAGRAM_HOUSE.x2) - hx, hh = py(DIAGRAM_HOUSE.y2) - hy;
-  inner += `<rect x="${hx}" y="${hy}" width="${hw}" height="${hh}" fill="rgba(94,122,154,0.08)" stroke="#cdd9eb" stroke-width="1.5" rx="3"/>`;
-  inner += `<text x="${hx + hw/2}" y="${hy + 14}" text-anchor="middle" font-family="'Rajdhani', sans-serif" font-size="10" font-weight="700" fill="#94a3b8" letter-spacing="0.1em">HOUSE</text>`;
+  inner += `<rect x="${hx}" y="${hy}" width="${hw}" height="${hh}" fill="rgba(94,122,154,0.10)" stroke="#94a3b8" stroke-width="1.5" rx="3"/>`;
+  inner += `<text x="${hx + hw/2}" y="${hy + 14}" text-anchor="middle" font-family="'Rajdhani', sans-serif" font-size="10" font-weight="700" fill="#64748b" letter-spacing="0.1em">HOUSE</text>`;
   const hn = (diagram.house_number || '').trim();
-  inner += `<text x="${hx + hw/2}" y="${hy + hh/2 + 8}" text-anchor="middle" font-family="'Rajdhani', sans-serif" font-size="22" font-weight="700" fill="${hn ? '#fff' : '#5e7a9a'}">${hn ? escapeStr(hn) : '____'}</text>`;
+  inner += `<text x="${hx + hw/2}" y="${hy + hh/2 + 8}" text-anchor="middle" font-family="'Rajdhani', sans-serif" font-size="22" font-weight="700" fill="${hn ? '#1a2434' : '#94a3b8'}">${hn ? escapeStr(hn) : '____'}</text>`;
   inner += `<g class="dgm-cs"><circle cx="${csX}" cy="${csY}" r="13" fill="#f4a820" stroke="#fff" stroke-width="2"/><text x="${csX}" y="${csY+4}" text-anchor="middle" fill="#1a1a1a" font-size="11" font-weight="800" font-family="Rajdhani, sans-serif">CS</text></g>`;
   (diagram.mp || []).forEach(m => {
-    inner += `<line x1="${csX}" y1="${csY}" x2="${px(m.x)}" y2="${py(m.y)}" stroke="rgba(74,124,196,0.5)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
+    inner += `<line x1="${csX}" y1="${csY}" x2="${px(m.x)}" y2="${py(m.y)}" stroke="rgba(0,0,0,0.55)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
   });
   (diagram.mp || []).forEach(m => {
     const mx = px(m.x), my = py(m.y);
     inner += `<g class="dgm-mp"><circle cx="${mx}" cy="${my}" r="11" fill="#4a7cc4" stroke="#fff" stroke-width="2"/>`;
     inner += `<text x="${mx}" y="${my+4}" text-anchor="middle" fill="#fff" font-size="10" font-weight="800" font-family="Rajdhani, sans-serif">${escapeStr((m.label||'').replace('MP',''))}</text>`;
     if(m.distance_to_cs_ft != null && m.bearing_to_cs_deg != null){
-      inner += `<text x="${mx}" y="${my+22}" text-anchor="middle" fill="#cdd9eb" font-size="9" font-weight="600" font-family="sans-serif">${escapeStr(m.distance_to_cs_ft)}ft &middot; ${escapeStr(m.bearing_to_cs_deg)}&deg;</text>`;
+      inner += `<text x="${mx}" y="${my+22}" text-anchor="middle" fill="#1a1a1a" font-size="9" font-weight="600" font-family="sans-serif">${escapeStr(m.distance_to_cs_ft)}ft &middot; ${escapeStr(m.bearing_to_cs_deg)}&deg;</text>`;
     }
     inner += `</g>`;
   });
@@ -7897,7 +7901,7 @@ function diagramReadOnlyEmbed(diagram, opts){
     const letter = assetLetter[a.type] || '?';
     inner += `<g class="dgm-asset"><rect x="${ax-11}" y="${ay-11}" width="22" height="22" rx="3" fill="${color}" stroke="#fff" stroke-width="2"/>`;
     inner += `<text x="${ax}" y="${ay+4}" text-anchor="middle" fill="#fff" font-size="12" font-weight="800" font-family="Rajdhani, sans-serif">${escapeStr(letter)}</text>`;
-    inner += `<text x="${ax}" y="${ay-16}" text-anchor="middle" fill="#cdd9eb" font-size="9" font-weight="600" font-family="sans-serif">${escapeStr(a.label)}</text>`;
+    inner += `<text x="${ax}" y="${ay-16}" text-anchor="middle" fill="#1a1a1a" font-size="9" font-weight="600" font-family="sans-serif">${escapeStr(a.label)}</text>`;
     inner += `</g>`;
   });
 
