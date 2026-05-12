@@ -2729,7 +2729,7 @@ function showPanel(name){
 
 // ── DASHBOARD ─────────────────────────────────────────
 async function loadDashboard(){
-  const {data:props} = await sb.from('properties').select('*');
+  const {data:props} = await sb.from('properties').select('*').is('deleted_at', null);
   if(!props){ return; }
   const total    = props.length;
   const complete = props.filter(p=>p.current_phase==='complete').length;
@@ -2817,7 +2817,7 @@ function filterProperties(query) {
   });
 }
   async function loadProperties(){
-  const {data,error} = await sb.from('properties').select('*').order('created_at',{ascending:false});
+  const {data,error} = await sb.from('properties').select('*').is('deleted_at', null).order('created_at',{ascending:false});
   const container = document.getElementById('properties-list');
   if(error||!data||data.length===0){
     container.innerHTML='<div class="loading">No properties yet. Add your first property to get started.</div>';
@@ -2843,7 +2843,7 @@ function filterProperties(query) {
 let submitPropertyCache = [];
 
 async function loadPropertySelect(){
-  const {data} = await sb.from('properties').select('id,address,city,lot_block,mapcall_id,current_phase').order('address');
+  const {data} = await sb.from('properties').select('id,address,city,lot_block,mapcall_id,current_phase').is('deleted_at', null).order('address');
   submitPropertyCache = data || [];
   const input = document.getElementById('submit-property-search');
   const hidden = document.getElementById('submit-property-select');
@@ -2930,7 +2930,7 @@ async function buildStreetIndex(){
   // Fetch addresses directly — works even if user hasn't visited Submit Phase yet
   let source = submitPropertyCache;
   if(!source || !source.length){
-    const {data} = await sb.from('properties').select('address').order('address');
+    const {data} = await sb.from('properties').select('address').is('deleted_at', null).order('address');
     source = data || [];
   }
   const streetSet = new Set();
