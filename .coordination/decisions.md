@@ -920,3 +920,71 @@ A firm could be safe to display while pitch mode is on (e.g., the demo firm itse
 **Source:** Lead build per disk-based work-order spec. **Lesson 11 banked** in STATE.md: orphan tapcard pattern — design read-side fallbacks for write-side state that can't be guaranteed.
 
 **Affects:** Any RLS-protected nullable FK that's high-traffic on read surfaces — same fallback pattern applies. Audit candidates: `phase_submissions.parent_phase_id` (chain reconstruction), `daily_reports.generated_by` (if user account deleted but report still relevant). POST-DEMO architectural fix: in `submitTapcard`, after the insert, optionally backfill `materials_sheet_id` via a follow-up query for any MS the user creates for the property — closes the orphan creation path at the producer.
+
+---
+
+## 2026-05-11 ~midday — `f929f49` Leaflet attribution shrink + B1 friendly-error sweep complete
+
+**Decision:** Close B1 punchlist item — propagate the `tcFriendlyError`-style wrapper pattern from MI-101-tapcard-polish v1 to all `confirm*` write handlers (heralds upload, gis import, gis new list, daily reports upsert, restoration grid save).
+
+**Reasoning:** Per `.coordination/myinspector_punchlist_2026-05-08.md` B1 — friendly-error pattern needed parity across non-tapcard write paths so demo never surfaces raw RLS/postgres terminology under cross-firm browsing. Polished alongside Leaflet attribution font-size 8px → 6px (aerial map UI fix).
+
+**No principle / no schema impact.** Pure UI polish + error-message hygiene.
+
+---
+
+## 2026-05-12 ~early — `3f65276` Service Area B tab visibility gated by sector + diagram contrast revision
+
+**Decision:** Hide Service Area B tab when the active firm has zero properties in `NJAW_SHORT_HILLS` sector. Show conditionally.
+
+**Reasoning:** Service Area B is a sector-specific role-inversion workflow (CLAUDE.md #6 — inspector dictates means/methods, interacts with homeowner directly). For Normal-sector firms (most), the tab is dead UI surface that confuses inspectors. Sector gate is the right axis since the workflow is sector-bound, not firm-bound.
+
+**Implementation:** Tab visibility keyed on `currentFirm.has_short_hills_properties` derived flag. Diagram contrast revision (connector + labels to near-black, ANCHOR back to orange) bundled in same commit for legibility.
+
+---
+
+## 2026-05-12 ~midday — `8475c34` House + Tapcard cover photos demoted to optional (Principle #1 re-affirmation)
+
+**Decision:** House photo and Tapcard cover photos no longer required to submit Test Pit or Service Work phase. Tapcard cover stays optional on `service_work` phase only.
+
+**Reasoning:** CLAUDE.md Principle #1 — inspectors do no extra work for the app. Identity verification is already covered by (a) GPS auto-capture at submission and (b) the digital tapcard cover form itself which captures structured fields the cover photo only mirrored. Required photo prompts violated the inspector-tap economy without removing more elsewhere.
+
+**Unchanged:** Whiteboard rule (CLAUDE.md #2 — open excavation = whiteboard required). Carlo CS-replacement authorization photo + whiteboard requirements (CDM-Smith rule #3) unchanged. No-work submission still requires house + whiteboard photos per MI-108.
+
+---
+
+## 2026-05-12 ~afternoon — `aecc952` Diagram drag/tap inset clamp (DIAGRAM_DRAG_INSET = 0.03)
+
+**Decision:** Switch diagram asset position clamp from `[0, 1]` (asset center) to `[0.03, 0.97]` normalized (visual-extent inclusive). Constant exported as `DIAGRAM_DRAG_INSET = 0.03`.
+
+**Reasoning:** Original clamp put the asset *center* at the canvas edge. 24×24 px rects extended 12 px past the edge, and the r=22 selection ring went further still. 5/12 ~afternoon Jorge reported asset overflow on 124 Oak Street; root cause was clamp semantics, not a render bug. 0.03 normalized accommodates half-width + selection ring radius across the supported canvas range.
+
+**Lesson 12 banked** (in STATE.md): "Visual-extent vs center clamp — clamps over draggable assets must account for half-width + selection ring radius, not just the center coordinate. If the asset has visual chrome (selection ring, label, halo), the clamp inset must include the chrome radius."
+
+---
+
+## 2026-05-12 late evening — Memory architecture overhaul: SESSION_LOG.md + RECENT_CONTEXT.md as canonical session-pickup mechanism
+
+**Decision:** Instantiate `.coordination/SESSION_LOG.md` (append-only reverse-chrono with 14-day pruning) and `.coordination/RECENT_CONTEXT.md` (current-state snapshot, rewritten in place) as Buddy's primary session-pickup files. Trim userMemories to identity + locked-principles layer only (26 → 8 entries; 18 detailed entries moved to `MEMORY_ARCHIVE.md` at repo root, organized by topic with cross-refs to BUDDY_STANDARD / SESSION_LOG / RECENT_CONTEXT).
+
+**Reasoning:** userMemories were duplicating product specs / business state / operational rules that change faster than memory can track. Auto-compaction summaries shown to drift across sessions. Canonical session-pickup needs to be Buddy-controlled markdown files Buddy reads at session open — not memory entries written by a background process.
+
+**Buddy session-open order locked:** (1) SESSION_LOG.md → (2) RECENT_CONTEXT.md → (3) CLAUDE.md + BUDDY_STANDARD.md → (4) grep MEMORY_ARCHIVE.md only when identity + principles aren't enough.
+
+**Supersedes `.coordination/buddy_context.md`** (per BUDDY_STANDARD §10 original convention). That file is no longer maintained; if it appears, treat as historical artifact. RECENT_CONTEXT.md replaces its role.
+
+**CC-side session open unchanged:** CLAUDE.md → STATE.md → BUDDY_STANDARD.md → status.md + decisions.md as needed.
+
+**Lesson 13 banked** (in STATE.md): CC work-order file pattern — Buddy writes CC tasks as `.coordination/cc_*_YYYY-MM-DD.md`; Jorge invokes via `read .coordination/cc_X.md and execute`. Replaces inline prose prompts that consistently truncated at paste boundary.
+
+---
+
+## 2026-05-12 late evening — "Shipped" gate: disk writes do not equal deploys (Lesson 14 candidate)
+
+**Decision:** Buddy MUST verify Vercel deploy state before declaring any Vercel-served surface "shipped." Verification path: `Vercel:list_deployments` (confirm latest deploy SHA + state=READY) AND/OR `Vercel:web_fetch_vercel_url` (fetch the live URL, grep for the changed token).
+
+**Reasoning:** 5/12 late-evening incident — Buddy applied the pill fix via filesystem MCP, declared "shipped." Jorge tested via Vercel preview, reported "looks the same." Vercel was still serving `1c43214` (4 hrs stale) because the filesystem edits were never committed/pushed. The shipped surface had not changed.
+
+**Rule:** "Shipped" = the deploy surface has the change. Disk writes ≠ shipped. Git pushes that reach Vercel READY = shipped. Buddy never declares done before that gate passes.
+
+**Lesson 14 candidate** to bank in STATE.md after this push lands (or fold into existing Lesson 11 schema-state-surprise pattern — same family of "verify against live, not against memory of what was done").
