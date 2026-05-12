@@ -265,7 +265,7 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .tc-diagram-canvas g.dgm-mp:active,.tc-diagram-canvas g.dgm-asset:active{cursor:grabbing}
 .tc-diagram-readonly-pill{position:absolute;top:8px;right:8px;background:rgba(244,168,32,0.95);color:#1a1a1a;font-size:11px;font-weight:700;padding:5px 10px;border-radius:99px;font-family:'Rajdhani',sans-serif;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 2px 8px rgba(0,0,0,0.4)}
 .pd-diagram-embed{position:relative;margin-top:10px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:#f5f1e6}
-.pd-diagram-pill{position:absolute;top:6px;right:6px;background:rgba(244,168,32,0.92);color:#1a1a1a;font-size:9px;font-weight:700;padding:3px 8px;border-radius:99px;font-family:'Rajdhani',sans-serif;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 2px 6px rgba(0,0,0,0.4);max-width:75%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2}
+.pd-diagram-pill{position:absolute;top:6px;right:6px;background:rgba(244,168,32,0.92);color:#1a1a1a;font-size:9px;font-weight:700;padding:6px 9px;border-radius:10px;font-family:'Rajdhani',sans-serif;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 2px 6px rgba(0,0,0,0.4);max-width:42%;z-index:2}
 .pd-diagram-svg{display:block;width:100%;height:auto;max-height:280px}
 .pd-aerial-map{height:280px;width:100%;border:1px solid var(--border);border-radius:var(--radius);margin-top:14px;overflow:hidden;background:#0a1220}
 .pd-aerial-map .leaflet-container{height:100%;width:100%;background:#0a1220;font-family:inherit}
@@ -7292,7 +7292,7 @@ const DIAGRAM_VIEWBOX_W = 800;
 const DIAGRAM_VIEWBOX_H = 600;
 const DIAGRAM_CS_DEFAULT = { x: 0.5, y: 0.7333 };
 const DIAGRAM_REF_LINES = {
-  cl_far:  { y: 0.1333, label: 'C.L.', color: '#94a3b8', strokeWidth: 1.5, dash: '6,4' },
+  cl_far:  { y: 0.20, label: 'C.L.', color: '#94a3b8', strokeWidth: 1.5, dash: '6,4' },
   main:    { y: 0.40,   label: 'MAIN', color: '#4a7cc4', strokeWidth: 4 },
   cl:      { y: 0.6667, label: 'C.L.', color: '#94a3b8', strokeWidth: 1.5, dash: '6,4' },
   pl:      { y: 0.80,   label: 'P.L.', color: '#94a3b8', strokeWidth: 1.5, dash: '6,4' }
@@ -7920,9 +7920,12 @@ function diagramReadOnlyEmbed(diagram, opts){
   // placed near corners of the diagram. Only crot is computed here for use in pill.
   const crot = diagram.compass_rotation_deg || 0;
 
-  // Sprint Polish 5/10/26 round 2: pill restructured to two stacked lines (inspector
-  // name on top, date+rotation on second line). Compass bumped to 22x22 for clarity.
-  // Falls back to opts.pillText (legacy) if inspectorName/dateStr not supplied.
+  // Sprint Polish 5/12/26 (revised PM): pill restructured AGAIN to horizontal layout —
+  // compass on the LEFT, 3-row text column on the RIGHT (name / date / time+rotation).
+  // Previous AM version stacked compass-on-top + 3 text rows = ~80px tall, which made
+  // the pill overlap the cl_far reference line near the diagram top. Horizontal layout
+  // drops pill height ~45%, keeps it tucked in the narrow right-side band, professional.
+  // Date string ("May 10, 2026, 4:38 PM") is split on commas to separate date from time.
   const inspectorName = opts.inspectorName ? escapeStr(opts.inspectorName) : '';
   const dateStr = opts.dateStr ? escapeStr(opts.dateStr) : '';
   const legacyPillText = opts.pillText ? escapeStr(opts.pillText) : '';
@@ -7935,12 +7938,16 @@ function diagramReadOnlyEmbed(diagram, opts){
     <circle cx="10" cy="10" r="1.2" fill="#fff"/>
   </svg>`;
   const rotSuffix = crot !== 0 ? ` · ${crot}° rot` : '';
-  // Two-line text block: name on top, date + rotation on second line.
-  // If only legacy pillText supplied, render that as single line preserved layout.
+  // Robust date/time split — regex-anchor on the time pattern instead of comma count.
+  // toLocaleString output varies: "May 10, 2026, 4:38 PM" (Chrome) vs "May 10, 2026 4:38 PM"
+  // (Safari/some locales). Time format (H:MM AM/PM) is the reliable anchor.
+  const timeMatch = dateStr.match(/\b(\d{1,2}:\d{2}(?:\s*[AP]M)?)\s*$/i);
+  const timeOnly = timeMatch ? timeMatch[1].trim() : '';
+  const dateOnly = timeMatch ? dateStr.slice(0, timeMatch.index).replace(/[,\s]+$/, '').trim() : dateStr;
   const textBlock = (inspectorName || dateStr)
-    ? `<div style="display:flex;flex-direction:column;line-height:1.15;font-size:10px"><span style="font-weight:800">${inspectorName}</span><span style="font-weight:600;opacity:0.85">${dateStr}${rotSuffix}</span></div>`
+    ? `<div style="display:flex;flex-direction:column;align-items:flex-start;text-align:left;line-height:1.3;font-size:9px;gap:2px;min-width:0"><div style="font-weight:800;white-space:nowrap">${inspectorName}</div>${dateOnly ? `<div style="font-weight:600;opacity:0.9;white-space:nowrap">${dateOnly}</div>` : ''}${(timeOnly || rotSuffix) ? `<div style="font-weight:600;opacity:0.9;white-space:nowrap">${timeOnly}${rotSuffix}</div>` : ''}</div>`
     : `<span>${legacyPillText}${rotSuffix}</span>`;
-  return `<div class="pd-diagram-embed"><div class="pd-diagram-pill" style="display:flex;align-items:center;gap:7px;padding:5px 10px 5px 7px">${compassInline}${textBlock}</div><svg class="pd-diagram-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${inner}</svg></div>`;
+  return `<div class="pd-diagram-embed"><div class="pd-diagram-pill" style="display:flex;flex-direction:row;align-items:center;gap:7px">${compassInline}${textBlock}</div><svg class="pd-diagram-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${inner}</svg></div>`;
 }
 
 // ─────────────────────────────────────────────────────────────
