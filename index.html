@@ -3124,9 +3124,9 @@ function renderDynamicFields(type){
   if(type==='test_pit'){
     html+=`<div class="form-section">
       <div class="form-section-title">Cardinal Photos</div>
-      ${renderPhotoSlot('house', 'House Photo', {})}
+      ${renderPhotoSlot('house', 'House Photo', { optional: true })}
       ${renderPhotoSlot('curbstop_meterpit', 'Curbstop / Meterpit Photo', { whiteboardRequired: true })}
-      ${renderPhotoSlot('tapcard', 'Tapcard Photo', {})}
+      ${renderPhotoSlot('tapcard', 'Tapcard Photo', { optional: true })}
       ${renderPhotoSlot('other', 'Additional Photos', { optional: true })}
     </div>
     <div class="form-section">
@@ -3165,7 +3165,7 @@ function renderDynamicFields(type){
       <div class="form-section-title">Cardinal Photos</div>
       ${renderPhotoSlot('curbstop_meterpit', 'Curbstop / Meterpit Photo', { whiteboardRequired: true })}
       ${renderPhotoSlot('watermain_corporation', 'Watermain / Corporation Photo', { whiteboardRequired: true })}
-      ${renderPhotoSlot('tapcard', 'Tapcard Photo', {})}
+      ${renderPhotoSlot('tapcard', 'Tapcard Photo', { optional: true })}
       ${renderPhotoSlot('other', 'Additional Photos', { optional: true })}
     </div>
     <div class="form-section">
