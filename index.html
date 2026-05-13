@@ -259,12 +259,12 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .tc-diagram-asset-picker{position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px;display:flex;flex-direction:column;gap:4px;z-index:50;box-shadow:0 6px 18px rgba(0,0,0,0.45);min-width:120px}
 .tc-diagram-asset-picker button{background:transparent;border:1px solid transparent;color:var(--white);font-size:12px;padding:6px 10px;border-radius:4px;cursor:pointer;text-align:left;font-family:'Rajdhani',sans-serif;font-weight:600}
 .tc-diagram-asset-picker button:hover{background:rgba(74,124,196,0.2);border-color:var(--blue-light)}
-.tc-diagram-canvas-wrap{position:relative;border:1px solid var(--border);border-radius:0 0 var(--radius) var(--radius);overflow:hidden;background:#f5f1e6}
+.tc-diagram-canvas-wrap{position:relative;border:1px solid var(--border);border-radius:0 0 var(--radius) var(--radius);overflow:hidden;background:#dbe6f3}
 .tc-diagram-canvas{display:block;width:100%;height:auto;max-height:60vh;touch-action:none;-webkit-user-select:none;user-select:none;cursor:crosshair}
 .tc-diagram-canvas g.dgm-mp,.tc-diagram-canvas g.dgm-asset{cursor:grab}
 .tc-diagram-canvas g.dgm-mp:active,.tc-diagram-canvas g.dgm-asset:active{cursor:grabbing}
 .tc-diagram-readonly-pill{position:absolute;top:8px;right:8px;background:rgba(244,168,32,0.95);color:#1a1a1a;font-size:11px;font-weight:700;padding:5px 10px;border-radius:99px;font-family:'Rajdhani',sans-serif;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 2px 8px rgba(0,0,0,0.4)}
-.pd-diagram-embed{position:relative;margin-top:10px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:#f5f1e6}
+.pd-diagram-embed{position:relative;margin-top:10px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:#dbe6f3}
 .pd-diagram-pill{position:absolute;top:6px;right:6px;background:rgba(244,168,32,0.92);color:#1a1a1a;font-size:9px;font-weight:700;padding:6px 9px;border-radius:10px;font-family:'Rajdhani',sans-serif;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 2px 6px rgba(0,0,0,0.4);max-width:42%;z-index:2}
 .pd-diagram-svg{display:block;width:100%;height:auto;max-height:280px}
 .pd-aerial-map{height:280px;width:100%;border:1px solid var(--border);border-radius:var(--radius);margin-top:14px;overflow:hidden;background:#0a1220}
@@ -7674,6 +7674,9 @@ function diagramRender(){
   // All hardcoded positions per DIAGRAM_REF_LINES + DIAGRAM_HOUSE constants.
   if(refLayer){
     let refHtml = '';
+    // Sprint Polish 5/12/26: cream paper-card rect bounded horizontally by CL/MAIN/PL line stretch.
+    // Outside this band the wrapper background (slate-blue) shows through — 'paper on blueprint' feel.
+    refHtml += `<rect x="${px(0.04)}" y="0" width="${px(0.92)}" height="${H}" fill="#f5f1e6"/>`;
     // MAIN line — solid blue, thick (water main convention)
     const mainY = py(DIAGRAM_REF_LINES.main.y);
     refHtml += `<line x1="${px(0.04)}" y1="${mainY}" x2="${px(0.96)}" y2="${mainY}" stroke="${DIAGRAM_REF_LINES.main.color}" stroke-width="${DIAGRAM_REF_LINES.main.strokeWidth}" stroke-linecap="round"/>`;
@@ -7810,6 +7813,8 @@ function _diagramInnerSVG(diagram, opts){
   const labelTextColor = onLight ? '#475569' : '#cdd9eb';
 
   let inner = '';
+  // Sprint Polish 5/12/26: cream paper-card rect bounded horizontally by CL/MAIN/PL line stretch.
+  inner += `<rect x="${px(0.04)}" y="0" width="${px(0.92)}" height="${H}" fill="#f5f1e6"/>`;
   // Reference geometry
   const mainY = py(DIAGRAM_REF_LINES.main.y);
   inner += `<line x1="${px(0.04)}" y1="${mainY}" x2="${px(0.96)}" y2="${mainY}" stroke="${DIAGRAM_REF_LINES.main.color}" stroke-width="${DIAGRAM_REF_LINES.main.strokeWidth}" stroke-linecap="round"/>`;
@@ -7874,6 +7879,9 @@ function diagramReadOnlyEmbed(diagram, opts){
   const escapeStr = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
   let inner = '';
+
+  // Sprint Polish 5/12/26: cream paper-card rect bounded horizontally by CL/MAIN/PL line stretch.
+  inner += `<rect x="${px(0.04)}" y="0" width="${px(0.92)}" height="${H}" fill="#f5f1e6"/>`;
 
   // Sprint A 5/9/26: reference geometry parity with diagramRender (MAIN/CL/PL + house rectangle).
   // Renders behind markers so they stay legible. Saved diagrams without house_number show '____'.
