@@ -4052,7 +4052,7 @@ async function loadReportSubmissions(reportId, reportDate){
     const time = s.submitted_at ? new Date(s.submitted_at).toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'}) : '—';
     const photoCount = Array.isArray(s.photos) ? s.photos.length : 0;
     const photoBadge = photoCount > 0 ? ` · ${photoCount} photo${photoCount===1?'':'s'}` : '';
-    return `<div class="report-detail-item">
+    return `<div class="report-detail-item" onclick="event.stopPropagation(); openPropertyDetail('${s.property_id}')" style="cursor:pointer">
       <div class="report-detail-addr">${addr}</div>
       <div class="report-detail-meta">${phase} · ${inspector} · ${time}${photoBadge}</div>
     </div>`;
