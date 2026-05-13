@@ -14,9 +14,9 @@
 
 **Sprint:** MyInspector demo polish toward CP Engineers pitch ~5/21-5/22 (Stan, possibly Jeff).
 **Demo readiness:** ~78-80% to v1.0 as of 5/12 evening. Demo URL `myinspector-git-demo-banner-jserranojr340-9100s-projects.vercel.app`.
-**HEAD:** `aecc952` on both `demo-banner` and `mi-demo-seed`. Branches synced.
+**HEAD:** `1535612` on both `demo-banner` and `mi-demo-seed`. Branches synced.
 **Demo health:** 23/23 GREEN as of 5/8 ~04:30 EDT (last full pre-flight). No regression observed since.
-**Lawyer call:** Rabiyu, rescheduled to Wednesday 5/13.
+**Lawyer engagement:** Rabiyu engagement letter under review (received + reviewed 5/13). $5k retainer + 3 open questions queued before signing — see `.coordination/LEGAL_STATE.md` for full state.
 
 ## People in play
 
@@ -64,6 +64,8 @@ When Jorge reports a UI bug, ALWAYS confirm which firm the data lives in before 
 4. **Tapcard PDF re-upload** for Vision-driven aesthetic match (Jorge action) — may be obsolete given 5/10 tcform polish
 5. **SRVLINEFITTINGS_DIAGRAM.pdf upload** for MI-403 Field Guides publish (Jorge action)
 6. **Stale `.coordination/` cleanup** — ~85 files, most are shipped handoffs; should archive to `.coordination/archive/2026-04/` and `.coordination/archive/2026-05-early/` to declutter
+7. **Request CP Engineers employee handbook** from HR (input for Rabiyu handbook review — highest-priority legal action per Rabiyu)
+8. **Reply to Rabiyu with 3 open questions** before signing engagement letter (see `.coordination/LEGAL_STATE.md` for question text)
 
 ## Locked principles (operating constraints)
 

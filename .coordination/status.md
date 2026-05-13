@@ -1,6 +1,8 @@
 # Coordination Status — MyInspector
 
-**Last updated:** 2026-05-12 (doc-sync flush absorbing 5/9–5/12 demo-polish window: VTC decouple + embedded MS form on tapcard page 1 + demo-neutralize sweep + daily_reports firm_id fix + aerial map MI-115 + orphan tapcard fallback + triangulation A/B/C + group-by-property in Dashboard + All Submissions + cardinal photos optional + diagram inset clamp + Service Area B tab gate + ~30 commits total). HEAD `aecc952` on both `demo-banner` and `mi-demo-seed`.
+**Last updated:** 2026-05-13 (legal lane initiated + 5/12 cargo-commits verified). HEAD `1535612` on both `demo-banner` and `mi-demo-seed`. **Doc-sync deficit:** 15+ commits between `aecc952` and `1535612` not absorbed into chronological list below; full doc-sync queued for weekend. Header-level state is current; commit-by-commit list below is stale past `dbf657d`.
+
+**Previously updated:** 2026-05-12 (doc-sync flush absorbing 5/9–5/12 demo-polish window: VTC decouple + embedded MS form on tapcard page 1 + demo-neutralize sweep + daily_reports firm_id fix + aerial map MI-115 + orphan tapcard fallback + triangulation A/B/C + group-by-property in Dashboard + All Submissions + cardinal photos optional + diagram inset clamp + Service Area B tab gate + ~30 commits total). HEAD `aecc952` on both `demo-banner` and `mi-demo-seed`.
 
 **Previously updated:** 2026-05-09 (doc-sync flush absorbing Thu 5/7 evening → Fri 5/8 ~04:30 EDT velocity push)
 **Updated by:** Lead (Claude Code CLI) — sprint absorbed via this doc-sync per Jorge's "finish it all in the most time efficient way possible" directive Thu 5/7 ~23:55 EDT. Three Lead commits in window: `e8ee1af` round-1 doc-sync (MI-101-reorg + MI-401-v2 + MI-101-reorg-v2 absorption, +142/-19), `6f15ba8` MI-101-tapcard-polish v1 (+103/-2 — pre-flight validation + state reset on close + friendly error toasts), `dbf657d` MI-101-reorg-v3 / 2x2 grid fix (+2/-1 — `.service-grid` 3-col → 2-col so 4 tiles render 2x2 not 3+1). Buddy lane (no in-tree commits — applied via Supabase MCP): V1 Herald March 2026 PDF generation, V2 MI-AUDIT-4 verified shipped, V3 MI-402 Unit 1 backend (28-row seed), V4 Module 2 Wastewater/Sewer v0 backend, V5 MI-403 Field Guides Unit 1 backend (DRAFT), V6 MI-DEMO-UI v3.1 backend RPC change. MI-AUDIT-5 a+b closed structurally. ~135 row-level demo scrubs across 4 rounds. Demo health check upgraded 14 → 23 metrics, 23/23 GREEN. Two new lessons banked tonight (10: helper-function existence verification; 11: schema-state surprise compounding).
@@ -9,7 +11,7 @@
 
 ## Current state
 
-**Active branches:** `demo-banner` and `mi-demo-seed` both at `dbf657d` (MI-101-reorg-v3 / 2x2 grid fix — Submit Phase 4 tiles render as 2x2). main untouched per §22.
+**Active branches:** `demo-banner` and `mi-demo-seed` both at `1535612` (chore(gitignore): exclude .coordination/LEGAL_STATE.md — legal/business lane scratch). main untouched per §22.
 
 **Local main is 1 behind `origin/main`.** Missing commit is `4d70901` (Phase 2b refactor squash merge, Sun 0:52). Run `git fetch && git checkout main && git pull` to catch up before any new branch off main.
 

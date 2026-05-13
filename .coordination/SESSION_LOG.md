@@ -12,6 +12,14 @@
 
 ---
 
+## 2026-05-13 (afternoon) — 5/12 work confirmed shipped + legal lane initiated
+- CC sanity check confirmed pill fix + MEMORY_ARCHIVE.md from 5/12 evening DID land — bundled as cargo into two "Demo legal hygiene" commits (`5ef5f228` + `0dec675e`) and the pill-specific commit `494bdb3`. Previous 5/12 entry's "Edits sit uncommitted; CC task will commit + push" line is superseded. `cc_diagram_pill_push_2026-05-12.md` task was never executed under that name but its substance is shipped.
+- Rabiyu engagement letter received + reviewed ~2:23pm EDT. $5k retainer, CP Engineers employee handbook review prioritized by Rabiyu, 3 open questions queued before signing.
+- New legal-lane state file shipped: `.coordination/LEGAL_STATE.md` (~70 lines — retainer terms, open questions, Jorge actions, risk register, correspondence log). Gitignored. Commit `1535612` on both branches.
+- HEAD now `1535612` on `demo-banner` + `mi-demo-seed`. Branches synced. No MI code shipped today.
+- Lesson 14 candidate banked: §2 diagnose-before-fixing violated when Buddy asked Jorge to run `git status` instead of verifying repo state via filesystem MCP directly. Standing rule: any "did we already X" question gets verified against git refs + file content before answering, no exceptions.
+- Doc-sync deficit: 15+ commits between `aecc952` (last documented HEAD) and `1535612` not yet absorbed into status.md / STATE.md chronological lists. Real doc-sync queued for weekend.
+
 ## 2026-05-12 (late evening) — pill fix queued + memory overhaul executed
 - Diagram pill + cl_far overlap fixed via three surgical edits to `index.html` (cl_far 0.18→0.20, pill flex column→row with 3-row text col, robust regex date/time split). Edits sit uncommitted; CC task at `.coordination/cc_diagram_pill_push_2026-05-12.md` will commit + push.
 - Memory overhaul **executed**: 26 entries → 8 (-69%). 18 entries archived to `MEMORY_ARCHIVE.md` at repo root, organized by topic with cross-refs to BUDDY_STANDARD.md §7 / SESSION_LOG.md / RECENT_CONTEXT.md for redundant entries. Memory #26 updated to point at the archive.
