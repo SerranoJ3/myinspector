@@ -1036,7 +1036,7 @@ html,body{overflow-x:hidden}
           <div style="display:flex;align-items:center;justify-content:space-between">
             <div>
               <div class="page-title">Properties</div>
-              <div class="page-sub">All LCRI properties in your project</div>
+              <div class="page-sub">All water utility properties in your project</div>
             </div>
             <button class="btn-sm btn-orange" onclick="openAddProperty()">+ Add Property</button>
             <button class="btn-sm btn-ghost" onclick="loadSampleProperties()">Load 10 Samples</button>
@@ -3205,7 +3205,7 @@ function renderDynamicFields(type){
           <select class="modal-select" id="f-wo-code">
             <option value="">Select code</option>
             <option value="LSL-R">LSL-R — Lead service line replacement</option>
-            <option value="PLSL-R">PLSL-R — Partial LSL replacement</option>
+            <option value="PLSL-R">PLSL-R — Partial service line replacement</option>
             <option value="GV-R">GV-R — Galvanized replacement</option>
             <option value="INS">INS — Inspection only</option>
           </select></div>
@@ -8292,13 +8292,13 @@ function mobileNav(panel,btnId){
     <button class="luis-close" onclick="toggleLuis()">&#x2715;</button>
   </div>
   <div class="luis-sugs" id="luis-sugs">
-    <div class="luis-sug" onclick="askLuis('What is the work code for a full lead service line replacement?')">LSL work codes</div>
+    <div class="luis-sug" onclick="askLuis('What is the work code for a full service line replacement?')">Service work codes</div>
     <div class="luis-sug" onclick="askLuis('Which photos require a whiteboard?')">Whiteboard rules</div>
     <div class="luis-sug" onclick="askLuis('What is the max ADA ramp slope?')">ADA specs</div>
-    <div class="luis-sug" onclick="askLuis('Walk me through the 6 LCRI phases')">LCRI phases</div>
+    <div class="luis-sug" onclick="askLuis('Walk me through the 6 phases of water utility inspection work')">Project phases</div>
   </div>
   <div class="luis-msgs" id="luis-msgs">
-    <div class="lmsg lmsg-l">Hey, I am Luis — your AI field assistant. Ask me anything about LCRI compliance, work codes, ADA specs, phase requirements, or any field question.</div>
+    <div class="lmsg lmsg-l">Hey, I am Luis — your AI field assistant. Ask me anything about water utility compliance, work codes, ADA specs, phase requirements, or any field question.</div>
   </div>
   <div class="luis-foot">
     <input class="luis-inp" id="luis-inp" type="text" placeholder="Ask Luis anything..." onkeydown="if(event.key==='Enter')sendLuis()">
@@ -8307,10 +8307,10 @@ function mobileNav(panel,btnId){
 </div>
 
 <script>
-const LUIS_SYSTEM = `You are Luis, an AI field assistant in MyInspector — a field inspection platform for LCRI water utility work and municipal infrastructure inspections.
+const LUIS_SYSTEM = `You are Luis, an AI field assistant in MyInspector — a field inspection platform for water utility work and municipal infrastructure inspections.
 
 You help inspectors and PMs with:
-- LCRI compliance and work codes (LSL-R, PLSL-R, GV-R, INS)
+- Water utility compliance and work codes (LSL-R, PLSL-R, GV-R, INS)
 - Six phases: Test Pit, Assessment, Work Order, Service Work, GIS Documentation, Restoration
 - Whiteboard photo rules (LOCKED): Required when open excavation exists (curbstop area, watermain area, restoration — INCLUDING final restoration photos and rainy-day restorations). Also required when reporting a failed restoration with compliance issues. NOT required for tapcard/triangulation, GIS docs, blueprints, property exterior, backlog collection. Simple rule: hole in the ground OR compliance failure = whiteboard. No hole and no failure = no whiteboard.
 - Pipe materials: lead, copper, galvanized, unknown
@@ -8341,7 +8341,7 @@ function luisResetConversation(){
   luisHistory = [];
   const msgs = document.getElementById('luis-msgs');
   if(msgs){
-    msgs.innerHTML = '<div class="lmsg lmsg-l">Hey, I am Luis — your AI field assistant. Ask me anything about LCRI compliance, work codes, ADA specs, phase requirements, or any field question.</div>';
+    msgs.innerHTML = '<div class="lmsg lmsg-l">Hey, I am Luis — your AI field assistant. Ask me anything about water utility compliance, work codes, ADA specs, phase requirements, or any field question.</div>';
   }
   const sugs = document.getElementById('luis-sugs');
   if(sugs) sugs.style.display = '';
