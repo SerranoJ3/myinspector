@@ -153,6 +153,41 @@ body{display:flex;flex-direction:column}
 .stat-card.red .stat-val{color:var(--red)}
 .stat-card.blue .stat-val{color:var(--blue-light)}
 
+/* MI-OPS-DASHBOARD Unit 2 — replaces stat-card row with schedule grid + tile row */
+.ops-welcome-bar{display:flex;justify-content:space-between;align-items:center;gap:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:18px;flex-wrap:wrap}
+.ops-welcome-text .ops-welcome-greeting{font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;color:var(--white);line-height:1.1}
+.ops-welcome-text .ops-welcome-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.ops-badges{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ops-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(61,155,94,0.10);border:1px solid rgba(61,155,94,0.35);color:#6DCF9B;font-size:11px;font-weight:600;padding:5px 10px;border-radius:99px;letter-spacing:.02em;cursor:default}
+.ops-badge-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+.ops-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:18px}
+.ops-section-header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.ops-section-title{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--blue-light)}
+.ops-section-nav{display:flex;gap:6px}
+#ops-schedule-grid{display:grid;grid-template-columns:160px repeat(7,1fr) 70px;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+#ops-schedule-grid .ops-sg-head,#ops-schedule-grid .ops-sg-cell,#ops-schedule-grid .ops-sg-name,#ops-schedule-grid .ops-sg-total{background:var(--surface);padding:8px 10px;font-size:12px}
+#ops-schedule-grid .ops-sg-head{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:center}
+#ops-schedule-grid .ops-sg-name{font-weight:600;color:var(--white)}
+#ops-schedule-grid .ops-sg-cell{text-align:center;color:var(--white);font-variant-numeric:tabular-nums}
+#ops-schedule-grid .ops-sg-cell.off{color:var(--muted)}
+#ops-schedule-grid .ops-sg-cell.pto{color:var(--orange);font-weight:600}
+#ops-schedule-grid .ops-sg-total{text-align:center;font-weight:700;color:var(--blue-light)}
+.ops-tile-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:18px}
+.ops-tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;display:flex;flex-direction:column;gap:10px;min-height:170px}
+.ops-tile-title{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--blue-light)}
+.ops-tile-body{flex:1;display:flex;flex-direction:column;justify-content:space-between;gap:8px}
+.ops-tile-big{font-family:'Rajdhani',sans-serif;font-size:28px;font-weight:700;color:var(--white);line-height:1}
+.ops-tile-sub{font-size:12px;color:var(--muted)}
+.ops-tile-breakdown{font-size:12px;color:rgba(237,242,248,0.85);line-height:1.6}
+.ops-tile-cta{align-self:flex-start}
+.ops-tile-alert{display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(237,242,248,0.85)}
+.ops-tile-alert.warn{color:var(--orange)}
+.ops-tile-alert.ok{color:var(--green)}
+.ops-progress-bar{position:relative;height:10px;background:rgba(74,124,196,0.12);border-radius:99px;overflow:hidden}
+.ops-progress-fill{position:absolute;top:0;left:0;bottom:0;background:var(--blue-light);border-radius:99px;transition:width .25s}
+@media(max-width:1024px){.ops-tile-row{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:767px){#ops-schedule-grid{grid-template-columns:140px repeat(7,minmax(58px,1fr)) 60px;font-size:11px;overflow-x:auto}.ops-tile-row{grid-template-columns:1fr}.ops-welcome-bar{flex-direction:column;align-items:flex-start}}
+
 /* TABLE */
 .table-wrap{background:var(--surface);border:1px solid var(--border);
   border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
@@ -989,39 +1024,46 @@ html,body{overflow-x:hidden}
     <!-- CONTENT -->
     <div class="content">
 
-      <!-- DASHBOARD PANEL -->
+      <!-- DASHBOARD PANEL — MI-OPS-DASHBOARD Unit 2: single-pane-of-glass ops view -->
       <div class="panel active" id="panel-dashboard">
-        <div class="page-header">
-          <div class="page-title">Dashboard</div>
-          <div class="page-sub" id="dash-date">Loading...</div>
-        </div>
-        <div class="stat-grid">
-          <div class="stat-card blue">
-            <div class="stat-val" id="stat-total">—</div>
-            <div class="stat-label">Total Properties</div>
+        <div class="ops-welcome-bar">
+          <div class="ops-welcome-text">
+            <div class="ops-welcome-greeting" id="ops-welcome-name">Welcome back</div>
+            <div class="ops-welcome-sub" id="ops-welcome-date">Loading…</div>
           </div>
-          <div class="stat-card green">
-            <div class="stat-val" id="stat-complete">—</div>
-            <div class="stat-label">Complete</div>
-          </div>
-          <div class="stat-card orange">
-            <div class="stat-val" id="stat-inprog">—</div>
-            <div class="stat-label">In Progress</div>
-          </div>
-          <div class="stat-card red">
-            <div class="stat-val" id="stat-pending">—</div>
-            <div class="stat-label">Pending Start</div>
+          <div class="ops-badges">
+            <span class="ops-badge" title="Ajeera bidirectional hours sync — Phase 2"><span class="ops-badge-dot"></span> Ajeera ✓ 14m</span>
+            <span class="ops-badge" title="ADP PTO accrual sync — Phase 2"><span class="ops-badge-dot"></span> ADP ✓ 2h</span>
+            <button class="btn-sm btn-ghost" onclick="renderOpsDashboard()">Refresh All</button>
           </div>
         </div>
-        <div class="alert alert-orange" id="gap-alert" style="display:none">
-          <div>
-            <span class="alert-title">Schedule gaps detected</span>
-            Some properties scheduled for today have not been submitted. Check your schedule.
+        <div class="ops-section">
+          <div class="ops-section-header">
+            <div class="ops-section-title">This week · <span id="ops-week-label">—</span></div>
+            <div class="ops-section-nav">
+              <button class="btn-sm btn-ghost" onclick="opsWeekStep(-1)">&lt; prev</button>
+              <button class="btn-sm btn-ghost" onclick="opsWeekStep(1)">next &gt;</button>
+            </div>
+          </div>
+          <div id="ops-schedule-grid"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+        <div class="ops-tile-row">
+          <div class="ops-tile" id="ops-tile-hours">
+            <div class="ops-tile-title">Hours this week</div>
+            <div class="ops-tile-body"><div class="loading">…</div></div>
+          </div>
+          <div class="ops-tile" id="ops-tile-pto">
+            <div class="ops-tile-title">PTO balance</div>
+            <div class="ops-tile-body"><div class="loading">…</div></div>
+          </div>
+          <div class="ops-tile" id="ops-tile-alerts">
+            <div class="ops-tile-title">Alerts</div>
+            <div class="ops-tile-body"><div class="loading">…</div></div>
           </div>
         </div>
         <div class="table-wrap">
           <div class="table-header">
-            <div class="table-title">Recent Submissions</div>
+            <div class="table-title">Recent activity</div>
             <button class="btn-sm btn-ghost" onclick="showPanel('submissions')">View all</button>
           </div>
           <div id="recent-submissions">
@@ -2763,9 +2805,8 @@ async function initApp(user){
     }
   }
 
-  const now = new Date();
-  document.getElementById('dash-date').textContent =
-    now.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  // MI-OPS-DASHBOARD Unit 2: renderOpsDashboard now owns the welcome-date string
+  // (dash-date element was removed with the legacy stat-grid layout).
   await loadDashboard();
   await loadProperties();
   await loadPropertySelect();
@@ -2788,32 +2829,254 @@ function showPanel(name){
 }
 
 // ── DASHBOARD ─────────────────────────────────────────
-async function loadDashboard(){
-  const {data:props} = await sb.from('properties').select('*').is('deleted_at', null);
-  if(!props){ return; }
-  const total    = props.length;
-  const complete = props.filter(p=>p.current_phase==='complete').length;
-  const inprog   = props.filter(p=>p.current_phase&&p.current_phase!=='complete'&&p.current_phase!=='test_pit').length;
-  const pending  = props.filter(p=>!p.current_phase||p.current_phase==='test_pit').length;
-  document.getElementById('stat-total').textContent    = total;
-  document.getElementById('stat-complete').textContent = complete;
-  document.getElementById('stat-inprog').textContent   = inprog;
-  document.getElementById('stat-pending').textContent  = pending;
+// MI-OPS-DASHBOARD Unit 2 (2026-05-13): new single-pane-of-glass home page.
+// Schedule grid front-and-center (Mon-Sun × inspectors), Hours/PTO/Alerts tiles
+// pulling from schedules / hours_entries / pto_balances / pto_transactions /
+// inspector_credentials. Role-gated: inspectors see own row; supervisors + super_admin
+// see firm-wide. Edit flows ship in Unit 3 — this commit is read-only display.
+let _opsWeekOffset = 0;
 
-  // Phase 2 5/10/26: bumped fetch limit + group by property_id (same pattern as
-  // renderAllSubmissions ff384e9). Trims to top 8 groups so dashboard density holds.
+function opsWeekStep(n){ _opsWeekOffset += n; renderOpsDashboard(); }
+
+function opsWeekStart(offset){
+  // Monday of (today + offset weeks)
+  const now = new Date();
+  const dow = now.getDay(); // 0=Sun..6=Sat
+  const daysFromMon = dow === 0 ? -6 : 1 - dow;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + daysFromMon + offset * 7);
+  monday.setHours(0,0,0,0);
+  return monday;
+}
+
+function opsIsoDate(d){ return d.toISOString().slice(0,10); }
+
+async function loadWeekSchedule(weekStart){
+  const days = Array.from({length:7}, (_,i) => {
+    const d = new Date(weekStart); d.setDate(weekStart.getDate()+i); return opsIsoDate(d);
+  });
+  const {data:rows, error} = await sb.from('schedules')
+    .select('id,inspector_id,date,shift_start,shift_end,notes')
+    .is('deleted_at', null)
+    .gte('date', days[0]).lte('date', days[6])
+    .order('date',{ascending:true});
+  if(error){ console.error('loadWeekSchedule:', error); return {days, byInspector:[]}; }
+  const filterToOwn = currentUserRole === 'inspector';
+  const filtered = filterToOwn ? (rows||[]).filter(r => r.inspector_id === currentUser?.id) : (rows||[]);
+  const inspectorIds = [...new Set(filtered.map(r => r.inspector_id).filter(Boolean))];
+  let nameMap = {};
+  if(inspectorIds.length){
+    const {data:profs} = await sb.from('profiles').select('id,full_name').in('id', inspectorIds);
+    (profs||[]).forEach(p => { nameMap[p.id] = p.full_name; });
+  }
+  const groups = new Map();
+  filtered.forEach(r => {
+    if(!groups.has(r.inspector_id)) groups.set(r.inspector_id, {});
+    groups.get(r.inspector_id)[r.date] = r;
+  });
+  const byInspector = Array.from(groups.entries()).map(([id, byDate]) => ({
+    inspectorId: id, fullName: nameMap[id] || 'Unknown inspector', byDate
+  }));
+  byInspector.sort((a,b) => (a.fullName||'').localeCompare(b.fullName||''));
+  return {days, byInspector};
+}
+
+function opsFormatShift(row){
+  if(!row) return {label:'off', cls:'off'};
+  if((row.notes||'').toLowerCase().includes('pto')) return {label:'PTO', cls:'pto'};
+  if(!row.shift_start || !row.shift_end) return {label:'—', cls:'off'};
+  const fmt = t => { const h = parseInt(t.slice(0,2), 10); return h > 12 ? (h-12) : (h === 0 ? 12 : h); };
+  return {label: `${fmt(row.shift_start)}-${fmt(row.shift_end)}`, cls:''};
+}
+
+function opsShiftHours(row){
+  if(!row || !row.shift_start || !row.shift_end) return 0;
+  if((row.notes||'').toLowerCase().includes('pto')) return 0;
+  const [sh,sm] = row.shift_start.split(':').map(Number);
+  const [eh,em] = row.shift_end.split(':').map(Number);
+  return ((eh*60+em) - (sh*60+sm)) / 60;
+}
+
+function renderScheduleGrid(weekStart, days, byInspector){
+  const host = document.getElementById('ops-schedule-grid');
+  if(!host) return;
+  if(!byInspector.length){
+    host.innerHTML = '<div class="loading" style="grid-column:1/-1;padding:24px;text-align:center">No schedule rows for this week.</div>';
+    return;
+  }
+  const dayLabels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  let html = `<div class="ops-sg-head">Inspector</div>`;
+  dayLabels.forEach((lbl, i) => {
+    const d = days[i].slice(5).replace('-','/');
+    html += `<div class="ops-sg-head">${lbl}<br><span style="font-weight:400;color:var(--muted);font-size:10px">${d}</span></div>`;
+  });
+  html += `<div class="ops-sg-head">Total</div>`;
+  byInspector.forEach(row => {
+    html += `<div class="ops-sg-name">${gisEscape(row.fullName)}</div>`;
+    let total = 0;
+    days.forEach(d => {
+      const r = row.byDate[d];
+      const shift = opsFormatShift(r);
+      total += opsShiftHours(r);
+      html += `<div class="ops-sg-cell ${shift.cls}">${shift.label}</div>`;
+    });
+    html += `<div class="ops-sg-total">${total.toFixed(1)}</div>`;
+  });
+  host.innerHTML = html;
+}
+
+async function loadHoursThisWeek(weekStart){
+  const days = Array.from({length:7}, (_,i) => {
+    const d = new Date(weekStart); d.setDate(weekStart.getDate()+i); return opsIsoDate(d);
+  });
+  let q = sb.from('hours_entries')
+    .select('inspector_id,hours_regular,hours_overtime,project_id,projects(name)')
+    .is('deleted_at', null)
+    .gte('date', days[0]).lte('date', days[6]);
+  if(currentUserRole === 'inspector') q = q.eq('inspector_id', currentUser?.id);
+  const {data:rows, error} = await q;
+  if(error){ console.error('loadHoursThisWeek:', error); return {totalHours:0, overtimeHours:0, byProject:[]}; }
+  let totalReg = 0, totalOt = 0;
+  const projMap = new Map();
+  (rows||[]).forEach(r => {
+    const reg = Number(r.hours_regular)||0, ot = Number(r.hours_overtime)||0;
+    totalReg += reg; totalOt += ot;
+    const key = r.project_id || 'unassigned';
+    const name = r.projects?.name || 'Unassigned';
+    if(!projMap.has(key)) projMap.set(key, {projectId:r.project_id, projectName:name, hours:0});
+    projMap.get(key).hours += reg + ot;
+  });
+  return {totalHours: totalReg + totalOt, overtimeHours: totalOt, byProject: Array.from(projMap.values())};
+}
+
+function renderHoursTile(data){
+  const host = document.querySelector('#ops-tile-hours .ops-tile-body');
+  if(!host) return;
+  const otPart = data.overtimeHours > 0 ? ` <span style="color:var(--orange);font-size:13px">+ ${data.overtimeHours.toFixed(1)} OT</span>` : '';
+  const breakdown = data.byProject.length
+    ? data.byProject.map(p => `<div>├ ${gisEscape(p.projectName)}: ${p.hours.toFixed(1)} hrs</div>`).join('')
+    : '<div style="color:var(--muted)">No hours logged yet this week.</div>';
+  host.innerHTML = `
+    <div>
+      <div class="ops-tile-big">${data.totalHours.toFixed(1)} hrs<span style="font-size:14px;font-weight:600;color:var(--muted)"> total</span>${otPart}</div>
+      <div class="ops-tile-breakdown" style="margin-top:8px">${breakdown}</div>
+    </div>
+    <button class="btn-sm btn-orange ops-tile-cta" disabled title="Bidirectional Ajeera sync ships in Phase 2">Submit to Ajeera →</button>`;
+}
+
+async function loadPtoBalance(){
+  const fiscalYear = new Date().getFullYear();
+  const inspectorId = currentUserRole === 'inspector' ? currentUser?.id : null;
+  let q = sb.from('pto_balances')
+    .select('inspector_id,fiscal_year,accrued_hours,used_hours,balance_hours,max_balance_hours,last_accrued_date')
+    .is('deleted_at', null)
+    .eq('fiscal_year', fiscalYear);
+  if(inspectorId) q = q.eq('inspector_id', inspectorId);
+  const {data:rows, error} = await q;
+  if(error){ console.error('loadPtoBalance:', error); return null; }
+  if(!rows || !rows.length) return null;
+  if(!inspectorId){
+    const accrued = rows.reduce((s,r)=>s+Number(r.accrued_hours||0),0);
+    const used = rows.reduce((s,r)=>s+Number(r.used_hours||0),0);
+    const cap = rows.reduce((s,r)=>s+Number(r.max_balance_hours||0),0);
+    return {scope:'firm', n:rows.length, accruedHours:accrued, usedHours:used, balanceHours:accrued-used, maxBalance:cap};
+  }
+  const r = rows[0];
+  return {scope:'self', accruedHours:Number(r.accrued_hours)||0, usedHours:Number(r.used_hours)||0,
+    balanceHours:Number(r.balance_hours)||0, maxBalance:Number(r.max_balance_hours)||120};
+}
+
+function renderPtoTile(data){
+  const host = document.querySelector('#ops-tile-pto .ops-tile-body');
+  if(!host) return;
+  if(!data){
+    host.innerHTML = '<div style="color:var(--muted);font-size:13px">No PTO balance on file for the current fiscal year.</div>';
+    return;
+  }
+  const pct = data.maxBalance > 0 ? Math.min(100, (data.usedHours / data.maxBalance) * 100) : 0;
+  const scopeLabel = data.scope === 'firm' ? `Firm-wide (${data.n} inspectors)` : 'You';
+  const next = opsWeekStart(_opsWeekOffset+1);
+  const nextAccrual = next.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  host.innerHTML = `
+    <div>
+      <div class="ops-tile-big">${data.balanceHours.toFixed(1)} hrs<span style="font-size:14px;font-weight:600;color:var(--muted)"> available</span></div>
+      <div class="ops-tile-sub" style="margin:6px 0 8px">${scopeLabel}</div>
+      <div class="ops-progress-bar"><div class="ops-progress-fill" style="width:${pct.toFixed(1)}%"></div></div>
+      <div class="ops-tile-sub" style="margin-top:6px">Used: ${data.usedHours.toFixed(1)} / ${data.maxBalance.toFixed(0)}</div>
+      <div class="ops-tile-sub">Next accrual: ${nextAccrual}</div>
+    </div>
+    <button class="btn-sm btn-orange ops-tile-cta" disabled title="Request flow ships in Unit 3">Request PTO →</button>`;
+}
+
+async function loadActiveAlerts(){
+  const today = opsIsoDate(new Date());
+  const sixtyOut = new Date(); sixtyOut.setDate(sixtyOut.getDate()+60);
+  const sixtyStr = opsIsoDate(sixtyOut);
+  let pendingQ = sb.from('pto_transactions').select('id').is('deleted_at', null).eq('request_status','requested');
+  if(currentUserRole === 'inspector') pendingQ = pendingQ.eq('inspector_id', currentUser?.id);
+  let certQ = sb.from('inspector_credentials').select('id').is('deleted_at', null).not('expiration_date','is',null)
+    .gte('expiration_date', today).lte('expiration_date', sixtyStr);
+  if(currentUserRole === 'inspector') certQ = certQ.eq('profile_id', currentUser?.id);
+  const [pendingRes, certsRes] = await Promise.all([pendingQ, certQ]);
+  if(pendingRes.error) console.warn('loadActiveAlerts pending:', pendingRes.error);
+  if(certsRes.error) console.warn('loadActiveAlerts certs:', certsRes.error);
+  return {pendingPtoCount:(pendingRes.data||[]).length, certsExpiringCount:(certsRes.data||[]).length};
+}
+
+function renderAlertsTile(data){
+  const host = document.querySelector('#ops-tile-alerts .ops-tile-body');
+  if(!host) return;
+  const ptoCls = data.pendingPtoCount > 0 ? 'warn' : 'ok';
+  const ptoIcon = data.pendingPtoCount > 0 ? '⚠' : '✓';
+  const certCls = data.certsExpiringCount > 0 ? 'warn' : 'ok';
+  const certIcon = data.certsExpiringCount > 0 ? '⚠' : '✓';
+  host.innerHTML = `
+    <div>
+      <div class="ops-tile-alert ${ptoCls}"><span>${ptoIcon}</span> <strong>${data.pendingPtoCount}</strong> PTO ${data.pendingPtoCount === 1 ? 'request' : 'requests'} pending</div>
+      <div class="ops-tile-alert ${certCls}" style="margin-top:6px"><span>${certIcon}</span> <strong>${data.certsExpiringCount}</strong> cert${data.certsExpiringCount === 1 ? '' : 's'} expiring <span style="color:var(--muted);font-weight:400">(60d)</span></div>
+      <div class="ops-tile-alert ok" style="margin-top:6px"><span>✓</span> All synced</div>
+    </div>`;
+}
+
+async function renderOpsDashboard(){
+  const name = currentUser?.user_metadata?.full_name || currentUser?.email || 'inspector';
+  const nameEl = document.getElementById('ops-welcome-name');
+  if(nameEl) nameEl.textContent = `Welcome back, ${name}`;
+  const weekStart = opsWeekStart(_opsWeekOffset);
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate()+6);
+  const fmt = d => d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  const dateEl = document.getElementById('ops-welcome-date');
+  if(dateEl) dateEl.textContent = new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const weekLbl = document.getElementById('ops-week-label');
+  if(weekLbl) weekLbl.textContent = `${fmt(weekStart)} – ${fmt(weekEnd)}, ${weekStart.getFullYear()}`;
+
+  const [sched, hours, pto, alerts] = await Promise.all([
+    loadWeekSchedule(weekStart),
+    loadHoursThisWeek(weekStart),
+    loadPtoBalance(),
+    loadActiveAlerts(),
+  ]);
+  renderScheduleGrid(weekStart, sched.days, sched.byInspector);
+  renderHoursTile(hours);
+  renderPtoTile(pto);
+  renderAlertsTile(alerts);
+
+  await renderOpsRecentActivity();
+}
+
+async function renderOpsRecentActivity(){
+  // Recent activity feed preserved from legacy loadDashboard — group-by-property render.
   const {data:subs} = await sb.from('phase_submissions')
     .select('*,properties(address,city)')
     .is('deleted_at', null)
     .order('submitted_at',{ascending:false})
     .limit(25);
-
   const container = document.getElementById('recent-submissions');
+  if(!container) return;
   if(!subs||subs.length===0){
     container.innerHTML='<div class="loading">No submissions yet. Submit your first phase to get started.</div>';
     return;
   }
-  // Group by property
   const groups = new Map();
   subs.forEach(s => {
     const key = s.property_id;
@@ -2827,7 +3090,6 @@ async function loadDashboard(){
   });
   groupArr.sort((a,b) => b.latest - a.latest);
   const top = groupArr.slice(0, 8);
-
   let html=`<table><thead><tr><th>Address</th><th>Phases</th><th>Work Codes</th><th>Latest</th><th>WB</th></tr></thead><tbody>`;
   top.forEach(g => {
     const head = g.ss[0];
@@ -2854,6 +3116,9 @@ async function loadDashboard(){
   html += `</tbody></table>`;
   container.innerHTML = html;
 }
+
+// Back-compat: existing showPanel('dashboard') wiring calls loadDashboard().
+async function loadDashboard(){ return renderOpsDashboard(); }
 
 // ── PROPERTIES ────────────────────────────────────────
 function filterProperties(query) {
