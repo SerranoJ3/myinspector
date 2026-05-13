@@ -6672,11 +6672,16 @@ function vtcInchesToFtIn(inches, format){
 function vtcCurbBoxLocLabel(enumVal){
   return ({city_strip:'City Strip', sidewalk:'Sidewalk', driveway:'Driveway', lawn:'Lawn'})[enumVal] || '';
 }
+// Demo legal hygiene 5/12/26: real-utility identifiers (NJ6 operating center,
+// Short Hills district) replaced with generic Region A / Region B labels so the
+// pitch demo doesn't disclose which water utility this product is modeled on.
+// District ID intentionally always-blank for demo — the strip is admin-only and
+// the OC label alone carries the operational context.
 function vtcSectorOpCenter(sector){
-  return sector === 'NJAW_SHORT_HILLS' ? 'Short Hills' : 'NJ6';
+  return sector === 'NJAW_SHORT_HILLS' ? 'Region B' : 'Region A';
 }
 function vtcSectorDistrictId(sector){
-  return sector === 'NJAW_SHORT_HILLS' ? 'Short Hills' : '';
+  return '';
 }
 function vtcParseAddress(address){
   if(!address) return { number:'', street:'' };
