@@ -272,6 +272,18 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .pd-aerial-map .leaflet-control-attribution{font-size:6px;line-height:1.1;padding:0 3px;background:rgba(10,18,32,0.5);color:rgba(255,255,255,0.55);font-family:inherit;border-radius:2px 0 0 0}
 .pd-aerial-map .leaflet-control-attribution a{color:rgba(255,255,255,0.65);text-decoration:none}
 .pd-aerial-map-empty{height:280px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;border:1px dashed var(--border);border-radius:var(--radius);margin-top:14px;background:#0a1220}
+.cert-inspector-group{margin-bottom:24px}
+.cert-inspector-header{display:flex;justify-content:space-between;align-items:baseline;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px}
+.cert-inspector-name{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;letter-spacing:.04em}
+.cert-inspector-meta{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.cert-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.cert-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;min-width:0}
+.cert-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
+.cert-type{font-weight:700;font-size:13px;line-height:1.3}
+.cert-body{font-size:11px;color:var(--muted);margin-top:3px}
+.cert-pill{font-size:10px;font-weight:700;padding:4px 9px;border-radius:99px;font-family:'Rajdhani',sans-serif;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;flex-shrink:0}
+.cert-number{font-family:'JetBrains Mono','Courier New',monospace;font-size:11px;color:var(--muted);margin-bottom:6px;word-break:break-all}
+.cert-dates{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);gap:8px}
 .rg-meta{font-size:11px;color:var(--muted);margin-bottom:12px;font-style:italic}
 .rg-fieldset{border:1px solid var(--border);border-radius:var(--radius);padding:14px;background:var(--surface);margin-bottom:14px;min-width:0}
 .rg-legend{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--blue-light);padding:0 8px;display:inline-flex;gap:8px;align-items:baseline}
@@ -960,6 +972,9 @@ html,body{overflow-x:hidden}
       <div class="nav-link" id="nav-herald" onclick="showPanel('herald')">
         <span class="nav-icon">📰</span> The Herald
       </div>
+      <div class="nav-link" id="nav-certs" onclick="showPanel('certs')">
+        <span class="nav-icon">📋</span> Certs / Licenses
+      </div>
       <div class="sidebar-bottom">
         <div class="user-badge">
           <div class="user-avatar" id="sidebar-avatar">?</div>
@@ -1241,6 +1256,17 @@ html,body{overflow-x:hidden}
           <div id="herald-archive-list">
             <div class="loading">Loading archive...</div>
           </div>
+        </div>
+      </div>
+
+      <!-- CERTS / LICENSES PANEL -->
+      <div class="panel" id="panel-certs">
+        <div class="page-header">
+          <div class="page-title">Certs / Licenses</div>
+          <div class="page-sub" id="certs-page-sub">Active credentials with expiration tracking</div>
+        </div>
+        <div id="certs-list">
+          <div class="loading"><div class="spinner"></div><br>Loading credentials...</div>
         </div>
       </div>
 
@@ -2725,6 +2751,7 @@ function showPanel(name){
   if(name==='reports') loadReports();
   if(name==='gis-lists') loadGisLists();
   if(name==='herald') loadHerald();
+  if(name==='certs') loadCerts();
 }
 
 // ── DASHBOARD ─────────────────────────────────────────
@@ -5555,6 +5582,86 @@ async function confirmSoftDeleteMaterialsSheet(){
     msSetSaveStatus('error', 'Soft-delete failed — see console');
   } finally {
     if(btn) btn.disabled = false;
+  }
+}
+
+// ── CERTS / LICENSES (MI-CERTS-1) ─────────────────────
+// Read-only view of inspector_credentials. Super_admin sees all firm credentials
+// grouped by inspector; other roles see only their own. Color-coded expiration:
+// green >60d, yellow 30-60d, red <30d, black expired, grey no-expiry.
+async function loadCerts(){
+  const container = document.getElementById('certs-list');
+  if(!container) return;
+  let q = sb.from('inspector_credentials')
+    .select('*, profiles(full_name, role)')
+    .is('deleted_at', null)
+    .order('expiration_date', { ascending: true });
+  if(!currentUserIsSuperAdmin && currentUser){
+    q = q.eq('profile_id', currentUser.id);
+  }
+  const { data, error } = await q;
+  if(error){
+    container.innerHTML = '<div class="loading">Error loading credentials.</div>';
+    console.error('certs load error:', error);
+    return;
+  }
+  if(!data || data.length === 0){
+    container.innerHTML = '<div class="loading">No credentials on file. Contact your supervisor to add yours.</div>';
+    return;
+  }
+  const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const today = new Date();
+  function renderPill(expDateStr){
+    if(!expDateStr) return '<div class="cert-pill" style="background:#e2e8f0;color:#1a1a1a">No Expiry</div>';
+    const exp = new Date(expDateStr);
+    const daysLeft = Math.floor((exp - today) / 86400000);
+    let bg, color, label;
+    if(daysLeft < 0){ bg='#1a1a1a'; color='#fff'; label='Expired'; }
+    else if(daysLeft < 30){ bg='#dc2626'; color='#fff'; label=daysLeft+'d left'; }
+    else if(daysLeft < 60){ bg='#f59e0b'; color='#1a1a1a'; label=daysLeft+'d left'; }
+    else if(daysLeft < 365){ bg='#10b981'; color='#fff'; label=Math.floor(daysLeft/30)+'mo'; }
+    else { const y=Math.floor(daysLeft/365); const m=Math.floor((daysLeft % 365)/30); bg='#10b981'; color='#fff'; label=y+'y'+(m?' '+m+'mo':''); }
+    return '<div class="cert-pill" style="background:'+bg+';color:'+color+'">'+esc(label)+'</div>';
+  }
+  function renderCard(c){
+    return '<div class="cert-card">'
+      + '<div class="cert-card-top">'
+      +   '<div style="min-width:0"><div class="cert-type">'+esc(c.cert_type)+'</div><div class="cert-body">'+esc(c.issuing_body)+'</div></div>'
+      +   renderPill(c.expiration_date)
+      + '</div>'
+      + '<div class="cert-number">#'+esc(c.cert_number)+'</div>'
+      + '<div class="cert-dates"><span>Issued: '+esc(c.issue_date || '—')+'</span><span>Expires: '+esc(c.expiration_date || '—')+'</span></div>'
+      + '</div>';
+  }
+  if(currentUserIsSuperAdmin){
+    const groups = {};
+    data.forEach(c => {
+      const name = (c.profiles && c.profiles.full_name) || 'Unknown';
+      const role = (c.profiles && c.profiles.role) || '';
+      const key = c.profile_id;
+      if(!groups[key]) groups[key] = { name, role, certs: [] };
+      groups[key].certs.push(c);
+    });
+    const sortedKeys = Object.keys(groups).sort((a,b) => {
+      if(groups[a].role === 'super_admin' && groups[b].role !== 'super_admin') return -1;
+      if(groups[b].role === 'super_admin' && groups[a].role !== 'super_admin') return 1;
+      return groups[b].certs.length - groups[a].certs.length;
+    });
+    let html = '';
+    sortedKeys.forEach(k => {
+      const g = groups[k];
+      html += '<div class="cert-inspector-group">'
+        + '<div class="cert-inspector-header"><div class="cert-inspector-name">'+esc(g.name)+'</div><div class="cert-inspector-meta">'+esc(g.role)+' · '+g.certs.length+' credential'+(g.certs.length===1?'':'s')+'</div></div>'
+        + '<div class="cert-grid">' + g.certs.map(renderCard).join('') + '</div>'
+        + '</div>';
+    });
+    container.innerHTML = html;
+    const sub = document.getElementById('certs-page-sub');
+    if(sub) sub.textContent = data.length + ' credentials across ' + sortedKeys.length + ' inspector' + (sortedKeys.length===1?'':'s') + ' — color-coded by expiration window';
+  } else {
+    container.innerHTML = '<div class="cert-grid">' + data.map(renderCard).join('') + '</div>';
+    const sub = document.getElementById('certs-page-sub');
+    if(sub) sub.textContent = data.length + ' credential' + (data.length===1?'':'s') + ' on file';
   }
 }
 
