@@ -970,10 +970,10 @@ html,body{overflow-x:hidden}
         <span class="nav-icon">📄</span> Daily Reports
       </div>
       <div class="nav-link" id="nav-herald" onclick="showPanel('herald')">
-        <span class="nav-icon">📰</span> The Herald
+        <span class="nav-icon">🗞️</span> The Herald
       </div>
       <div class="nav-link" id="nav-certs" onclick="showPanel('certs')">
-        <span class="nav-icon">📋</span> Certs / Licenses
+        <span class="nav-icon">🪪</span> Certs / Licenses
       </div>
       <div class="sidebar-bottom">
         <div class="user-badge">
@@ -5592,8 +5592,10 @@ async function confirmSoftDeleteMaterialsSheet(){
 async function loadCerts(){
   const container = document.getElementById('certs-list');
   if(!container) return;
+  // Two-step fetch: credentials first, then profiles separately. Avoids dependence on
+  // PostgREST FK cache for a newly-created table (Sprint Polish 5/12/26 — Lesson 16).
   let q = sb.from('inspector_credentials')
-    .select('*, profiles(full_name, role)')
+    .select('*')
     .is('deleted_at', null)
     .order('expiration_date', { ascending: true });
   if(!currentUserIsSuperAdmin && currentUser){
@@ -5601,7 +5603,7 @@ async function loadCerts(){
   }
   const { data, error } = await q;
   if(error){
-    container.innerHTML = '<div class="loading">Error loading credentials.</div>';
+    container.innerHTML = '<div class="loading">Error loading credentials: ' + (error.message || 'unknown') + '</div>';
     console.error('certs load error:', error);
     return;
   }
@@ -5609,6 +5611,14 @@ async function loadCerts(){
     container.innerHTML = '<div class="loading">No credentials on file. Contact your supervisor to add yours.</div>';
     return;
   }
+  // Attach profile info via separate fetch (no embedded join — robust against PostgREST cache)
+  const profileIds = [...new Set(data.map(c => c.profile_id))];
+  let profMap = {};
+  if(profileIds.length){
+    const { data: profs } = await sb.from('profiles').select('id, full_name, role').in('id', profileIds);
+    (profs || []).forEach(p => { profMap[p.id] = p; });
+  }
+  data.forEach(c => { c.profiles = profMap[c.profile_id] || null; });
   const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const today = new Date();
   function renderPill(expDateStr){
