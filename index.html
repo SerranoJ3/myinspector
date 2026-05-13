@@ -188,6 +188,40 @@ body{display:flex;flex-direction:column}
 @media(max-width:1024px){.ops-tile-row{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:767px){#ops-schedule-grid{grid-template-columns:140px repeat(7,minmax(58px,1fr)) 60px;font-size:11px;overflow-x:auto}.ops-tile-row{grid-template-columns:1fr}.ops-welcome-bar{flex-direction:column;align-items:flex-start}}
 
+/* MI-302 Unit 2 — Construction PM tab */
+.cmpm-assignment-row{cursor:pointer;transition:background .15s}
+.cmpm-assignment-row:hover{background:rgba(74,124,196,0.06)}
+.cmpm-activity-item{display:flex;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);margin-bottom:10px}
+.cmpm-activity-item.gps-warn{border-color:rgba(244,168,32,0.5);background:rgba(244,168,32,0.04)}
+.cmpm-activity-item.active-now{border-color:rgba(61,155,94,0.45)}
+.cmpm-activity-thumb{flex-shrink:0;width:48px;height:48px;border-radius:6px;background:#0a1220;border:1px solid var(--border);overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:18px}
+.cmpm-activity-thumb img{width:100%;height:100%;object-fit:cover}
+.cmpm-activity-body{flex:1;min-width:0;font-size:12px;line-height:1.5;color:rgba(237,242,248,0.85)}
+.cmpm-activity-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap}
+.cmpm-activity-name{font-weight:700;color:var(--white);font-size:13px}
+.cmpm-activity-tag{font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:99px}
+.cmpm-activity-tag.arrived{background:rgba(74,124,196,0.18);color:var(--blue-light)}
+.cmpm-activity-tag.departed{background:rgba(94,122,154,0.18);color:var(--muted)}
+.cmpm-activity-tag.active-now{background:rgba(61,155,94,0.18);color:#6DCF9B}
+.cmpm-activity-tag.active-now::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:5px;animation:cmpm-pulse 1.6s infinite}
+.cmpm-activity-tag.gps-warn{background:rgba(244,168,32,0.18);color:var(--orange)}
+.cmpm-activity-addr{color:var(--white);font-weight:500;margin-bottom:2px}
+.cmpm-activity-meta{color:var(--muted);font-size:11px}
+.cmpm-activity-notes{color:rgba(237,242,248,0.7);font-style:italic;margin-top:4px}
+@keyframes cmpm-pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+#cmpm-hours-grid{display:grid;grid-template-columns:200px repeat(7,1fr) 90px;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+#cmpm-hours-grid .cmpm-hg-head,#cmpm-hours-grid .cmpm-hg-cell,#cmpm-hours-grid .cmpm-hg-name,#cmpm-hours-grid .cmpm-hg-total{background:var(--surface);padding:8px 10px;font-size:12px}
+#cmpm-hours-grid .cmpm-hg-head{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:center}
+#cmpm-hours-grid .cmpm-hg-name{font-weight:600;color:var(--white)}
+#cmpm-hours-grid .cmpm-hg-cell{text-align:center;color:var(--white);font-variant-numeric:tabular-nums}
+#cmpm-hours-grid .cmpm-hg-cell.off{color:var(--muted)}
+#cmpm-hours-grid .cmpm-hg-cell.active{color:#6DCF9B;font-weight:600}
+#cmpm-hours-grid .cmpm-hg-cell .photo-flag{margin-left:4px;font-size:10px}
+#cmpm-hours-grid .cmpm-hg-cell .photo-flag.ok{color:var(--green)}
+#cmpm-hours-grid .cmpm-hg-cell .photo-flag.miss{color:var(--orange)}
+#cmpm-hours-grid .cmpm-hg-total{text-align:center;font-weight:700;color:var(--blue-light)}
+@media(max-width:767px){#cmpm-hours-grid{grid-template-columns:160px repeat(7,minmax(50px,1fr)) 70px;font-size:11px;overflow-x:auto}.cmpm-activity-item{flex-direction:column}}
+
 /* TABLE */
 .table-wrap{background:var(--surface);border:1px solid var(--border);
   border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
@@ -994,6 +1028,10 @@ html,body{overflow-x:hidden}
       <div class="nav-link" id="nav-gis-lists" onclick="showPanel('gis-lists')">
         <span class="nav-icon">🗺️</span> GIS / Restorations
       </div>
+      <!-- MI-302 Unit 2: role-gated tab (super_admin + supervisor); inspector role hides via initApp. -->
+      <div class="nav-link" id="nav-cm-pm" onclick="showPanel('cm-pm')" style="display:none">
+        <span class="nav-icon">🏗️</span> Construction PM
+      </div>
       <div class="nav-link" id="nav-submit" onclick="showPanel('submit')">
         <span class="nav-icon">📋</span> Submit Phase
       </div>
@@ -1160,6 +1198,52 @@ html,body{overflow-x:hidden}
             <div id="gis-rest-list">
               <div class="loading"><div class="spinner"></div><br>Loading restorations...</div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MI-302 Unit 2: Construction PM (read-only). Arrival/departure capture deferred to Unit 3. -->
+      <div class="panel" id="panel-cm-pm">
+        <div class="page-header">
+          <div class="page-title">Construction PM</div>
+          <div class="page-sub">Contractor assignments, today's activity, and billable hours. Read-only in v1; capture flows ship in Unit 3.</div>
+        </div>
+        <div id="cmpm-subtab-toggle" style="display:flex;gap:8px;margin-bottom:16px">
+          <button class="btn-sm btn-orange" data-cmpm-subtab="assignments" onclick="setCmPmSubtab('assignments')">📋 Assignments</button>
+          <button class="btn-sm btn-ghost" data-cmpm-subtab="today" onclick="setCmPmSubtab('today')">📍 Today's Activity</button>
+          <button class="btn-sm btn-ghost" data-cmpm-subtab="hours" onclick="setCmPmSubtab('hours')">⏱ Billable Hours</button>
+        </div>
+
+        <!-- Sub-tab: Assignments (default) -->
+        <div id="cmpm-subtab-assignments">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+            <button class="btn-sm btn-orange" disabled title="Add Contractor flow ships in Unit 3 (blocked on Q-302-j Bill review)">+ Add Contractor</button>
+          </div>
+          <div class="table-wrap">
+            <div id="cmpm-assignments-list">
+              <div class="loading"><div class="spinner"></div><br>Loading assignments...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sub-tab: Today's Activity -->
+        <div id="cmpm-subtab-today" style="display:none">
+          <div id="cmpm-today-list">
+            <div class="loading"><div class="spinner"></div><br>Loading activity feed...</div>
+          </div>
+        </div>
+
+        <!-- Sub-tab: Billable Hours -->
+        <div id="cmpm-subtab-hours" style="display:none">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+            <div style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--blue-light)">Week of <span id="cmpm-hours-week-label">—</span></div>
+            <div style="display:flex;gap:6px">
+              <button class="btn-sm btn-ghost" onclick="cmpmHoursWeekStep(-1)">&lt; prev</button>
+              <button class="btn-sm btn-ghost" onclick="cmpmHoursWeekStep(1)">next &gt;</button>
+            </div>
+          </div>
+          <div id="cmpm-hours-grid">
+            <div class="loading"><div class="spinner"></div><br>Loading billable hours...</div>
           </div>
         </div>
       </div>
@@ -2808,6 +2892,13 @@ async function initApp(user){
   // MI-OPS-DASHBOARD Unit 2: renderOpsDashboard now owns the welcome-date string
   // (dash-date element was removed with the legacy stat-grid layout).
   await loadDashboard();
+  // MI-302 Unit 2: role-gate the Construction PM sidebar tab. Visible to
+  // super_admin + supervisor; hidden for inspector role.
+  const cmpmNav = document.getElementById('nav-cm-pm');
+  if(cmpmNav){
+    const showCmPm = currentUserIsSuperAdmin || currentUserRole === 'supervisor';
+    cmpmNav.style.display = showCmPm ? '' : 'none';
+  }
   await loadProperties();
   await loadPropertySelect();
   initPhotoSlotStatusHook();
@@ -2826,6 +2917,7 @@ function showPanel(name){
   if(name==='gis-lists') loadGisLists();
   if(name==='herald') loadHerald();
   if(name==='certs') loadCerts();
+  if(name==='cm-pm') loadCmPm();
 }
 
 // ── DASHBOARD ─────────────────────────────────────────
@@ -3119,6 +3211,259 @@ async function renderOpsRecentActivity(){
 
 // Back-compat: existing showPanel('dashboard') wiring calls loadDashboard().
 async function loadDashboard(){ return renderOpsDashboard(); }
+
+// ── CONSTRUCTION PM (MI-302 Unit 2) ────────────────────────────────────────
+// Three sub-views: Assignments / Today's Activity / Billable Hours. Read-only;
+// arrival/departure capture deferred to Unit 3 (blocked on Q-302-j Bill review).
+// Tables: contractor_assignments + contractor_arrival_log + contractor_departure_log.
+// All 3 are legal-hold immutable (BEFORE UPDATE/DELETE triggers) — UI is read-only by design.
+let _cmpmCurrentSubtab = 'assignments';
+let _cmpmHoursWeekOffset = 0;
+let _cmpmActiveTimerInterval = null;
+
+function setCmPmSubtab(name){
+  _cmpmCurrentSubtab = name;
+  ['assignments','today','hours'].forEach(s => {
+    const panel = document.getElementById('cmpm-subtab-'+s);
+    if(panel) panel.style.display = (s === name) ? '' : 'none';
+  });
+  document.querySelectorAll('#cmpm-subtab-toggle button').forEach(b => {
+    const active = b.dataset.cmpmSubtab === name;
+    b.classList.toggle('btn-orange', active);
+    b.classList.toggle('btn-ghost', !active);
+  });
+  if(name === 'today') loadCmPmTodayActivity();
+  else if(name === 'hours') loadCmPmBillableHours();
+  else loadCmPmAssignments();
+}
+
+async function loadCmPm(){
+  // Default-reset to Assignments sub-tab on every panel open.
+  setCmPmSubtab('assignments');
+}
+
+async function loadCmPmAssignments(){
+  const host = document.getElementById('cmpm-assignments-list');
+  if(!host) return;
+  const {data:rows, error} = await sb.from('contractor_assignments')
+    .select('id,contractor_name,contractor_role,start_date,end_date,active,notes,project_id')
+    .is('deleted_at', null)
+    .order('start_date',{ascending:false});
+  if(error){
+    host.innerHTML = `<div class="loading">Error loading assignments: ${gisEscape(error.message)}</div>`;
+    return;
+  }
+  if(!rows || !rows.length){
+    host.innerHTML = '<div class="loading">No contractor assignments yet for this firm.</div>';
+    return;
+  }
+  const roleLabel = r => {
+    const k = (r||'other').toLowerCase();
+    return ({primary:'Primary', subcontractor:'Subcontractor', specialty:'Specialty', other:'Other'})[k] || r || 'Other';
+  };
+  const fmtDate = d => d ? new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
+  let html = `<table><thead><tr>
+    <th>Contractor</th>
+    <th style="width:140px">Role</th>
+    <th style="width:130px">Start Date</th>
+    <th>Notes</th>
+    <th style="width:100px">Status</th>
+  </tr></thead><tbody>`;
+  rows.forEach(r => {
+    const statusCls = r.active ? 'color:var(--green)' : 'color:var(--muted)';
+    const statusIcon = r.active ? '🟢' : '⚪';
+    const statusLabel = r.active ? 'Active' : 'Inactive';
+    html += `<tr class="cmpm-assignment-row">
+      <td><div style="font-weight:600;color:var(--white)">${gisEscape(r.contractor_name||'(unnamed)')}</div></td>
+      <td style="font-size:12px;color:var(--muted)">${gisEscape(roleLabel(r.contractor_role))}</td>
+      <td style="font-size:12px;color:var(--muted)">${fmtDate(r.start_date)}</td>
+      <td style="font-size:12px;color:rgba(237,242,248,0.75)">${gisEscape(r.notes||'—')}</td>
+      <td style="font-size:12px;${statusCls}">${statusIcon} ${statusLabel}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  host.innerHTML = html;
+}
+
+async function loadCmPmTodayActivity(){
+  const host = document.getElementById('cmpm-today-list');
+  if(!host) return;
+  // Today in local time, ISO-ish window: stretch back 24h if today is empty.
+  const startOfToday = new Date(); startOfToday.setHours(0,0,0,0);
+  const startIso = startOfToday.toISOString();
+  const [arrRes, depRes] = await Promise.all([
+    sb.from('contractor_arrival_log')
+      .select('id,contractor_assignment_id,property_id,arrived_at,gps_lat,gps_lng,gps_accuracy_meters,photo_url,photo_whiteboard_detected,recorded_by_email,notes,contractor_assignments(contractor_name),properties(address,city)')
+      .is('deleted_at', null)
+      .gte('arrived_at', startIso)
+      .order('arrived_at',{ascending:false}),
+    sb.from('contractor_departure_log')
+      .select('id,contractor_assignment_id,property_id,arrival_log_id,departed_at,gps_lat,gps_lng,gps_accuracy_meters,photo_url,recorded_by_email,notes,contractor_assignments(contractor_name),properties(address,city)')
+      .is('deleted_at', null)
+      .gte('departed_at', startIso)
+      .order('departed_at',{ascending:false}),
+  ]);
+  if(arrRes.error) console.warn('today arrivals:', arrRes.error);
+  if(depRes.error) console.warn('today departures:', depRes.error);
+  let arrivals = arrRes.data || [];
+  let departures = depRes.data || [];
+  // Fallback to last 24h if today is empty.
+  if(arrivals.length === 0 && departures.length === 0){
+    const yest = new Date(); yest.setDate(yest.getDate()-1);
+    const yestIso = yest.toISOString();
+    const [a2, d2] = await Promise.all([
+      sb.from('contractor_arrival_log')
+        .select('id,contractor_assignment_id,property_id,arrived_at,gps_lat,gps_lng,gps_accuracy_meters,photo_url,photo_whiteboard_detected,recorded_by_email,notes,contractor_assignments(contractor_name),properties(address,city)')
+        .is('deleted_at', null).gte('arrived_at', yestIso).order('arrived_at',{ascending:false}).limit(20),
+      sb.from('contractor_departure_log')
+        .select('id,contractor_assignment_id,property_id,arrival_log_id,departed_at,gps_lat,gps_lng,gps_accuracy_meters,photo_url,recorded_by_email,notes,contractor_assignments(contractor_name),properties(address,city)')
+        .is('deleted_at', null).gte('departed_at', yestIso).order('departed_at',{ascending:false}).limit(20),
+    ]);
+    arrivals = a2.data || []; departures = d2.data || [];
+  }
+  if(arrivals.length === 0 && departures.length === 0){
+    host.innerHTML = '<div class="loading">No contractor activity logged in the last 24 hours.</div>';
+    return;
+  }
+  // Match departures to arrivals → identify in-progress arrivals (no matching departure)
+  const departedArrivalIds = new Set(departures.map(d => d.arrival_log_id).filter(Boolean));
+  const feed = [];
+  arrivals.forEach(a => feed.push({kind: departedArrivalIds.has(a.id) ? 'arrival' : 'active', row:a, ts: a.arrived_at}));
+  departures.forEach(d => feed.push({kind:'departure', row:d, ts: d.departed_at}));
+  feed.sort((x,y) => new Date(y.ts) - new Date(x.ts));
+  const now = new Date();
+  const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '—';
+  const fmtElapsed = (fromIso) => {
+    const ms = now - new Date(fromIso);
+    if(ms < 0) return '0m';
+    const mins = Math.floor(ms/60000);
+    const h = Math.floor(mins/60), m = mins % 60;
+    return h > 0 ? `${h}h ${m}m elapsed` : `${m}m elapsed`;
+  };
+  let html = '';
+  feed.forEach(item => {
+    const r = item.row;
+    const gpsHi = (Number(r.gps_accuracy_meters)||0) > 50;
+    const cls = item.kind === 'active' ? 'active-now' : (gpsHi ? 'gps-warn' : '');
+    const tagCls = item.kind === 'active' ? 'active-now' : (gpsHi ? 'gps-warn' : item.kind);
+    const tagLabel = item.kind === 'active' ? 'Active now' : item.kind === 'arrival' ? 'Arrived' : 'Departed';
+    const addr = r.properties ? ((r.properties.address || '—') + (r.properties.city ? ', ' + r.properties.city : '')) : '—';
+    const name = r.contractor_assignments?.contractor_name || '(unknown contractor)';
+    const gpsAcc = Number(r.gps_accuracy_meters);
+    const gpsStr = isFinite(gpsAcc) ? `GPS ±${gpsAcc.toFixed(1)}m ${gpsHi ? '(low accuracy)' : '✓'}` : 'GPS —';
+    const recorder = r.recorded_by_email ? gisEscape(r.recorded_by_email) : '';
+    let line2;
+    if(item.kind === 'active'){
+      line2 = `Arrived ${fmtTime(r.arrived_at)} · <strong>${fmtElapsed(r.arrived_at)}</strong> · ${gpsStr}`;
+    } else if(item.kind === 'arrival'){
+      line2 = `${fmtTime(r.arrived_at)} · ${gpsStr}${recorder ? ' · ' + recorder : ''}`;
+    } else {
+      line2 = `${fmtTime(r.departed_at)} · ${gpsStr}${recorder ? ' · ' + recorder : ''}`;
+    }
+    const thumb = r.photo_url
+      ? `<div class="cmpm-activity-thumb"><img src="${gisEscape(r.photo_url)}" alt="" onerror="this.parentElement.innerHTML='📷'"></div>`
+      : `<div class="cmpm-activity-thumb">📷</div>`;
+    const notes = r.notes ? `<div class="cmpm-activity-notes">"${gisEscape(r.notes)}"</div>` : '';
+    html += `<div class="cmpm-activity-item ${cls}">
+      ${thumb}
+      <div class="cmpm-activity-body">
+        <div class="cmpm-activity-head">
+          <span class="cmpm-activity-name">${gisEscape(name)}</span>
+          <span class="cmpm-activity-tag ${tagCls}">${tagLabel}${gpsHi && item.kind !== 'active' ? ' · LOW GPS' : ''}</span>
+        </div>
+        <div class="cmpm-activity-addr">${gisEscape(addr)}</div>
+        <div class="cmpm-activity-meta">${line2}</div>
+        ${notes}
+      </div>
+    </div>`;
+  });
+  host.innerHTML = html;
+  // Live-update elapsed timers for "active now" entries
+  if(_cmpmActiveTimerInterval) clearInterval(_cmpmActiveTimerInterval);
+  if(feed.some(f => f.kind === 'active')){
+    _cmpmActiveTimerInterval = setInterval(() => {
+      if(_cmpmCurrentSubtab === 'today') loadCmPmTodayActivity();
+      else clearInterval(_cmpmActiveTimerInterval);
+    }, 60000);
+  }
+}
+
+function cmpmHoursWeekStep(n){ _cmpmHoursWeekOffset += n; loadCmPmBillableHours(); }
+
+async function loadCmPmBillableHours(){
+  const host = document.getElementById('cmpm-hours-grid');
+  const lbl = document.getElementById('cmpm-hours-week-label');
+  if(!host) return;
+  // Mon-Sun of current+offset week (reuse opsWeekStart from OPS dashboard).
+  const weekStart = opsWeekStart(_cmpmHoursWeekOffset);
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate()+6);
+  const days = Array.from({length:7}, (_,i) => {
+    const d = new Date(weekStart); d.setDate(weekStart.getDate()+i); return opsIsoDate(d);
+  });
+  const fmt = d => d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  if(lbl) lbl.textContent = `${fmt(weekStart)} – ${fmt(weekEnd)}, ${weekStart.getFullYear()}`;
+  const startIso = new Date(weekStart); startIso.setHours(0,0,0,0);
+  const endIso = new Date(weekStart); endIso.setDate(weekStart.getDate()+7); endIso.setHours(0,0,0,0);
+  const [arrRes, depRes] = await Promise.all([
+    sb.from('contractor_arrival_log')
+      .select('id,contractor_assignment_id,arrived_at,photo_url,contractor_assignments(contractor_name)')
+      .is('deleted_at', null)
+      .gte('arrived_at', startIso.toISOString()).lt('arrived_at', endIso.toISOString()),
+    sb.from('contractor_departure_log')
+      .select('id,contractor_assignment_id,arrival_log_id,departed_at,contractor_assignments(contractor_name)')
+      .is('deleted_at', null)
+      .gte('departed_at', startIso.toISOString()).lt('departed_at', endIso.toISOString()),
+  ]);
+  if(arrRes.error){ host.innerHTML = `<div class="loading">Error: ${gisEscape(arrRes.error.message)}</div>`; return; }
+  const arrivals = arrRes.data || [];
+  const departures = depRes.data || [];
+  if(!arrivals.length){
+    host.innerHTML = `<div class="loading" style="grid-column:1/-1;padding:24px;text-align:center">No contractor activity in this week.</div>`;
+    return;
+  }
+  // Join arrivals → departures via arrival_log_id; compute per-day hours per contractor.
+  const depByArrival = new Map(departures.filter(d => d.arrival_log_id).map(d => [d.arrival_log_id, d]));
+  const byContractor = new Map();
+  arrivals.forEach(a => {
+    const name = a.contractor_assignments?.contractor_name || '(unknown)';
+    if(!byContractor.has(name)) byContractor.set(name, {byDate:{}, total:0});
+    const dateKey = a.arrived_at.slice(0,10);
+    const slot = byContractor.get(name);
+    if(!slot.byDate[dateKey]) slot.byDate[dateKey] = {hours:0, hasPhoto:false, active:false};
+    const dep = depByArrival.get(a.id);
+    if(dep && dep.departed_at){
+      const h = (new Date(dep.departed_at) - new Date(a.arrived_at)) / 3600000;
+      if(h > 0){ slot.byDate[dateKey].hours += h; slot.total += h; }
+    } else {
+      // In-progress (no departure yet) — mark active, don't sum
+      slot.byDate[dateKey].active = true;
+    }
+    if(a.photo_url) slot.byDate[dateKey].hasPhoto = true;
+  });
+  // Render grid
+  const dayLabels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  let html = `<div class="cmpm-hg-head">Contractor</div>`;
+  dayLabels.forEach((d, i) => {
+    const dn = days[i].slice(5).replace('-','/');
+    html += `<div class="cmpm-hg-head">${d}<br><span style="font-weight:400;color:var(--muted);font-size:10px">${dn}</span></div>`;
+  });
+  html += `<div class="cmpm-hg-head">Total</div>`;
+  const sorted = Array.from(byContractor.entries()).sort((a,b) => a[0].localeCompare(b[0]));
+  sorted.forEach(([name, slot]) => {
+    html += `<div class="cmpm-hg-name">${gisEscape(name)}</div>`;
+    days.forEach(d => {
+      const cell = slot.byDate[d];
+      if(!cell){ html += `<div class="cmpm-hg-cell off">—</div>`; return; }
+      if(cell.active){
+        html += `<div class="cmpm-hg-cell active">ACTIVE<span class="photo-flag ${cell.hasPhoto?'ok':'miss'}">${cell.hasPhoto?'📷':'⚠'}</span></div>`;
+      } else {
+        html += `<div class="cmpm-hg-cell">${cell.hours.toFixed(1)}<span class="photo-flag ${cell.hasPhoto?'ok':'miss'}">${cell.hasPhoto?'📷':'⚠'}</span></div>`;
+      }
+    });
+    html += `<div class="cmpm-hg-total">${slot.total.toFixed(1)}</div>`;
+  });
+  host.innerHTML = html;
+}
 
 // ── PROPERTIES ────────────────────────────────────────
 function filterProperties(query) {
