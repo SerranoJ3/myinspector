@@ -32,6 +32,9 @@
 .coordination/buddy_firm_code_rotation*.md
 supabase/migrations/*rotate*firm*code*.sql
 
+# ── Legal/business lane state (lawyer retainer, IP risk, CP employment exposure) ─
+.coordination/LEGAL_STATE.md
+
 # ── Standard noise ───────────────────────────────────────────────────────────
 .DS_Store
 node_modules/
