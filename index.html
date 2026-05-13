@@ -7727,6 +7727,11 @@ function diagramRender(){
   diagramState.mp.forEach(m => {
     html += `<line x1="${csX}" y1="${csY}" x2="${px(m.x)}" y2="${py(m.y)}" stroke="rgba(0,0,0,0.55)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
   });
+  // Asset connectors (Sprint Polish 5/12/26): same idea as MP connectors but lighter —
+  // assets are landmarks, not triangulation anchors. Half opacity + thinner + smaller dash.
+  diagramState.assets.forEach(a => {
+    html += `<line x1="${csX}" y1="${csY}" x2="${px(a.x)}" y2="${py(a.y)}" stroke="rgba(0,0,0,0.35)" stroke-width="1" stroke-dasharray="2,3"/>`;
+  });
   // MPs
   diagramState.mp.forEach(m => {
     const mx = px(m.x), my = py(m.y);
@@ -7840,6 +7845,10 @@ function _diagramInnerSVG(diagram, opts){
   (diagram.mp || []).forEach(m => {
     inner += `<line x1="${csX}" y1="${csY}" x2="${px(m.x)}" y2="${py(m.y)}" stroke="rgba(74,124,196,0.5)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
   });
+  // Asset connectors (Sprint Polish 5/12/26): lighter than MP connectors.
+  (diagram.assets || []).forEach(a => {
+    inner += `<line x1="${csX}" y1="${csY}" x2="${px(a.x)}" y2="${py(a.y)}" stroke="rgba(74,124,196,0.35)" stroke-width="1" stroke-dasharray="2,3"/>`;
+  });
   // MPs
   (diagram.mp || []).forEach(m => {
     const mx = px(m.x), my = py(m.y);
@@ -7906,6 +7915,10 @@ function diagramReadOnlyEmbed(diagram, opts){
   inner += `<g class="dgm-cs"><circle cx="${csX}" cy="${csY}" r="13" fill="#f4a820" stroke="#fff" stroke-width="2"/><text x="${csX}" y="${csY+4}" text-anchor="middle" fill="#1a1a1a" font-size="11" font-weight="800" font-family="Rajdhani, sans-serif">CS</text></g>`;
   (diagram.mp || []).forEach(m => {
     inner += `<line x1="${csX}" y1="${csY}" x2="${px(m.x)}" y2="${py(m.y)}" stroke="rgba(0,0,0,0.55)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
+  });
+  // Asset connectors (Sprint Polish 5/12/26): lighter than MP connectors.
+  (diagram.assets || []).forEach(a => {
+    inner += `<line x1="${csX}" y1="${csY}" x2="${px(a.x)}" y2="${py(a.y)}" stroke="rgba(0,0,0,0.35)" stroke-width="1" stroke-dasharray="2,3"/>`;
   });
   (diagram.mp || []).forEach(m => {
     const mx = px(m.x), my = py(m.y);
