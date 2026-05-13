@@ -2744,6 +2744,7 @@ async function loadDashboard(){
   // renderAllSubmissions ff384e9). Trims to top 8 groups so dashboard density holds.
   const {data:subs} = await sb.from('phase_submissions')
     .select('*,properties(address,city)')
+    .is('deleted_at', null)
     .order('submitted_at',{ascending:false})
     .limit(25);
 
@@ -3827,6 +3828,7 @@ let allSubmissionsCache = [];
 async function loadAllSubmissions(){
   const {data,error} = await sb.from('phase_submissions')
     .select('*,properties(address,city,zip,lot_block,mapcall_id)')
+    .is('deleted_at', null)
     .order('submitted_at',{ascending:false})
     .limit(200);
   if(error){
@@ -3914,7 +3916,7 @@ function renderAllSubmissions(data){
 // ── REPORTS ───────────────────────────────────────────
 async function loadReports(){
   const {data} = await sb.from('daily_reports')
-    .select('*').order('report_date',{ascending:false}).limit(20);
+    .select('*').is('deleted_at', null).order('report_date',{ascending:false}).limit(20);
   const container=document.getElementById('reports-list');
   if(!data||data.length===0){
     container.innerHTML='<div class="loading">No reports yet. Click Generate Now to compile today\'s submissions.</div>';
@@ -3962,6 +3964,7 @@ async function loadReportSubmissions(reportId, reportDate){
   if(!content) return;
   const {data:subs, error} = await sb.from('phase_submissions')
     .select('*,properties(address,city)')
+    .is('deleted_at', null)
     .eq('firm_id', currentFirmId)
     .gte('submitted_at', reportDate + 'T00:00:00')
     .lte('submitted_at', reportDate + 'T23:59:59')
@@ -4363,6 +4366,7 @@ async function loadGisRestorations(){
   const container = document.getElementById('gis-rest-list');
   const {data, error} = await sb.from('phase_submissions')
     .select('id,property_id,phase,submitted_at,submitted_by,work_order_code,njaw_work_order_code,notes,photo_restoration_whiteboard,properties(address,city)')
+    .is('deleted_at', null)
     .eq('phase', 'restoration')
     .order('submitted_at', {ascending: false})
     .limit(200);
@@ -4914,7 +4918,7 @@ async function openPropertyDetail(propertyId){
   if(msBar) msBar.style.display = 'none';
 
   // Load property
-  const {data:prop, error:propErr} = await sb.from('properties').select('*').eq('id',propertyId).maybeSingle();
+  const {data:prop, error:propErr} = await sb.from('properties').select('*').is('deleted_at', null).eq('id',propertyId).maybeSingle();
   if(propErr || !prop){
     showToast('Could not load property','error');
     closeModal('modal-property-detail');
@@ -4983,6 +4987,7 @@ async function openPropertyDetail(propertyId){
   const {data:subs, error:subErr} = await sb
     .from('phase_submissions')
     .select('*')
+    .is('deleted_at', null)
     .eq('property_id',propertyId)
     .order('submitted_at',{ascending:false});
 
@@ -5970,7 +5975,7 @@ async function rgInit(){
 
   // Sector dispatch
   try {
-    const { data: prop } = await sb.from('properties').select('sector').eq('id', propertyId).maybeSingle();
+    const { data: prop } = await sb.from('properties').select('sector').is('deleted_at', null).eq('id', propertyId).maybeSingle();
     rgSector = prop?.sector || 'NJ6_NORMAL';
   } catch(e){ rgSector = 'NJ6_NORMAL'; }
   if(rgSector === 'NJAW_SHORT_HILLS' && banner) banner.style.display = 'block';
@@ -8555,7 +8560,7 @@ async function sendLuis(){
 
   async function appendPhotoToSubmission(client, photo, path) {
     const { data: sub, error: fetchErr } = await client
-      .from('phase_submissions').select('photos').eq('id', photo.submission_id).maybeSingle();
+      .from('phase_submissions').select('photos').is('deleted_at', null).eq('id', photo.submission_id).maybeSingle();
     if (!sub) {
       // Submission doesn't exist (likely orphan photo from failed submission attempt). Abandon.
       throw new Error('Submission ' + photo.submission_id + ' not found — photo is orphaned');
