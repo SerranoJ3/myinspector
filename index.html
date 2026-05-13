@@ -2211,6 +2211,39 @@ const SUPABASE_KEY = 'sb_publishable_xYjhw_vwuQzky1KD2X2STQ_dmJrFgJz';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 window.sb = sb;
 
+// ── DEMO MODE firm scope shim (Sprint Polish 5/13/26 — option B) ─────
+// When demo mode is active (currentFirmIsDemo=true) AND we have a firm id,
+// auto-scope cross-firm SELECT queries on shared-tenant tables to the user's
+// own firm. Plugs the super_admin "All Firms" leak in one central place — no
+// per-query edits, no role demotion. INSERT/UPDATE chains use a different
+// builder type after .insert()/.update(), so their .select() RETURNING clauses
+// are unaffected. On the production branch where currentFirmIsDemo defaults
+// to false, this shim is a no-op.
+const DEMO_SCOPED_TABLES = new Set([
+  'properties','phase_submissions','materials_sheets','daily_reports',
+  'gis_lists','inspector_credentials','rfis','documents','luis_conversations',
+  'photo_rescue','supervisor_alerts','inspections','modules','projects'
+]);
+(function installDemoFirmScope(){
+  const _origFrom = sb.from;
+  sb.from = function(tableName){
+    const builder = _origFrom.call(sb, tableName);
+    if (!DEMO_SCOPED_TABLES.has(tableName)) return builder;
+    const _origSelect = builder.select;
+    builder.select = function(){
+      const q = _origSelect.apply(builder, arguments);
+      // Re-check globals at call time so post-login firm state is applied
+      if (typeof currentFirmIsDemo !== 'undefined' && currentFirmIsDemo &&
+          typeof currentFirmId !== 'undefined' && currentFirmId){
+        try { return q.eq('firm_id', currentFirmId); }
+        catch(e){ console.warn('[demoScope] firm_id filter failed on '+tableName, e); return q; }
+      }
+      return q;
+    };
+    return builder;
+  };
+})();
+
 let currentUser = null;
 // Demo branch override: defaulted to TRUE so the banner is visible on /auth,
 // /404, and any pre-login route (banner sits at body level, visibility is
