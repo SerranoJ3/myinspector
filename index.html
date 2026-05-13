@@ -4170,8 +4170,11 @@ function renderGisEntries(){
     const statusLabel = status === 'to_do' ? 'To-Do' : status === 'in_progress' ? 'In Progress' : 'Complete';
     const statusCls = status === 'to_do' ? 'btn-ghost' : 'btn-orange';
     const lastDt = e.completed_at ? new Date(e.completed_at).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—';
-    const linkBtn = e.linked_property_id ? `<button class="btn-sm btn-ghost" style="margin-left:6px" onclick="openPropertyDetail('${gisEscape(e.linked_property_id)}')">View</button>` : '';
-    html += `<tr data-entry-id="${gisEscape(e.id)}">
+    const linkBtn = e.linked_property_id ? `<button class="btn-sm btn-ghost" style="margin-left:6px" onclick="event.stopPropagation();openPropertyDetail('${gisEscape(e.linked_property_id)}')">View</button>` : '';
+    const rowAttrs = e.linked_property_id
+      ? ` onclick="if(event.target.closest('button,input'))return;openPropertyDetail('${gisEscape(e.linked_property_id)}')" style="cursor:pointer"`
+      : '';
+    html += `<tr data-entry-id="${gisEscape(e.id)}"${rowAttrs}>
       <td style="color:var(--muted)">${idx}</td>
       <td><div style="font-weight:600;color:var(--white)">${gisEscape(e.address||'')}</div>${linkBtn}</td>
       <td><button class="btn-sm ${statusCls}" style="min-width:120px" onclick="cycleGisStatus('${gisEscape(e.id)}')">${statusLabel}</button></td>
@@ -4479,9 +4482,12 @@ function renderGisRestorations(){
       ? '<span style="color:var(--green)">✓</span>'
       : '<span style="color:var(--orange)">⚠</span>';
     const propBtn = r.property_id
-      ? `<button class="btn-sm btn-ghost" onclick="openPropertyDetail('${gisEscape(r.property_id)}')">View</button>`
+      ? `<button class="btn-sm btn-ghost" onclick="event.stopPropagation();openPropertyDetail('${gisEscape(r.property_id)}')">View</button>`
       : '';
-    html += `<tr data-restoration-id="${gisEscape(r.id)}">
+    const rowAttrs = r.property_id
+      ? ` onclick="if(event.target.closest('button'))return;openPropertyDetail('${gisEscape(r.property_id)}')" style="cursor:pointer"`
+      : '';
+    html += `<tr data-restoration-id="${gisEscape(r.id)}"${rowAttrs}>
       <td><div style="font-weight:600;color:var(--white)">${gisEscape(addr)}</div><div style="font-size:11px;color:var(--muted)">${gisEscape(city)}</div></td>
       <td style="font-size:12px;color:var(--muted)">${dt}</td>
       <td style="font-size:12px;color:var(--muted)">${gisEscape(code)}</td>
@@ -8351,6 +8357,7 @@ You help inspectors and PMs with:
 - Water utility compliance and work codes (SLR-A, SLR-B, SLR-C, INS)
 - Six phases: Test Pit, Assessment, Work Order, Service Work, GIS Documentation, Restoration
 - Whiteboard photo rules (LOCKED): Required when open excavation exists (curbstop area, watermain area, restoration — INCLUDING final restoration photos and rainy-day restorations). Also required when reporting a failed restoration with compliance issues. NOT required for tapcard/triangulation, GIS docs, blueprints, property exterior, backlog collection. Simple rule: hole in the ground OR compliance failure = whiteboard. No hole and no failure = no whiteboard.
+- Photo timing: capture happens at the natural pause — hole at depth, equipment stationary, whiteboard staged in shot. Never during active excavation (motion blur + dust + safety). Resume work after the shot is reviewed for legibility.
 - Pipe materials: lead, copper, galvanized, unknown
 - GIS data entry requirements
 - ADA: max ramp slope 1:12 (8.33%), truncated domes required, min 36in curb cut width
