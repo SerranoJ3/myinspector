@@ -222,6 +222,30 @@ body{display:flex;flex-direction:column}
 #cmpm-hours-grid .cmpm-hg-total{text-align:center;font-weight:700;color:var(--blue-light)}
 @media(max-width:767px){#cmpm-hours-grid{grid-template-columns:160px repeat(7,minmax(50px,1fr)) 70px;font-size:11px;overflow-x:auto}.cmpm-activity-item{flex-direction:column}}
 
+/* MI-OPS-HE Unit 2 — Hours / Expenses / PTO tab */
+.he-week-nav{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.he-supervisor-toggle{display:flex;gap:8px;flex-wrap:wrap}
+.he-week-table,.he-expenses-table,.he-pto-table{width:100%;border-collapse:collapse}
+.he-week-table th,.he-week-table td,.he-expenses-table th,.he-expenses-table td,.he-pto-table th,.he-pto-table td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;font-size:12px;vertical-align:middle}
+.he-week-table thead th,.he-expenses-table thead th,.he-pto-table thead th{background:rgba(74,124,196,0.06);font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.he-week-table tfoot td,.he-expenses-table tfoot td{background:rgba(74,124,196,0.04);font-size:13px}
+.he-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:99px;font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;line-height:1.4}
+.he-badge-draft{background:rgba(156,163,175,0.18);color:#9ca3af}
+.he-badge-submitted{background:rgba(245,158,11,0.18);color:#f59e0b}
+.he-badge-approved{background:rgba(74,124,196,0.18);color:var(--blue-light)}
+.he-badge-synced{background:rgba(16,185,129,0.18);color:#10b981}
+.he-badge-denied{background:rgba(239,68,68,0.18);color:#ef4444}
+.he-pto-balance{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px}
+.he-pto-bar-container{position:relative;height:12px;background:rgba(74,124,196,0.12);border-radius:99px;overflow:hidden}
+.he-pto-bar{position:absolute;top:0;left:0;bottom:0;background:#10b981;border-radius:99px;transition:width .25s,background .25s}
+.he-pto-bar.warn{background:#f59e0b}
+.he-pto-bar.crit{background:#ef4444}
+.he-pto-stats{width:100%;font-size:13px}
+.he-pto-stats td{padding:4px 0;color:rgba(237,242,248,0.85)}
+.he-pto-stats td:first-child{color:var(--muted);width:130px}
+.he-pto-stats td:last-child{color:var(--white);font-weight:600;font-variant-numeric:tabular-nums}
+@media(max-width:767px){.he-week-table,.he-expenses-table,.he-pto-table{font-size:11px}.he-week-table th,.he-week-table td,.he-expenses-table th,.he-expenses-table td,.he-pto-table th,.he-pto-table td{padding:8px 8px}.he-pto-stats td:first-child{width:90px}}
+
 /* TABLE */
 .table-wrap{background:var(--surface);border:1px solid var(--border);
   border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
@@ -1032,6 +1056,10 @@ html,body{overflow-x:hidden}
       <div class="nav-link" id="nav-cm-pm" onclick="showPanel('cm-pm')" style="display:none">
         <span class="nav-icon">🏗️</span> Construction PM
       </div>
+      <!-- MI-OPS-HE Unit 2: Hours / Expenses / PTO — visible to all roles. -->
+      <div class="nav-link" id="nav-hours-expenses" onclick="showPanel('hours-expenses')">
+        <span class="nav-icon">💰</span> Hours / Expenses
+      </div>
       <div class="nav-link" id="nav-submit" onclick="showPanel('submit')">
         <span class="nav-icon">📋</span> Submit Phase
       </div>
@@ -1070,8 +1098,8 @@ html,body{overflow-x:hidden}
             <div class="ops-welcome-sub" id="ops-welcome-date">Loading…</div>
           </div>
           <div class="ops-badges">
-            <span class="ops-badge" title="Ajeera bidirectional hours sync — Phase 2"><span class="ops-badge-dot"></span> Ajeera ✓ 14m</span>
-            <span class="ops-badge" title="ADP PTO accrual sync — Phase 2"><span class="ops-badge-dot"></span> ADP ✓ 2h</span>
+            <span class="ops-badge" title="Ajeera bidirectional hours sync — Phase 2"><span class="ops-badge-dot"></span> <span id="ops-badge-ajeera">Ajeera</span></span>
+            <span class="ops-badge" title="ADP PTO accrual sync — Phase 2"><span class="ops-badge-dot"></span> <span id="ops-badge-adp">ADP</span></span>
             <button class="btn-sm btn-ghost" onclick="renderOpsDashboard()">Refresh All</button>
           </div>
         </div>
@@ -1244,6 +1272,114 @@ html,body{overflow-x:hidden}
           </div>
           <div id="cmpm-hours-grid">
             <div class="loading"><div class="spinner"></div><br>Loading billable hours...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MI-OPS-HE Unit 2: Hours / Expenses / PTO — read paths + dashboard rewiring. Writes ship in Unit 3. -->
+      <div class="panel" id="panel-hours-expenses">
+        <div class="page-header">
+          <div class="page-title">Hours / Expenses</div>
+          <div class="page-sub">Enter time + expenses, request PTO, view sync status. Write paths ship in Unit 3.</div>
+        </div>
+        <div id="he-subtab-toggle" style="display:flex;gap:8px;margin-bottom:16px">
+          <button class="btn-sm btn-orange" data-he-subtab="hours" onclick="switchHoursExpensesSubview('hours')">⏱ Hours</button>
+          <button class="btn-sm btn-ghost" data-he-subtab="expenses" onclick="switchHoursExpensesSubview('expenses')">💰 Expenses</button>
+          <button class="btn-sm btn-ghost" data-he-subtab="pto" onclick="switchHoursExpensesSubview('pto')">🌴 PTO</button>
+        </div>
+
+        <!-- Hours sub-view -->
+        <div id="he-subview-hours">
+          <div class="he-week-nav">
+            <button class="btn-sm btn-ghost" onclick="heHoursWeekShift(-1)">← Previous</button>
+            <button class="btn-sm btn-ghost" onclick="heHoursWeekShift(0)">Today</button>
+            <button class="btn-sm btn-ghost" onclick="heHoursWeekShift(1)">Next →</button>
+            <span id="he-hours-week-label" style="margin-left:8px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:.04em;color:var(--blue-light)">—</span>
+          </div>
+          <div class="he-supervisor-toggle" id="he-hours-toggle" style="display:none;margin:12px 0">
+            <button class="btn-sm btn-orange" data-he-hours-view="mine" onclick="heShowMyHours()">My Hours</button>
+            <button class="btn-sm btn-ghost" data-he-hours-view="queue" onclick="heShowHoursQueue()">Pending Approval (<span id="he-hours-queue-count">0</span>)</button>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin:12px 0">
+            <button class="btn-sm btn-orange" id="he-hours-submit-batch" onclick="alert('Unit 3: batch submit to Ajeera not yet wired')" style="display:none">Submit Week to Ajeera (<span id="he-hours-draft-count">0</span> drafts)</button>
+          </div>
+          <div class="table-wrap">
+            <table class="he-week-table">
+              <thead>
+                <tr><th>Day</th><th style="width:70px">Hours</th><th style="width:60px">OT</th><th>Project</th><th>Notes</th><th style="width:160px">Status</th></tr>
+              </thead>
+              <tbody id="he-hours-table-body">
+                <tr><td colspan="6" class="loading"><div class="spinner"></div></td></tr>
+              </tbody>
+              <tfoot>
+                <tr><td style="font-weight:700;color:var(--blue-light)">Total</td><td id="he-hours-total" style="font-weight:700;color:var(--white)">0.0</td><td id="he-hours-ot-total" style="font-weight:700;color:var(--orange)">0.0</td><td></td><td></td><td></td></tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- Expenses sub-view -->
+        <div id="he-subview-expenses" style="display:none">
+          <div class="he-week-nav">
+            <button class="btn-sm btn-ghost" onclick="heExpensesWeekShift(-1)">← Previous</button>
+            <button class="btn-sm btn-ghost" onclick="heExpensesWeekShift(0)">Today</button>
+            <button class="btn-sm btn-ghost" onclick="heExpensesWeekShift(1)">Next →</button>
+            <span id="he-expenses-week-label" style="margin-left:8px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:.04em;color:var(--blue-light)">—</span>
+          </div>
+          <div class="he-supervisor-toggle" id="he-expenses-toggle" style="display:none;margin:12px 0">
+            <button class="btn-sm btn-orange" data-he-expenses-view="mine" onclick="heShowMyExpenses()">My Expenses</button>
+            <button class="btn-sm btn-ghost" data-he-expenses-view="queue" onclick="heShowExpensesQueue()">Pending Approval (<span id="he-expenses-queue-count">0</span>)</button>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin:12px 0">
+            <button class="btn-sm btn-orange" id="he-expenses-new" onclick="alert('Unit 3: new expense modal not yet wired')">+ New Expense</button>
+          </div>
+          <div class="table-wrap">
+            <table class="he-expenses-table">
+              <thead>
+                <tr><th style="width:100px">Date</th><th style="width:130px">Category</th><th>Description</th><th style="width:90px">Amount</th><th style="width:160px">Status</th></tr>
+              </thead>
+              <tbody id="he-expenses-table-body">
+                <tr><td colspan="5" class="loading"><div class="spinner"></div></td></tr>
+              </tbody>
+              <tfoot>
+                <tr><td colspan="3" style="font-weight:700;color:var(--blue-light)">Total</td><td id="he-expenses-total" style="font-weight:700;color:var(--white)">$0.00</td><td></td></tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- PTO sub-view -->
+        <div id="he-subview-pto" style="display:none">
+          <div class="he-pto-balance">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+              <h3 style="margin:0;font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;letter-spacing:.04em;color:var(--white)" id="he-pto-fy-title">PTO Balance — Fiscal Year —</h3>
+              <button class="btn-sm btn-orange" id="he-pto-request" onclick="alert('Unit 3: PTO request modal not yet wired')">+ Request PTO</button>
+            </div>
+            <div class="he-pto-bar-container">
+              <div class="he-pto-bar" id="he-pto-bar" style="width:0%"></div>
+            </div>
+            <table class="he-pto-stats" style="margin-top:12px">
+              <tr><td>Accrued</td><td id="he-pto-accrued">—</td></tr>
+              <tr><td>Used</td><td id="he-pto-used">—</td></tr>
+              <tr><td>Balance</td><td id="he-pto-balance-val">—</td></tr>
+              <tr><td>Max</td><td id="he-pto-max">—</td></tr>
+              <tr><td>Next accrual</td><td id="he-pto-next-accrual">—</td></tr>
+            </table>
+          </div>
+          <div class="he-supervisor-toggle" id="he-pto-toggle" style="display:none;margin:16px 0">
+            <button class="btn-sm btn-orange" data-he-pto-view="mine" onclick="heShowMyPto()">My PTO</button>
+            <button class="btn-sm btn-ghost" data-he-pto-view="queue" onclick="heShowPtoQueue()">Pending Approval (<span id="he-pto-queue-count">0</span>)</button>
+          </div>
+          <h4 id="he-pto-table-heading" style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--blue-light);margin:18px 0 8px">My recent PTO</h4>
+          <div class="table-wrap">
+            <table class="he-pto-table">
+              <thead>
+                <tr><th style="width:110px">Date</th><th style="width:80px">Hours</th><th style="width:130px">Status</th><th>Decided by</th><th>Notes</th></tr>
+              </thead>
+              <tbody id="he-pto-table-body">
+                <tr><td colspan="5" class="loading"><div class="spinner"></div></td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -2918,6 +3054,7 @@ function showPanel(name){
   if(name==='herald') loadHerald();
   if(name==='certs') loadCerts();
   if(name==='cm-pm') loadCmPm();
+  if(name==='hours-expenses') loadHoursExpenses();
 }
 
 // ── DASHBOARD ─────────────────────────────────────────
@@ -3053,7 +3190,7 @@ function renderHoursTile(data){
       <div class="ops-tile-big">${data.totalHours.toFixed(1)} hrs<span style="font-size:14px;font-weight:600;color:var(--muted)"> total</span>${otPart}</div>
       <div class="ops-tile-breakdown" style="margin-top:8px">${breakdown}</div>
     </div>
-    <button class="btn-sm btn-orange ops-tile-cta" disabled title="Bidirectional Ajeera sync ships in Phase 2">Submit to Ajeera →</button>`;
+    <button class="btn-sm btn-orange ops-tile-cta" onclick="showPanel('hours-expenses');setTimeout(()=>switchHoursExpensesSubview('hours'),0)" title="Open Hours / Expenses tab">Open Hours →</button>`;
 }
 
 async function loadPtoBalance(){
@@ -3097,7 +3234,7 @@ function renderPtoTile(data){
       <div class="ops-tile-sub" style="margin-top:6px">Used: ${data.usedHours.toFixed(1)} / ${data.maxBalance.toFixed(0)}</div>
       <div class="ops-tile-sub">Next accrual: ${nextAccrual}</div>
     </div>
-    <button class="btn-sm btn-orange ops-tile-cta" disabled title="Request flow ships in Unit 3">Request PTO →</button>`;
+    <button class="btn-sm btn-orange ops-tile-cta" onclick="showPanel('hours-expenses');setTimeout(()=>switchHoursExpensesSubview('pto'),0)" title="Open PTO sub-view">Request PTO →</button>`;
 }
 
 async function loadActiveAlerts(){
@@ -3152,8 +3289,44 @@ async function renderOpsDashboard(){
   renderHoursTile(hours);
   renderPtoTile(pto);
   renderAlertsTile(alerts);
+  // MI-OPS-HE Unit 2: integration badge timestamps from MAX(synced_at) across firm.
+  updateOpsIntegrationBadges().catch(e => console.warn('integration badges:', e));
 
   await renderOpsRecentActivity();
+}
+
+function opsFmtRelative(iso){
+  if(!iso) return null;
+  const ms = Date.now() - new Date(iso).getTime();
+  if(ms < 0 || !isFinite(ms)) return null;
+  const mins = Math.floor(ms/60000);
+  if(mins < 1) return 'just now';
+  if(mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins/60);
+  if(hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs/24);
+  return `${days}d ago`;
+}
+
+async function updateOpsIntegrationBadges(){
+  const ajEl = document.getElementById('ops-badge-ajeera');
+  const adpEl = document.getElementById('ops-badge-adp');
+  // Ajeera = MAX across hours_entries.ajeera_synced_at and expense_entries.ajeera_synced_at
+  const [hRes, eRes, pRes] = await Promise.all([
+    sb.from('hours_entries').select('ajeera_synced_at').is('deleted_at', null).not('ajeera_synced_at','is',null).order('ajeera_synced_at',{ascending:false}).limit(1),
+    sb.from('expense_entries').select('ajeera_synced_at').is('deleted_at', null).not('ajeera_synced_at','is',null).order('ajeera_synced_at',{ascending:false}).limit(1),
+    sb.from('pto_balances').select('adp_synced_at').is('deleted_at', null).not('adp_synced_at','is',null).order('adp_synced_at',{ascending:false}).limit(1),
+  ]);
+  const ajeeraMax = [hRes.data?.[0]?.ajeera_synced_at, eRes.data?.[0]?.ajeera_synced_at].filter(Boolean).sort().pop();
+  const adpMax = pRes.data?.[0]?.adp_synced_at;
+  if(ajEl){
+    const rel = opsFmtRelative(ajeeraMax);
+    ajEl.textContent = rel ? `Ajeera ✓ ${rel}` : 'Ajeera · Phase 2';
+  }
+  if(adpEl){
+    const rel = opsFmtRelative(adpMax);
+    adpEl.textContent = rel ? `ADP ✓ ${rel}` : 'ADP · Phase 2';
+  }
 }
 
 async function renderOpsRecentActivity(){
@@ -3463,6 +3636,442 @@ async function loadCmPmBillableHours(){
     html += `<div class="cmpm-hg-total">${slot.total.toFixed(1)}</div>`;
   });
   host.innerHTML = html;
+}
+
+// ── HOURS / EXPENSES / PTO (MI-OPS-HE Unit 2) ──────────────────────────────
+// Sidebar tab: visible to ALL roles. Three sub-views: Hours / Expenses / PTO.
+// Read paths only — write paths (Submit / Approve / Deny / Request) stub alert()s
+// for Unit 3. Supervisor toggle shows pending-approval queues for supervisor+
+// super_admin roles. Reads from hours_entries, expense_entries, pto_balances,
+// pto_transactions; RLS auto-applies via supabase client auth token.
+let _heHoursWeekStart = null;       // Monday of currently-displayed Hours week
+let _heExpensesWeekStart = null;    // Monday of currently-displayed Expenses week
+let _heHoursView = 'mine';          // 'mine' or 'queue'
+let _heExpensesView = 'mine';
+let _hePtoView = 'mine';
+
+function heMondayOfWeek(ref){
+  const d = new Date(ref); d.setHours(0,0,0,0);
+  const dow = d.getDay();
+  const daysFromMon = dow === 0 ? -6 : 1 - dow;
+  d.setDate(d.getDate() + daysFromMon);
+  return d;
+}
+
+function heFmtWeekLabel(weekStart){
+  const end = new Date(weekStart); end.setDate(weekStart.getDate()+6);
+  const fmt = d => d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  return `Week of ${fmt(weekStart)} – ${fmt(end)}, ${weekStart.getFullYear()}`;
+}
+
+function heCanSeeQueue(){ return currentUserIsSuperAdmin || currentUserRole === 'supervisor'; }
+
+async function loadHoursExpenses(){
+  // Default-reset to Hours sub-view + own-view + today's week on every panel open.
+  if(!_heHoursWeekStart) _heHoursWeekStart = heMondayOfWeek(new Date());
+  if(!_heExpensesWeekStart) _heExpensesWeekStart = heMondayOfWeek(new Date());
+  // Role-gate supervisor toggles
+  const showToggles = heCanSeeQueue();
+  ['he-hours-toggle','he-expenses-toggle','he-pto-toggle'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.style.display = showToggles ? '' : 'none';
+  });
+  switchHoursExpensesSubview('hours');
+}
+
+function switchHoursExpensesSubview(view){
+  ['hours','expenses','pto'].forEach(s => {
+    const panel = document.getElementById('he-subview-'+s);
+    if(panel) panel.style.display = (s === view) ? '' : 'none';
+  });
+  document.querySelectorAll('#he-subtab-toggle button').forEach(b => {
+    const active = b.dataset.heSubtab === view;
+    b.classList.toggle('btn-orange', active);
+    b.classList.toggle('btn-ghost', !active);
+  });
+  if(view === 'hours'){ _heHoursView === 'queue' ? heShowHoursQueue() : heShowMyHours(); }
+  else if(view === 'expenses'){ _heExpensesView === 'queue' ? heShowExpensesQueue() : heShowMyExpenses(); }
+  else if(view === 'pto'){ _hePtoView === 'queue' ? heShowPtoQueue() : heShowMyPto(); }
+}
+
+// ── HOURS ────────────────────────────────────────
+function heHoursWeekShift(delta){
+  if(delta === 0) _heHoursWeekStart = heMondayOfWeek(new Date());
+  else { _heHoursWeekStart = new Date(_heHoursWeekStart); _heHoursWeekStart.setDate(_heHoursWeekStart.getDate() + delta*7); }
+  loadHoursWeek(_heHoursWeekStart);
+}
+
+function heShowMyHours(){
+  _heHoursView = 'mine';
+  document.querySelectorAll('#he-hours-toggle button').forEach(b => {
+    const active = b.dataset.heHoursView === 'mine';
+    b.classList.toggle('btn-orange', active);
+    b.classList.toggle('btn-ghost', !active);
+  });
+  loadHoursWeek(_heHoursWeekStart);
+}
+
+function heShowHoursQueue(){
+  if(!heCanSeeQueue()) return;
+  _heHoursView = 'queue';
+  document.querySelectorAll('#he-hours-toggle button').forEach(b => {
+    const active = b.dataset.heHoursView === 'queue';
+    b.classList.toggle('btn-orange', active);
+    b.classList.toggle('btn-ghost', !active);
+  });
+  loadHoursPendingQueue();
+}
+
+function heStatusBadge(status){
+  const m = {
+    draft: '<span class="he-badge he-badge-draft">Draft</span>',
+    submitted: '<span class="he-badge he-badge-submitted">⏳ Submitted</span>',
+    approved: '<span class="he-badge he-badge-approved">✓ Approved · Pending sync</span>',
+    synced: '<span class="he-badge he-badge-synced">✓ Synced</span>',
+    denied: '<span class="he-badge he-badge-denied">✗ Denied</span>',
+  };
+  return m[status] || `<span class="he-badge he-badge-draft">${gisEscape(status||'—')}</span>`;
+}
+
+async function loadHoursWeek(weekStart){
+  const lbl = document.getElementById('he-hours-week-label');
+  if(lbl) lbl.textContent = heFmtWeekLabel(weekStart);
+  const days = Array.from({length:7}, (_,i) => {
+    const d = new Date(weekStart); d.setDate(weekStart.getDate()+i); return opsIsoDate(d);
+  });
+  const {data:rows, error} = await sb.from('hours_entries')
+    .select('id,date,hours_regular,hours_overtime,status,notes,project_id,projects(name)')
+    .is('deleted_at', null)
+    .eq('inspector_id', currentUser?.id)
+    .gte('date', days[0]).lte('date', days[6])
+    .order('date',{ascending:true});
+  const body = document.getElementById('he-hours-table-body');
+  if(!body) return;
+  if(error){
+    body.innerHTML = `<tr><td colspan="6" class="loading">Error: ${gisEscape(error.message)}</td></tr>`;
+    return;
+  }
+  const byDate = new Map();
+  (rows||[]).forEach(r => byDate.set(r.date, r));
+  const dayLabels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  let totalReg = 0, totalOt = 0, drafts = 0;
+  let html = '';
+  days.forEach((d, i) => {
+    const r = byDate.get(d);
+    const dateLabel = `${dayLabels[i]} <span style="color:var(--muted);font-size:11px">${d.slice(5)}</span>`;
+    if(!r){
+      html += `<tr><td>${dateLabel}</td><td colspan="5" style="color:var(--muted);font-style:italic">— no entry —</td></tr>`;
+      return;
+    }
+    const reg = Number(r.hours_regular)||0, ot = Number(r.hours_overtime)||0;
+    totalReg += reg; totalOt += ot;
+    if(r.status === 'draft') drafts++;
+    html += `<tr>
+      <td>${dateLabel}</td>
+      <td style="font-variant-numeric:tabular-nums">${reg.toFixed(1)}</td>
+      <td style="font-variant-numeric:tabular-nums;color:${ot > 0 ? 'var(--orange)' : 'var(--muted)'}">${ot.toFixed(1)}</td>
+      <td style="color:rgba(237,242,248,0.85)">${gisEscape(r.projects?.name || '—')}</td>
+      <td style="color:rgba(237,242,248,0.7);font-style:italic">${gisEscape(r.notes || '—')}</td>
+      <td>${heStatusBadge(r.status)}</td>
+    </tr>`;
+  });
+  body.innerHTML = html;
+  document.getElementById('he-hours-total').textContent = totalReg.toFixed(1);
+  document.getElementById('he-hours-ot-total').textContent = totalOt.toFixed(1);
+  const batchBtn = document.getElementById('he-hours-submit-batch');
+  if(batchBtn){
+    batchBtn.style.display = drafts > 0 ? '' : 'none';
+    const c = document.getElementById('he-hours-draft-count');
+    if(c) c.textContent = drafts;
+  }
+}
+
+async function loadHoursPendingQueue(){
+  const body = document.getElementById('he-hours-table-body');
+  if(!body) return;
+  const {data:rows, error} = await sb.from('hours_entries')
+    .select('id,date,hours_regular,hours_overtime,status,notes,inspector_id,projects(name)')
+    .is('deleted_at', null)
+    .eq('status', 'submitted')
+    .order('updated_at',{ascending:false});
+  if(error){ body.innerHTML = `<tr><td colspan="6" class="loading">Error: ${gisEscape(error.message)}</td></tr>`; return; }
+  const inspectorIds = [...new Set((rows||[]).map(r => r.inspector_id).filter(Boolean))];
+  let nameMap = {};
+  if(inspectorIds.length){
+    const {data:profs} = await sb.from('profiles').select('id,full_name').in('id', inspectorIds);
+    (profs||[]).forEach(p => { nameMap[p.id] = p.full_name; });
+  }
+  const cnt = document.getElementById('he-hours-queue-count');
+  if(cnt) cnt.textContent = (rows||[]).length;
+  if(!rows || !rows.length){
+    body.innerHTML = '<tr><td colspan="6" class="loading">No pending hours entries.</td></tr>';
+    return;
+  }
+  let html = '';
+  rows.forEach(r => {
+    const reg = Number(r.hours_regular)||0, ot = Number(r.hours_overtime)||0;
+    html += `<tr>
+      <td>${r.date} <span style="color:var(--muted);font-size:11px">${gisEscape(nameMap[r.inspector_id]||'?')}</span></td>
+      <td style="font-variant-numeric:tabular-nums">${reg.toFixed(1)}</td>
+      <td style="font-variant-numeric:tabular-nums;color:${ot > 0 ? 'var(--orange)' : 'var(--muted)'}">${ot.toFixed(1)}</td>
+      <td style="color:rgba(237,242,248,0.85)">${gisEscape(r.projects?.name || '—')}</td>
+      <td style="color:rgba(237,242,248,0.7);font-style:italic">${gisEscape(r.notes || '—')}</td>
+      <td><button class="btn-sm btn-orange" onclick="alert('Unit 3: approve flow not yet wired')" style="font-size:10px;padding:3px 8px">Approve</button> <button class="btn-sm btn-ghost" onclick="alert('Unit 3: deny flow not yet wired')" style="font-size:10px;padding:3px 8px">Deny</button></td>
+    </tr>`;
+  });
+  body.innerHTML = html;
+  document.getElementById('he-hours-total').textContent = '—';
+  document.getElementById('he-hours-ot-total').textContent = '—';
+  const batchBtn = document.getElementById('he-hours-submit-batch');
+  if(batchBtn) batchBtn.style.display = 'none';
+}
+
+// ── EXPENSES ────────────────────────────────────────
+function heExpensesWeekShift(delta){
+  if(delta === 0) _heExpensesWeekStart = heMondayOfWeek(new Date());
+  else { _heExpensesWeekStart = new Date(_heExpensesWeekStart); _heExpensesWeekStart.setDate(_heExpensesWeekStart.getDate() + delta*7); }
+  loadExpensesWeek(_heExpensesWeekStart);
+}
+
+function heShowMyExpenses(){
+  _heExpensesView = 'mine';
+  document.querySelectorAll('#he-expenses-toggle button').forEach(b => {
+    const active = b.dataset.heExpensesView === 'mine';
+    b.classList.toggle('btn-orange', active);
+    b.classList.toggle('btn-ghost', !active);
+  });
+  loadExpensesWeek(_heExpensesWeekStart);
+}
+
+function heShowExpensesQueue(){
+  if(!heCanSeeQueue()) return;
+  _heExpensesView = 'queue';
+  document.querySelectorAll('#he-expenses-toggle button').forEach(b => {
+    const active = b.dataset.heExpensesView === 'queue';
+    b.classList.toggle('btn-orange', active);
+    b.classList.toggle('btn-ghost', !active);
+  });
+  loadExpensesPendingQueue();
+}
+
+function heCategoryLabel(c){
+  return ({mileage:'🚗 Mileage', per_diem:'🍽️ Per Diem', receipt:'🧾 Receipt', equipment:'🛠️ Equipment', other:'📋 Other'})[c] || (c || '—');
+}
+
+async function loadExpensesWeek(weekStart){
+  const lbl = document.getElementById('he-expenses-week-label');
+  if(lbl) lbl.textContent = heFmtWeekLabel(weekStart);
+  const days = Array.from({length:7}, (_,i) => {
+    const d = new Date(weekStart); d.setDate(weekStart.getDate()+i); return opsIsoDate(d);
+  });
+  const {data:rows, error} = await sb.from('expense_entries')
+    .select('id,date,category,amount_cents,description,vendor,receipt_photo_url,status')
+    .is('deleted_at', null)
+    .eq('inspector_id', currentUser?.id)
+    .gte('date', days[0]).lte('date', days[6])
+    .order('date',{ascending:false});
+  const body = document.getElementById('he-expenses-table-body');
+  if(!body) return;
+  if(error){
+    body.innerHTML = `<tr><td colspan="5" class="loading">Error: ${gisEscape(error.message)}</td></tr>`;
+    return;
+  }
+  if(!rows || !rows.length){
+    body.innerHTML = '<tr><td colspan="5" class="loading">No expense entries for this week.</td></tr>';
+    document.getElementById('he-expenses-total').textContent = '$0.00';
+    return;
+  }
+  let totalCents = 0;
+  let html = '';
+  rows.forEach(r => {
+    const amt = (Number(r.amount_cents)||0);
+    totalCents += amt;
+    const thumb = r.receipt_photo_url
+      ? `<img src="${gisEscape(r.receipt_photo_url)}" alt="" style="width:28px;height:28px;border-radius:4px;object-fit:cover;vertical-align:middle;margin-right:6px" onerror="this.style.display='none'">`
+      : '';
+    const desc = `${thumb}${gisEscape(r.description || r.vendor || '—')}`;
+    html += `<tr>
+      <td>${r.date}</td>
+      <td>${heCategoryLabel(r.category)}</td>
+      <td style="color:rgba(237,242,248,0.85)">${desc}</td>
+      <td style="font-variant-numeric:tabular-nums;font-weight:600;color:var(--white)">$${(amt/100).toFixed(2)}</td>
+      <td>${heStatusBadge(r.status)}</td>
+    </tr>`;
+  });
+  body.innerHTML = html;
+  document.getElementById('he-expenses-total').textContent = `$${(totalCents/100).toFixed(2)}`;
+}
+
+async function loadExpensesPendingQueue(){
+  const body = document.getElementById('he-expenses-table-body');
+  if(!body) return;
+  const {data:rows, error} = await sb.from('expense_entries')
+    .select('id,date,category,amount_cents,description,vendor,receipt_photo_url,status,inspector_id')
+    .is('deleted_at', null)
+    .eq('status', 'submitted')
+    .order('updated_at',{ascending:false});
+  if(error){ body.innerHTML = `<tr><td colspan="5" class="loading">Error: ${gisEscape(error.message)}</td></tr>`; return; }
+  const inspectorIds = [...new Set((rows||[]).map(r => r.inspector_id).filter(Boolean))];
+  let nameMap = {};
+  if(inspectorIds.length){
+    const {data:profs} = await sb.from('profiles').select('id,full_name').in('id', inspectorIds);
+    (profs||[]).forEach(p => { nameMap[p.id] = p.full_name; });
+  }
+  const cnt = document.getElementById('he-expenses-queue-count');
+  if(cnt) cnt.textContent = (rows||[]).length;
+  if(!rows || !rows.length){
+    body.innerHTML = '<tr><td colspan="5" class="loading">No pending expense entries.</td></tr>';
+    document.getElementById('he-expenses-total').textContent = '—';
+    return;
+  }
+  let html = '';
+  rows.forEach(r => {
+    const amt = (Number(r.amount_cents)||0);
+    const thumb = r.receipt_photo_url
+      ? `<img src="${gisEscape(r.receipt_photo_url)}" alt="" style="width:28px;height:28px;border-radius:4px;object-fit:cover;vertical-align:middle;margin-right:6px" onerror="this.style.display='none'">`
+      : '';
+    const desc = `${thumb}${gisEscape(r.description || r.vendor || '—')} <span style="color:var(--muted);font-size:11px">· ${gisEscape(nameMap[r.inspector_id]||'?')}</span>`;
+    html += `<tr>
+      <td>${r.date}</td>
+      <td>${heCategoryLabel(r.category)}</td>
+      <td style="color:rgba(237,242,248,0.85)">${desc}</td>
+      <td style="font-variant-numeric:tabular-nums;font-weight:600;color:var(--white)">$${(amt/100).toFixed(2)}</td>
+      <td><button class="btn-sm btn-orange" onclick="alert('Unit 3: approve flow not yet wired')" style="font-size:10px;padding:3px 8px">Approve</button> <button class="btn-sm btn-ghost" onclick="alert('Unit 3: deny flow not yet wired')" style="font-size:10px;padding:3px 8px">Deny</button></td>
+    </tr>`;
+  });
+  body.innerHTML = html;
+  document.getElementById('he-expenses-total').textContent = '—';
+}
+
+// ── PTO ────────────────────────────────────────
+function heShowMyPto(){
+  _hePtoView = 'mine';
+  document.querySelectorAll('#he-pto-toggle button').forEach(b => {
+    const active = b.dataset.hePtoView === 'mine';
+    b.classList.toggle('btn-orange', active);
+    b.classList.toggle('btn-ghost', !active);
+  });
+  const head = document.getElementById('he-pto-table-heading');
+  if(head) head.textContent = 'My recent PTO';
+  loadPtoState();
+}
+
+function heShowPtoQueue(){
+  if(!heCanSeeQueue()) return;
+  _hePtoView = 'queue';
+  document.querySelectorAll('#he-pto-toggle button').forEach(b => {
+    const active = b.dataset.hePtoView === 'queue';
+    b.classList.toggle('btn-orange', active);
+    b.classList.toggle('btn-ghost', !active);
+  });
+  const head = document.getElementById('he-pto-table-heading');
+  if(head) head.textContent = 'Pending PTO requests';
+  loadPtoPendingQueue();
+}
+
+async function loadPtoState(){
+  const fiscalYear = new Date().getFullYear();
+  const fyTitle = document.getElementById('he-pto-fy-title');
+  if(fyTitle) fyTitle.textContent = `PTO Balance — Fiscal Year ${fiscalYear}`;
+  const [balRes, txRes] = await Promise.all([
+    sb.from('pto_balances')
+      .select('accrued_hours,used_hours,balance_hours,max_balance_hours,last_accrued_date')
+      .is('deleted_at', null)
+      .eq('inspector_id', currentUser?.id)
+      .eq('fiscal_year', fiscalYear)
+      .maybeSingle(),
+    sb.from('pto_transactions')
+      .select('id,transaction_type,hours,effective_date,request_status,notes,approved_by')
+      .is('deleted_at', null)
+      .eq('inspector_id', currentUser?.id)
+      .eq('transaction_type', 'usage')
+      .order('effective_date',{ascending:false})
+      .limit(10),
+  ]);
+  // Balance card
+  const bal = balRes.data;
+  const accrued = Number(bal?.accrued_hours||0);
+  const used = Number(bal?.used_hours||0);
+  const balance = Number(bal?.balance_hours||0);
+  const max = Number(bal?.max_balance_hours||120);
+  const pctUsed = max > 0 ? (used / max) * 100 : 0;
+  document.getElementById('he-pto-accrued').textContent = `${accrued.toFixed(1)} hrs`;
+  document.getElementById('he-pto-used').textContent = `${used.toFixed(1)} hrs`;
+  document.getElementById('he-pto-balance-val').textContent = `${balance.toFixed(1)} hrs`;
+  document.getElementById('he-pto-max').textContent = `${max.toFixed(0)} hrs`;
+  const next = heMondayOfWeek(new Date()); next.setDate(next.getDate()+7);
+  document.getElementById('he-pto-next-accrual').textContent = next.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  const bar = document.getElementById('he-pto-bar');
+  if(bar){
+    bar.style.width = `${Math.min(100, pctUsed).toFixed(1)}%`;
+    bar.classList.toggle('warn', pctUsed >= 80 && pctUsed < 95);
+    bar.classList.toggle('crit', pctUsed >= 95);
+  }
+  // Decided-by names
+  const txRows = txRes.data || [];
+  const decidedIds = [...new Set(txRows.map(t => t.approved_by).filter(Boolean))];
+  let nameMap = {};
+  if(decidedIds.length){
+    const {data:profs} = await sb.from('profiles').select('id,full_name').in('id', decidedIds);
+    (profs||[]).forEach(p => { nameMap[p.id] = p.full_name; });
+  }
+  const body = document.getElementById('he-pto-table-body');
+  if(!body) return;
+  if(!txRows.length){
+    body.innerHTML = '<tr><td colspan="5" class="loading">No PTO usage recorded yet.</td></tr>';
+    return;
+  }
+  let html = '';
+  txRows.forEach(t => {
+    const decidedBy = nameMap[t.approved_by] || (t.request_status === 'auto' ? 'auto-accrual' : '—');
+    const stat = t.request_status || '—';
+    const statCls = stat === 'approved' ? 'he-badge-approved' : stat === 'denied' ? 'he-badge-denied' : stat === 'requested' ? 'he-badge-submitted' : 'he-badge-synced';
+    const statLabel = stat === 'approved' ? '✓ Approved' : stat === 'denied' ? '✗ Denied' : stat === 'requested' ? '⏳ Requested' : '✓ Auto';
+    const hrs = Math.abs(Number(t.hours)||0);
+    html += `<tr>
+      <td>${t.effective_date}</td>
+      <td style="font-variant-numeric:tabular-nums">${hrs.toFixed(1)}</td>
+      <td><span class="he-badge ${statCls}">${statLabel}</span></td>
+      <td style="color:rgba(237,242,248,0.85)">${gisEscape(decidedBy)}</td>
+      <td style="color:rgba(237,242,248,0.7);font-style:italic">${gisEscape(t.notes||'—')}</td>
+    </tr>`;
+  });
+  body.innerHTML = html;
+}
+
+async function loadPtoPendingQueue(){
+  const body = document.getElementById('he-pto-table-body');
+  if(!body) return;
+  const {data:rows, error} = await sb.from('pto_transactions')
+    .select('id,hours,effective_date,request_status,notes,inspector_id,created_at')
+    .is('deleted_at', null)
+    .eq('request_status', 'requested')
+    .order('created_at',{ascending:false});
+  if(error){ body.innerHTML = `<tr><td colspan="5" class="loading">Error: ${gisEscape(error.message)}</td></tr>`; return; }
+  const inspectorIds = [...new Set((rows||[]).map(r => r.inspector_id).filter(Boolean))];
+  let nameMap = {};
+  if(inspectorIds.length){
+    const {data:profs} = await sb.from('profiles').select('id,full_name').in('id', inspectorIds);
+    (profs||[]).forEach(p => { nameMap[p.id] = p.full_name; });
+  }
+  const cnt = document.getElementById('he-pto-queue-count');
+  if(cnt) cnt.textContent = (rows||[]).length;
+  if(!rows || !rows.length){
+    body.innerHTML = '<tr><td colspan="5" class="loading">No pending PTO requests.</td></tr>';
+    return;
+  }
+  let html = '';
+  rows.forEach(t => {
+    const hrs = Math.abs(Number(t.hours)||0);
+    html += `<tr>
+      <td>${t.effective_date}</td>
+      <td style="font-variant-numeric:tabular-nums">${hrs.toFixed(1)}</td>
+      <td><span class="he-badge he-badge-submitted">⏳ Requested</span></td>
+      <td style="color:rgba(237,242,248,0.85)">${gisEscape(nameMap[t.inspector_id]||'?')}</td>
+      <td><button class="btn-sm btn-orange" onclick="alert('Unit 3: approve flow not yet wired')" style="font-size:10px;padding:3px 8px">Approve</button> <button class="btn-sm btn-ghost" onclick="alert('Unit 3: deny flow not yet wired')" style="font-size:10px;padding:3px 8px">Deny</button></td>
+    </tr>`;
+  });
+  body.innerHTML = html;
 }
 
 // ── PROPERTIES ────────────────────────────────────────
