@@ -1247,7 +1247,7 @@ html,body{overflow-x:hidden}
         <!-- Sub-tab: Assignments (default) -->
         <div id="cmpm-subtab-assignments">
           <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
-            <button class="btn-sm btn-orange" disabled title="Add Contractor flow ships in Unit 3 (blocked on Q-302-j Bill review)">+ Add Contractor</button>
+            <button class="btn-sm btn-orange" id="cmpm-add-contractor-btn" onclick="cmpmOpenAddContractorModal()" style="display:none">+ Add Contractor</button>
           </div>
           <div class="table-wrap">
             <div id="cmpm-assignments-list">
@@ -2538,6 +2538,144 @@ html,body{overflow-x:hidden}
 </div>
 
 
+<!-- MI-302 Unit 3 — Construction PM actions: pick arrival or departure -->
+<div class="modal-overlay" id="modal-cmpm-actions">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="cmpm-actions-title">Contractor actions</div>
+        <div class="modal-sub" id="cmpm-actions-sub">Pick an action.</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-cmpm-actions')">✕</button>
+    </div>
+    <div style="padding:16px 20px;display:flex;flex-direction:column;gap:10px">
+      <button class="btn-sm btn-orange" id="cmpm-action-arrival" onclick="cmpmOpenArrivalModal()">📍 Log arrival</button>
+      <button class="btn-sm btn-orange" id="cmpm-action-departure" onclick="cmpmOpenDepartureModal()">🚪 Log departure</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-cmpm-actions')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- MI-302 Unit 3 — Arrival capture modal -->
+<div class="modal-overlay" id="modal-cmpm-arrival">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="cmpm-arr-title">Log arrival</div>
+        <div class="modal-sub">GPS + photo required per Q-302-d/e/i.</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-cmpm-arrival')">✕</button>
+    </div>
+    <div style="padding:16px 20px">
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Contractor</label>
+        <div id="cmpm-arr-contractor" style="font-weight:600;color:var(--white)">—</div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">GPS</label>
+        <div id="cmpm-arr-gps" style="font-size:13px;color:var(--muted)">Capturing…</div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Photo *</label>
+        <input class="modal-input" id="cmpm-arr-photo-file" type="file" accept="image/*" capture="environment" onchange="cmpmPreviewArrPhoto(event)">
+        <div id="cmpm-arr-photo-preview" style="margin-top:6px;font-size:11px;color:var(--muted)"></div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Notes</label>
+        <input class="modal-input" id="cmpm-arr-notes" type="text" placeholder="optional">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-cmpm-arrival')">Cancel</button>
+      <button class="btn-sm btn-orange" id="cmpm-arr-save" onclick="cmpmLogArrival()">Log arrival</button>
+    </div>
+  </div>
+</div>
+
+<!-- MI-302 Unit 3 — Departure capture modal -->
+<div class="modal-overlay" id="modal-cmpm-departure">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Log departure</div>
+        <div class="modal-sub">GPS required, photo optional per Q-302-d. Auto-links to active arrival.</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-cmpm-departure')">✕</button>
+    </div>
+    <div style="padding:16px 20px">
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Contractor</label>
+        <div id="cmpm-dep-contractor" style="font-weight:600;color:var(--white)">—</div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Active arrival</label>
+        <div id="cmpm-dep-arrival-info" style="font-size:12px;color:var(--muted)">—</div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">GPS</label>
+        <div id="cmpm-dep-gps" style="font-size:13px;color:var(--muted)">Capturing…</div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Photo (optional)</label>
+        <input class="modal-input" id="cmpm-dep-photo-file" type="file" accept="image/*" capture="environment">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Notes</label>
+        <input class="modal-input" id="cmpm-dep-notes" type="text" placeholder="optional">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-cmpm-departure')">Cancel</button>
+      <button class="btn-sm btn-orange" id="cmpm-dep-save" onclick="cmpmLogDeparture()">Log departure</button>
+    </div>
+  </div>
+</div>
+
+<!-- MI-302 Unit 3 — Add Contractor modal -->
+<div class="modal-overlay" id="modal-cmpm-new-contractor">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Add contractor assignment</div>
+        <div class="modal-sub">New contractor row for this firm. Super_admin + supervisor only.</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-cmpm-new-contractor')">✕</button>
+    </div>
+    <div style="padding:16px 20px">
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Company name *</label>
+        <input class="modal-input" id="cmpm-nc-name" type="text" placeholder="e.g. Northshore Utility Services">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div>
+          <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Role *</label>
+          <select class="modal-select" id="cmpm-nc-role">
+            <option value="primary">Primary</option>
+            <option value="subcontractor" selected>Subcontractor</option>
+            <option value="specialty">Specialty</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Start date *</label>
+          <input class="modal-input" id="cmpm-nc-start" type="date">
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Notes</label>
+        <input class="modal-input" id="cmpm-nc-notes" type="text" placeholder="e.g. Excavation crew, 4 workers">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-cmpm-new-contractor')">Cancel</button>
+      <button class="btn-sm btn-orange" id="cmpm-nc-save" onclick="cmpmAddAssignment()">Add contractor</button>
+    </div>
+  </div>
+</div>
+
+
 <!-- MI-109 SUPERVISOR AUTHORIZATION MODAL -->
 <div class="modal-overlay" id="modal-cs-auth">
   <div class="modal">
@@ -3531,6 +3669,9 @@ async function loadCmPm(){
 async function loadCmPmAssignments(){
   const host = document.getElementById('cmpm-assignments-list');
   if(!host) return;
+  // Role gate: + Add Contractor visible to supervisor + super_admin only
+  const addBtn = document.getElementById('cmpm-add-contractor-btn');
+  if(addBtn) addBtn.style.display = (currentUserIsSuperAdmin || currentUserRole === 'supervisor') ? '' : 'none';
   const {data:rows, error} = await sb.from('contractor_assignments')
     .select('id,contractor_name,contractor_role,start_date,end_date,active,notes,project_id')
     .is('deleted_at', null)
@@ -3559,7 +3700,8 @@ async function loadCmPmAssignments(){
     const statusCls = r.active ? 'color:var(--green)' : 'color:var(--muted)';
     const statusIcon = r.active ? '🟢' : '⚪';
     const statusLabel = r.active ? 'Active' : 'Inactive';
-    html += `<tr class="cmpm-assignment-row">
+    const rowAttrs = r.active ? ` onclick="cmpmOpenAssignmentActions('${gisEscape(r.id)}', '${gisEscape(r.contractor_name||'')}', '${gisEscape(r.project_id||'')}')"` : ' style="cursor:default"';
+    html += `<tr class="cmpm-assignment-row"${rowAttrs}>
       <td><div style="font-weight:600;color:var(--white)">${gisEscape(r.contractor_name||'(unnamed)')}</div></td>
       <td style="font-size:12px;color:var(--muted)">${gisEscape(roleLabel(r.contractor_role))}</td>
       <td style="font-size:12px;color:var(--muted)">${fmtDate(r.start_date)}</td>
@@ -3749,6 +3891,278 @@ async function loadCmPmBillableHours(){
     html += `<div class="cmpm-hg-total">${slot.total.toFixed(1)}</div>`;
   });
   host.innerHTML = html;
+}
+
+// ── CONSTRUCTION PM Unit 3 — write paths ────────────────────────────────
+// Three new write paths: arrival log, departure log, add contractor assignment.
+// All three carry firm_id per Lesson 7; all wrapped by pitchModeBlocked() per
+// pitch-mode discipline. Photo upload routes through inspection-photos bucket.
+// Q-302-j (Bill-hat decision Outcome B): company-level identity sufficient,
+// departure photo optional confirmed correct, no schema rework needed.
+let _cmpmActiveAssignment = null;        // {id, name, project_id}
+let _cmpmActiveArrivalLog = null;        // {id, arrived_at} when departure flow is open
+let _cmpmGpsCache = null;                 // last-captured GPS {lat, lng, accuracy_m, ts}
+let _cmpmArrivalPhotoFile = null;
+let _cmpmDeparturePhotoFile = null;
+
+function cmpmFriendlyError(error){
+  const raw = error?.message || String(error||'');
+  console.error('Construction PM error:', error);
+  if(/row-level security|permission/i.test(raw)) return 'Permission denied — contact your supervisor';
+  if(/network|fetch|failed to fetch/i.test(raw)) return 'Network error — check your connection and try again';
+  if(/check constraint|violates check/i.test(raw)) return 'Invalid data — please review the form';
+  if(/foreign key|violates foreign/i.test(raw)) return 'Referenced record no longer exists — please refresh';
+  if(/duplicate|unique constraint/i.test(raw)) return 'This entry already exists';
+  if(/storage|bucket/i.test(raw)) return 'Photo upload failed — try again or use a smaller image';
+  if(/permission denied|denied/i.test(raw)) return 'Camera or location permission denied — enable in browser settings';
+  return 'Something went wrong — try again, or ping Jorge';
+}
+
+function cmpmCaptureGPS(displayElId){
+  return new Promise(resolve => {
+    if(!navigator.geolocation){
+      const el = document.getElementById(displayElId);
+      if(el) el.innerHTML = '<span style="color:var(--orange)">GPS unavailable on this device</span>';
+      resolve(null);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const gps = {lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy_m: pos.coords.accuracy, ts: Date.now()};
+        _cmpmGpsCache = gps;
+        const el = document.getElementById(displayElId);
+        if(el){
+          const warn = gps.accuracy_m > 50;
+          el.innerHTML = warn
+            ? `<span style="color:var(--orange)">⚠ ${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)} · ±${gps.accuracy_m.toFixed(1)}m (low accuracy — verify location)</span>`
+            : `<span style="color:var(--green)">✓ ${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)} · ±${gps.accuracy_m.toFixed(1)}m</span>`;
+        }
+        resolve(gps);
+      },
+      err => {
+        const el = document.getElementById(displayElId);
+        if(el) el.innerHTML = `<span style="color:var(--orange)">GPS error: ${gisEscape(err.message||'unknown')}</span>`;
+        resolve(null);
+      },
+      {enableHighAccuracy: true, timeout: 10000, maximumAge: 0}
+    );
+  });
+}
+
+async function cmpmUploadContractorPhoto(file, assignmentId){
+  const photoUuid = crypto.randomUUID();
+  const firmPart = currentFirmId || 'no-firm';
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const path = `${firmPart}/contractor-logs/${assignmentId}/${photoUuid}.${ext}`;
+  const {error} = await sb.storage.from('inspection-photos').upload(path, file, {contentType: file.type, upsert: true, cacheControl: '3600'});
+  if(error && !/already exists|Duplicate/i.test(error.message||'')) throw error;
+  const {data} = sb.storage.from('inspection-photos').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+async function cmpmOpenAssignmentActions(assignmentId, contractorName, projectId){
+  _cmpmActiveAssignment = {id: assignmentId, name: contractorName, project_id: projectId || null};
+  // Check for in-progress arrival (no matching departure)
+  const {data:arr, error:arrErr} = await sb.from('contractor_arrival_log')
+    .select('id,arrived_at')
+    .eq('contractor_assignment_id', assignmentId)
+    .is('deleted_at', null)
+    .order('arrived_at', {ascending:false})
+    .limit(1);
+  if(arrErr){ showToast(cmpmFriendlyError(arrErr), 'error'); return; }
+  let activeArrival = null;
+  if(arr && arr.length){
+    const arrId = arr[0].id;
+    const {data:dep} = await sb.from('contractor_departure_log')
+      .select('id').eq('arrival_log_id', arrId).is('deleted_at', null).limit(1);
+    if(!dep || !dep.length) activeArrival = arr[0];
+  }
+  _cmpmActiveArrivalLog = activeArrival;
+  const title = document.getElementById('cmpm-actions-title');
+  const sub = document.getElementById('cmpm-actions-sub');
+  if(title) title.textContent = contractorName || 'Contractor actions';
+  if(sub) sub.textContent = activeArrival ? 'Active arrival in progress — log departure or log a new arrival.' : 'No active arrival. Log a new arrival to start tracking.';
+  // Enable both; the per-button handlers gate further.
+  document.getElementById('cmpm-action-arrival').disabled = false;
+  document.getElementById('cmpm-action-departure').disabled = false;
+  document.getElementById('modal-cmpm-actions').classList.add('open');
+}
+
+function cmpmPreviewArrPhoto(event){
+  const file = event.target.files && event.target.files[0];
+  _cmpmArrivalPhotoFile = file || null;
+  const preview = document.getElementById('cmpm-arr-photo-preview');
+  if(preview) preview.textContent = file ? `✓ ${file.name} (${(file.size/1024).toFixed(0)} KB) ready to upload` : '';
+}
+
+async function cmpmOpenArrivalModal(){
+  if(pitchModeBlocked('log contractor arrival')) return;
+  if(!_cmpmActiveAssignment){ showToast('No contractor selected', 'error'); return; }
+  closeModal('modal-cmpm-actions');
+  _cmpmArrivalPhotoFile = null;
+  document.getElementById('cmpm-arr-contractor').textContent = _cmpmActiveAssignment.name || '(unnamed)';
+  document.getElementById('cmpm-arr-gps').innerHTML = '<span style="color:var(--muted)">Capturing GPS…</span>';
+  document.getElementById('cmpm-arr-photo-file').value = '';
+  document.getElementById('cmpm-arr-photo-preview').textContent = '';
+  document.getElementById('cmpm-arr-notes').value = '';
+  document.getElementById('modal-cmpm-arrival').classList.add('open');
+  cmpmCaptureGPS('cmpm-arr-gps');
+}
+
+async function cmpmLogArrival(){
+  if(pitchModeBlocked('log contractor arrival')) return;
+  if(!_cmpmActiveAssignment){ showToast('No contractor selected', 'error'); return; }
+  if(!_cmpmArrivalPhotoFile){
+    showToast('Photo required for arrival — enable camera or contact supervisor', 'error');
+    return;
+  }
+  const gps = _cmpmGpsCache && (Date.now() - _cmpmGpsCache.ts < 5*60*1000) ? _cmpmGpsCache : null;
+  if(!gps){ showToast('GPS not yet captured — wait a moment and retry', 'error'); return; }
+  const saveBtn = document.getElementById('cmpm-arr-save');
+  if(saveBtn) saveBtn.disabled = true;
+  try {
+    const photoUrl = await cmpmUploadContractorPhoto(_cmpmArrivalPhotoFile, _cmpmActiveAssignment.id);
+    const notes = document.getElementById('cmpm-arr-notes').value.trim() || null;
+    const payload = {
+      firm_id: currentFirmId,
+      contractor_assignment_id: _cmpmActiveAssignment.id,
+      arrived_at: new Date().toISOString(),
+      gps_lat: gps.lat, gps_lng: gps.lng, gps_accuracy_meters: gps.accuracy_m,
+      photo_url: photoUrl,
+      recorded_by_id: currentUser?.id,
+      recorded_by_email: currentUser?.email,
+      notes,
+    };
+    const {error} = await sb.from('contractor_arrival_log').insert(payload);
+    if(error) throw error;
+    showToast(`Arrival logged for ${_cmpmActiveAssignment.name} · GPS ±${gps.accuracy_m.toFixed(1)}m`, 'success');
+    closeModal('modal-cmpm-arrival');
+    if(_cmpmCurrentSubtab === 'today') loadCmPmTodayActivity();
+  } catch(err){
+    showToast(cmpmFriendlyError(err), 'error');
+  } finally {
+    if(saveBtn) saveBtn.disabled = false;
+  }
+}
+
+async function cmpmOpenDepartureModal(){
+  if(pitchModeBlocked('log contractor departure')) return;
+  if(!_cmpmActiveAssignment){ showToast('No contractor selected', 'error'); return; }
+  if(!_cmpmActiveArrivalLog){
+    showToast('Log arrival first — no active arrival on this assignment', 'error');
+    closeModal('modal-cmpm-actions');
+    return;
+  }
+  closeModal('modal-cmpm-actions');
+  _cmpmDeparturePhotoFile = null;
+  document.getElementById('cmpm-dep-contractor').textContent = _cmpmActiveAssignment.name || '(unnamed)';
+  const arrTs = _cmpmActiveArrivalLog.arrived_at;
+  const arrFmt = arrTs ? new Date(arrTs).toLocaleString('en-US', {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+  document.getElementById('cmpm-dep-arrival-info').textContent = `Arrived ${arrFmt}`;
+  document.getElementById('cmpm-dep-gps').innerHTML = '<span style="color:var(--muted)">Capturing GPS…</span>';
+  document.getElementById('cmpm-dep-photo-file').value = '';
+  document.getElementById('cmpm-dep-notes').value = '';
+  document.getElementById('modal-cmpm-departure').classList.add('open');
+  cmpmCaptureGPS('cmpm-dep-gps');
+}
+
+async function cmpmLogDeparture(){
+  if(pitchModeBlocked('log contractor departure')) return;
+  if(!_cmpmActiveAssignment || !_cmpmActiveArrivalLog){
+    showToast('Log arrival first — no active arrival to close', 'error');
+    return;
+  }
+  const gps = _cmpmGpsCache && (Date.now() - _cmpmGpsCache.ts < 5*60*1000) ? _cmpmGpsCache : null;
+  if(!gps){ showToast('GPS not yet captured — wait a moment and retry', 'error'); return; }
+  const saveBtn = document.getElementById('cmpm-dep-save');
+  if(saveBtn) saveBtn.disabled = true;
+  try {
+    let photoUrl = null;
+    const photoFile = document.getElementById('cmpm-dep-photo-file').files[0];
+    if(photoFile){
+      photoUrl = await cmpmUploadContractorPhoto(photoFile, _cmpmActiveAssignment.id);
+    }
+    const notes = document.getElementById('cmpm-dep-notes').value.trim() || null;
+    const departedAt = new Date();
+    const payload = {
+      firm_id: currentFirmId,
+      contractor_assignment_id: _cmpmActiveAssignment.id,
+      arrival_log_id: _cmpmActiveArrivalLog.id,
+      departed_at: departedAt.toISOString(),
+      gps_lat: gps.lat, gps_lng: gps.lng, gps_accuracy_meters: gps.accuracy_m,
+      photo_url: photoUrl,
+      recorded_by_id: currentUser?.id,
+      recorded_by_email: currentUser?.email,
+      notes,
+    };
+    const {error} = await sb.from('contractor_departure_log').insert(payload);
+    if(error) throw error;
+    const arrTs = _cmpmActiveArrivalLog.arrived_at ? new Date(_cmpmActiveArrivalLog.arrived_at) : null;
+    let durMsg = '';
+    if(arrTs){
+      const mins = Math.round((departedAt - arrTs) / 60000);
+      const h = Math.floor(mins/60), m = mins % 60;
+      durMsg = ` · duration ${h > 0 ? h + 'h ' : ''}${m}m`;
+    }
+    showToast(`Departure logged for ${_cmpmActiveAssignment.name}${durMsg}`, 'success');
+    closeModal('modal-cmpm-departure');
+    if(_cmpmCurrentSubtab === 'today') loadCmPmTodayActivity();
+  } catch(err){
+    showToast(cmpmFriendlyError(err), 'error');
+  } finally {
+    if(saveBtn) saveBtn.disabled = false;
+  }
+}
+
+function cmpmOpenAddContractorModal(){
+  if(pitchModeBlocked('add contractor assignment')) return;
+  if(!(currentUserIsSuperAdmin || currentUserRole === 'supervisor')){
+    showToast('Supervisor or super_admin required to add contractors', 'error');
+    return;
+  }
+  document.getElementById('cmpm-nc-name').value = '';
+  document.getElementById('cmpm-nc-role').value = 'subcontractor';
+  document.getElementById('cmpm-nc-start').value = new Date().toISOString().slice(0,10);
+  document.getElementById('cmpm-nc-notes').value = '';
+  document.getElementById('modal-cmpm-new-contractor').classList.add('open');
+}
+
+async function cmpmAddAssignment(){
+  if(pitchModeBlocked('add contractor assignment')) return;
+  const name = document.getElementById('cmpm-nc-name').value.trim();
+  const role = document.getElementById('cmpm-nc-role').value;
+  const start = document.getElementById('cmpm-nc-start').value;
+  const notes = document.getElementById('cmpm-nc-notes').value.trim() || null;
+  if(!name){ showToast('Company name is required', 'error'); return; }
+  if(!start){ showToast('Start date is required', 'error'); return; }
+  // project_id: try to pull active project for this firm; null if none
+  let projectId = null;
+  try {
+    const {data:projs} = await sb.from('projects').select('id').is('deleted_at', null).limit(1);
+    if(projs && projs.length) projectId = projs[0].id;
+  } catch(e){ /* projects table may be scope-shimmed empty; OK to be null */ }
+  const saveBtn = document.getElementById('cmpm-nc-save');
+  if(saveBtn) saveBtn.disabled = true;
+  try {
+    const payload = {
+      firm_id: currentFirmId,
+      project_id: projectId,
+      contractor_name: name,
+      contractor_role: role,
+      start_date: start,
+      notes,
+      active: true,
+    };
+    const {error} = await sb.from('contractor_assignments').insert(payload);
+    if(error) throw error;
+    showToast(`Added contractor "${name}"`, 'success');
+    closeModal('modal-cmpm-new-contractor');
+    await loadCmPmAssignments();
+  } catch(err){
+    showToast(cmpmFriendlyError(err), 'error');
+  } finally {
+    if(saveBtn) saveBtn.disabled = false;
+  }
 }
 
 // ── HOURS / EXPENSES / PTO (MI-OPS-HE Unit 2) ──────────────────────────────
