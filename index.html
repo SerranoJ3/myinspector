@@ -1597,6 +1597,21 @@ html,body{overflow-x:hidden}
         <input class="modal-input" type="text" id="prop-zip" placeholder="07601">
       </div>
     </div>
+    <div class="modal-field">
+      <label class="modal-label">Municipality (NJAW LCRI service area — autofills county + contractor)</label>
+      <input class="modal-input" type="text" id="prop-municipality" placeholder="Start typing… e.g. Bedminster Township" list="prop-municipality-list" oninput="onPropMunicipalityChange(this.value)">
+      <datalist id="prop-municipality-list"></datalist>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label">County <span style="color:var(--muted);font-weight:400;font-size:11px">(reference)</span></label>
+        <input class="modal-input" type="text" id="prop-county" placeholder="—">
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Prevailing Contractor <span style="color:var(--muted);font-weight:400;font-size:11px">(reference)</span></label>
+        <input class="modal-input" type="text" id="prop-contractor" placeholder="—">
+      </div>
+    </div>
     <div class="modal-row">
       <div class="modal-field">
         <label class="modal-label">Lot</label>
@@ -5318,6 +5333,8 @@ function openAddProperty(){
   document.getElementById('modal-property').classList.add('open');
   // Pre-index unique streets for suggestions
   buildStreetIndex();
+  // MI-402 Unit 2: warm the 28-row municipalities lookup once per session for autofill datalist
+  _warmMunicipalitiesCache();
 }
 
 let streetIndex = [];
@@ -5401,6 +5418,47 @@ function selectPropSector(value){
   if(hidden) hidden.value = value;
 }
 
+// ── MI-402 Unit 2 (5/15/26) — municipality autofill ───
+// Cached municipalities_contractors lookup (28 rows of NJAW LCRI service area).
+// First open of the Add Property modal warms the cache; subsequent autofills are sync.
+let _municipalitiesCache = null;  // {byName: Map(lower → row), list: [name, …]}
+
+async function _warmMunicipalitiesCache(){
+  if(_municipalitiesCache) return _municipalitiesCache;
+  const {data, error} = await sb.from('municipalities_contractors').select('municipality,county,contractor').order('municipality', {ascending: true});
+  if(error){ console.error('municipalities lookup error:', error); return null; }
+  const byName = new Map();
+  const list = [];
+  (data || []).forEach(r => {
+    if(r.municipality){
+      byName.set(r.municipality.toLowerCase(), r);
+      list.push(r.municipality);
+    }
+  });
+  _municipalitiesCache = { byName, list };
+  const dl = document.getElementById('prop-municipality-list');
+  if(dl){
+    dl.innerHTML = list.map(n => `<option value="${n.replace(/"/g,'&quot;')}"></option>`).join('');
+  }
+  return _municipalitiesCache;
+}
+
+function onPropMunicipalityChange(value){
+  const cache = _municipalitiesCache;
+  const countyEl = document.getElementById('prop-county');
+  const contractorEl = document.getElementById('prop-contractor');
+  if(!cache || !countyEl || !contractorEl) return;
+  const match = cache.byName.get((value || '').trim().toLowerCase());
+  if(match){
+    countyEl.value = match.county || '';
+    contractorEl.value = match.contractor || '';
+  } else {
+    // No match — leave blank (per spec acceptance #5: non-listed → fields stay blank, no error)
+    countyEl.value = '';
+    contractorEl.value = '';
+  }
+}
+
 async function saveProperty(){
   if(pitchModeBlocked('property add')) return;
   const address = document.getElementById('prop-address').value.trim();
@@ -5411,6 +5469,7 @@ async function saveProperty(){
   const cmat    = document.getElementById('prop-company-mat').value;
   const cumat   = document.getElementById('prop-customer-mat').value;
   const mapcall = document.getElementById('prop-mapcall').value.trim();
+  const municipality = document.getElementById('prop-municipality')?.value.trim() || '';
   const sector  = document.getElementById('prop-sector')?.value || 'NJ6_NORMAL';
   if(!address){ showToast('Address is required','error'); return; }
   const {error} = await sb.from('properties').insert({
@@ -5418,6 +5477,7 @@ async function saveProperty(){
     lot_block: lot&&block?`${lot}-${block}`:lot||block||null,
     company_material:cmat, customer_material:cumat,
     mapcall_id:mapcall||null,
+    municipality: municipality || null,
     current_phase:'test_pit',
     state:'NJ',
     sector,
@@ -5443,6 +5503,9 @@ async function saveProperty(){
   document.getElementById('prop-lot').value='';
   document.getElementById('prop-block').value='';
   document.getElementById('prop-mapcall').value='';
+  const muniEl = document.getElementById('prop-municipality'); if(muniEl) muniEl.value='';
+  const countyEl = document.getElementById('prop-county'); if(countyEl) countyEl.value='';
+  const contractorEl = document.getElementById('prop-contractor'); if(contractorEl) contractorEl.value='';
   selectPropSector('NJ6_NORMAL');
 }
 
