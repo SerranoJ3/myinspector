@@ -2538,6 +2538,37 @@ html,body{overflow-x:hidden}
 </div>
 
 
+<!-- OPS Dashboard Unit 3 — schedule cell edit modal -->
+<div class="modal-overlay" id="modal-ops-schedule-cell">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Edit shift</div>
+        <div class="modal-sub" id="ops-cell-sub">—</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-ops-schedule-cell')">✕</button>
+    </div>
+    <div style="padding:16px 20px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div><label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Start</label><input class="modal-input" id="ops-cell-start" type="time" step="900"></div>
+        <div><label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">End</label><input class="modal-input" id="ops-cell-end" type="time" step="900"></div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Notes <span style="color:var(--muted)">(PTO/sick/holiday/etc. — include keyword)</span></label>
+        <input class="modal-input" id="ops-cell-notes" type="text" placeholder='e.g. "PTO" or "Sick" or empty for regular shift'>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px">
+        Tip: leave start/end blank + put "PTO"/"Sick" in notes for a non-work day. Leave all blank to mark off-day.
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-sm btn-ghost" id="ops-cell-delete-btn" onclick="opsDeleteScheduleCell()" style="display:none;margin-right:auto">🗑 Delete shift</button>
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-ops-schedule-cell')">Cancel</button>
+      <button class="btn-sm btn-orange" id="ops-cell-save-btn" onclick="opsSaveScheduleCell()">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- MI-302 Unit 3 — Construction PM actions: pick arrival or departure -->
 <div class="modal-overlay" id="modal-cmpm-actions">
   <div class="modal">
@@ -3391,6 +3422,9 @@ function renderScheduleGrid(weekStart, days, byInspector){
     html += `<div class="ops-sg-head">${lbl}<br><span style="font-weight:400;color:var(--muted);font-size:10px">${d}</span></div>`;
   });
   html += `<div class="ops-sg-head">Total</div>`;
+  // OPS Dashboard Unit 3: schedule cell edit gated to supervisor + super_admin.
+  // Inspector role sees read-only grid (their own row only via loadWeekSchedule filter).
+  const canEdit = currentUserIsSuperAdmin || currentUserRole === 'supervisor';
   byInspector.forEach(row => {
     html += `<div class="ops-sg-name">${gisEscape(row.fullName)}</div>`;
     let total = 0;
@@ -3398,7 +3432,10 @@ function renderScheduleGrid(weekStart, days, byInspector){
       const r = row.byDate[d];
       const shift = opsFormatShift(r);
       total += opsShiftHours(r);
-      html += `<div class="ops-sg-cell ${shift.cls}">${shift.label}</div>`;
+      const cellAttrs = canEdit
+        ? ` style="cursor:pointer" onclick="opsOpenScheduleCellModal('${gisEscape(row.inspectorId)}', '${gisEscape(row.fullName)}', '${d}')"`
+        : '';
+      html += `<div class="ops-sg-cell ${shift.cls}"${cellAttrs}>${shift.label}</div>`;
     });
     html += `<div class="ops-sg-total">${total.toFixed(1)}</div>`;
   });
@@ -3510,10 +3547,17 @@ function renderAlertsTile(data){
   const ptoIcon = data.pendingPtoCount > 0 ? '⚠' : '✓';
   const certCls = data.certsExpiringCount > 0 ? 'warn' : 'ok';
   const certIcon = data.certsExpiringCount > 0 ? '⚠' : '✓';
+  // OPS Dashboard Unit 3: PTO chip routes to Hours/Expenses → PTO sub-view → queue view
+  // (for supervisor/super_admin) or own-view (for inspector). Same destination either way;
+  // the heCanSeeQueue() gate inside MI-OPS-HE Unit 2 decides which view to show.
+  const ptoOnclick = data.pendingPtoCount > 0
+    ? ` onclick="showPanel('hours-expenses');setTimeout(()=>{switchHoursExpensesSubview('pto');if(heCanSeeQueue())heShowPtoQueue();},0)" style="cursor:pointer"`
+    : '';
+  const certOnclick = data.certsExpiringCount > 0 ? ` onclick="showPanel('certs')" style="cursor:pointer"` : '';
   host.innerHTML = `
     <div>
-      <div class="ops-tile-alert ${ptoCls}"><span>${ptoIcon}</span> <strong>${data.pendingPtoCount}</strong> PTO ${data.pendingPtoCount === 1 ? 'request' : 'requests'} pending</div>
-      <div class="ops-tile-alert ${certCls}" style="margin-top:6px"><span>${certIcon}</span> <strong>${data.certsExpiringCount}</strong> cert${data.certsExpiringCount === 1 ? '' : 's'} expiring <span style="color:var(--muted);font-weight:400">(60d)</span></div>
+      <div class="ops-tile-alert ${ptoCls}"${ptoOnclick}><span>${ptoIcon}</span> <strong>${data.pendingPtoCount}</strong> PTO ${data.pendingPtoCount === 1 ? 'request' : 'requests'} pending</div>
+      <div class="ops-tile-alert ${certCls}" style="margin-top:6px"${certOnclick}><span>${certIcon}</span> <strong>${data.certsExpiringCount}</strong> cert${data.certsExpiringCount === 1 ? '' : 's'} expiring <span style="color:var(--muted);font-weight:400">(60d)</span></div>
       <div class="ops-tile-alert ok" style="margin-top:6px"><span>✓</span> All synced</div>
     </div>`;
 }
@@ -3891,6 +3935,110 @@ async function loadCmPmBillableHours(){
     html += `<div class="cmpm-hg-total">${slot.total.toFixed(1)}</div>`;
   });
   host.innerHTML = html;
+}
+
+// ── OPS DASHBOARD Unit 3 — schedule cell edit ─────────────────────────────
+// Click any schedule cell (supervisor/super_admin only) → modal opens pre-filled
+// with existing row's shift_start/shift_end/notes. Save = SELECT-then-UPDATE-or-INSERT
+// (schedules table has no UNIQUE constraint on firm_id+inspector_id+date — verified
+// via pg_constraint). Delete = soft-delete via deleted_at. All gated by pitchModeBlocked.
+// PTO request + supervisor approval flows already shipped end-to-end via MI-OPS-HE
+// Unit 3 (fe27af7); OPS Dashboard surface routes to them via the Alerts tile PTO chip
+// (clickable → switchHoursExpensesSubview('pto') + heShowPtoQueue()).
+let _opsCellEditState = null;  // {inspectorId, fullName, date, existingId}
+
+function opsFriendlyError(error){
+  const raw = error?.message || String(error||'');
+  console.error('Schedule edit error:', error);
+  if(/row-level security|permission/i.test(raw)) return 'Permission denied — supervisor or super_admin required';
+  if(/network|fetch|failed to fetch/i.test(raw)) return 'Network error — check your connection and try again';
+  if(/check constraint|violates check/i.test(raw)) return 'Invalid shift data — please review';
+  if(/foreign key|violates foreign/i.test(raw)) return 'Referenced inspector or firm no longer exists';
+  return 'Something went wrong — try again, or ping Jorge';
+}
+
+async function opsOpenScheduleCellModal(inspectorId, fullName, date){
+  if(pitchModeBlocked('edit schedule cell')) return;
+  if(!(currentUserIsSuperAdmin || currentUserRole === 'supervisor')){
+    showToast('Supervisor or super_admin required to edit shifts', 'error');
+    return;
+  }
+  // Lookup existing schedule row for this inspector + date
+  const {data:rows, error} = await sb.from('schedules')
+    .select('id,shift_start,shift_end,notes')
+    .is('deleted_at', null)
+    .eq('inspector_id', inspectorId)
+    .eq('date', date)
+    .order('created_at',{ascending:false})
+    .limit(1);
+  if(error){ showToast(opsFriendlyError(error), 'error'); return; }
+  const existing = rows && rows.length ? rows[0] : null;
+  _opsCellEditState = {inspectorId, fullName, date, existingId: existing?.id || null};
+  const sub = document.getElementById('ops-cell-sub');
+  if(sub) sub.textContent = `${fullName} · ${date}`;
+  document.getElementById('ops-cell-start').value = existing?.shift_start ? existing.shift_start.slice(0,5) : '';
+  document.getElementById('ops-cell-end').value = existing?.shift_end ? existing.shift_end.slice(0,5) : '';
+  document.getElementById('ops-cell-notes').value = existing?.notes || '';
+  // Show Delete button only when there's an existing row to delete
+  const delBtn = document.getElementById('ops-cell-delete-btn');
+  if(delBtn) delBtn.style.display = existing ? '' : 'none';
+  document.getElementById('modal-ops-schedule-cell').classList.add('open');
+}
+
+async function opsSaveScheduleCell(){
+  if(pitchModeBlocked('save schedule cell')) return;
+  if(!_opsCellEditState){ showToast('No cell selected', 'error'); return; }
+  const start = document.getElementById('ops-cell-start').value || null;
+  const end = document.getElementById('ops-cell-end').value || null;
+  const notes = document.getElementById('ops-cell-notes').value.trim() || null;
+  // Light validation: if both times set, end must be > start
+  if(start && end && end <= start){ showToast('End time must be after start time', 'error'); return; }
+  const saveBtn = document.getElementById('ops-cell-save-btn');
+  if(saveBtn) saveBtn.disabled = true;
+  try {
+    if(_opsCellEditState.existingId){
+      const {error} = await sb.from('schedules').update({
+        shift_start: start, shift_end: end, notes
+      }).eq('id', _opsCellEditState.existingId);
+      if(error) throw error;
+    } else {
+      const payload = {
+        firm_id: currentFirmId,
+        inspector_id: _opsCellEditState.inspectorId,
+        date: _opsCellEditState.date,
+        shift_start: start,
+        shift_end: end,
+        notes,
+        created_by: currentUser?.id,
+      };
+      const {error} = await sb.from('schedules').insert(payload);
+      if(error) throw error;
+    }
+    showToast(`Shift saved for ${_opsCellEditState.fullName} · ${_opsCellEditState.date}`, 'success');
+    closeModal('modal-ops-schedule-cell');
+    await renderOpsDashboard();
+  } catch(err){
+    showToast(opsFriendlyError(err), 'error');
+  } finally {
+    if(saveBtn) saveBtn.disabled = false;
+  }
+}
+
+async function opsDeleteScheduleCell(){
+  if(pitchModeBlocked('delete schedule cell')) return;
+  if(!_opsCellEditState || !_opsCellEditState.existingId){ return; }
+  if(!confirm(`Delete shift for ${_opsCellEditState.fullName} on ${_opsCellEditState.date}?`)) return;
+  try {
+    const {error} = await sb.from('schedules').update({
+      deleted_at: new Date().toISOString()
+    }).eq('id', _opsCellEditState.existingId);
+    if(error) throw error;
+    showToast('Shift deleted', 'success');
+    closeModal('modal-ops-schedule-cell');
+    await renderOpsDashboard();
+  } catch(err){
+    showToast(opsFriendlyError(err), 'error');
+  }
 }
 
 // ── CONSTRUCTION PM Unit 3 — write paths ────────────────────────────────
