@@ -1182,3 +1182,22 @@ A firm could be safe to display while pitch mode is on (e.g., the demo firm itse
 **Affects:** OPS Dashboard Unit 3 (schedule click-to-edit + add inspector flow) is now spec-locked on edit permissions (Q-OPS-3 super_admin/supervisor only) + conflict detection (Q-OPS-10 PTO-block + overlap-warn). MI-OPS-HE remains demo-ready (all writes done). Fiscal year + carryover cron lands POST-DEMO as a separate engagement (`mi-ops-cron` ticket, not yet filed).
 
 **Source:** Jorge — direct ask 2026-05-14 ~midnight EDT ("approve all Q-OPS") post Q-OPS-HE ratification commit `96e0dd2`.
+
+---
+
+## 2026-05-14 ~midnight EDT — Q-302-g / h / i ratified en bloc; Q-302-j explicitly excluded pending Bill review
+
+**Decision:** Jorge approved all remaining MI-302 build-plan leans except Q-302-j (which stays gated on Bill patent-claim review per build plan §6). Q-302-b/c/d/e ratified Sun 5/3 evening; Q-302-f ratified-by-ship in `e660e6a` (Buddy entry earlier this session). This entry closes Q-302-g, Q-302-h, and Q-302-i.
+
+  - **Q-302-g — Hourly rate visibility.** **Lean (b) ratified — keep schema as-is, no rate column, no per-worker rate math.** Billable hours reported by contractor company × week (computed from `arrival_log.arrived_at` + `departure_log.departed_at` deltas, no $ math). Rate negotiation lives outside MyInspector in contractor MSAs. Matches how CP Engineers actually contracts. Rationale: adding `contractor_assignments.hourly_rate numeric(7,2)` is a forced migration that's only justified if Bill confirms the patent claim requires per-worker per-rate tracking (Q-302-j). Until then, (b) is the simpler + safer + faster path; if Bill flips it, the migration is reversible.
+  - **Q-302-h — Departure without arrival edge case.** **Buddy lean ratified — block + friendly toast "Log arrival first."** Read-side fallback per Lesson 11 (`contractor_departure_log.arrival_id` is nullable but should be populated) was already documented as orphan-departure-pattern protection. Write-side now spec-locked: at departure capture time, validate that an active arrival exists for this `assignment_id` + inspector + same date; if not, hard-block with toast pointing to arrival capture. Not yet shipped — arrival/departure capture is MI-302 Unit 3 territory (blocked on Q-302-j Bill review).
+  - **Q-302-i — Photo failure fallback.** **Buddy lean ratified — arrival blocked, friendly toast "Photo required for arrival — enable camera or contact supervisor."** Reaffirms Q-302-d (photo REQUIRED at arrival). If camera permission denied or capture fails, the arrival INSERT does NOT proceed. Inspector retry path: re-trigger camera permission via browser settings, or escalate to supervisor for manual log entry (which still requires photo via uploaded file). No fallback path that skips photo entirely — protects audit chain integrity (every arrival must have a photo per locked principle). Not yet shipped (Unit 3).
+  - **Q-302-j — Patent-claim sensitive UX details.** **EXCLUDED from this ratification.** Stays gated on Bill review per build plan §6. One-pager recommended before Unit 3 ships: GPS + photo + assignment-locked-identity flow described against the patent claim language. If implementation matches claim → ratify-by-ship; if mismatch → schema/UX redesign first, patent amendment second. POST-DEMO unblock path.
+
+**Reasoning:** Three open questions cleared en bloc to unblock MI-302 Unit 3 planning. None of the three is shipped — they're all spec-lock for the next implementation cycle. Q-302-j held intentionally because the patent-claim divergence flagged earlier (worker-level vs company-level tracking) needs Bill's input before code lands; shipping Unit 3 without his confirmation risks expensive rework. The other three are recoverable via reversible migrations or UX refactors if real-use feedback flips the decision.
+
+**Affects:** MI-302 Unit 3 (arrival/departure capture + add contractor + UI workflow) is now spec-locked on (g)+(h)+(i) for implementation. The only remaining gate is Bill response on (j). When Bill responds:
+  - **If implementation matches claim →** Unit 3 ships against current schema (company-level tracking).
+  - **If mismatch →** schema migration first (add `contractor_workers` child table or equivalent), then Unit 3 against revised model, then patent filing amendment if needed.
+
+**Source:** Jorge — direct ask 2026-05-14 ~midnight EDT ("approve all Q-302 except j") post Q-OPS ratification commit `eaffaa5`.
