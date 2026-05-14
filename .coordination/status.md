@@ -1,6 +1,10 @@
 # Coordination Status — MyInspector
 
-**Last updated:** 2026-05-13 (legal lane initiated + 5/12 cargo-commits verified). HEAD `1535612` on both `demo-banner` and `mi-demo-seed`. **Doc-sync deficit:** 15+ commits between `aecc952` and `1535612` not absorbed into chronological list below; full doc-sync queued for weekend. Header-level state is current; commit-by-commit list below is stale past `dbf657d`.
+**Last updated:** 2026-05-14 ~03:00am EDT (Rabiyu prep wave kicked off). HEAD `94b2b21` on both `demo-banner` and `mi-demo-seed`. v1.0 product surface LOCKED per Jorge directive — only legal-prep docs, demo data scrubs, and marketing copy fixes (pending Jorge approval) ship in this window.
+
+**Previously updated:** 2026-05-13 evening (50% checkpoint hit then full-completion push initiated). HEAD `e660e6a` on both `demo-banner` and `mi-demo-seed`. **Doc-sync DEFICIT REDUCED:** 5/13 evening commits absorbed below. 5/9-5/12 chronological detail (~30 commits) still pruned to summary; full per-commit list deferred to weekend window. Header-level + Last 3 sessions in STATE.md is current.
+
+**Previously updated:** 2026-05-13 (legal lane initiated + 5/12 cargo-commits verified). HEAD `1535612` on both `demo-banner` and `mi-demo-seed`.
 
 **Previously updated:** 2026-05-12 (doc-sync flush absorbing 5/9–5/12 demo-polish window: VTC decouple + embedded MS form on tapcard page 1 + demo-neutralize sweep + daily_reports firm_id fix + aerial map MI-115 + orphan tapcard fallback + triangulation A/B/C + group-by-property in Dashboard + All Submissions + cardinal photos optional + diagram inset clamp + Service Area B tab gate + ~30 commits total). HEAD `aecc952` on both `demo-banner` and `mi-demo-seed`.
 
@@ -14,6 +18,91 @@
 **Active branches:** `demo-banner` and `mi-demo-seed` both at `1535612` (chore(gitignore): exclude .coordination/LEGAL_STATE.md — legal/business lane scratch). main untouched per §22.
 
 **Local main is 1 behind `origin/main`.** Missing commit is `4d70901` (Phase 2b refactor squash merge, Sun 0:52). Run `git fetch && git checkout main && git pull` to catch up before any new branch off main.
+
+## Wed 5/13 evening commits on `demo-banner` (FF to `mi-demo-seed`)
+
+Four Lead commits + four Buddy Supabase MCP migrations + seven `.coordination/` doc drafts.
+
+**Lead lane (CC):**
+- `2795af7` docs(coordination) 5/13 correction sync
+- `1535612` chore(gitignore): exclude .coordination/LEGAL_STATE.md — legal/business lane scratch
+- `1a926ca` fix(pitch-polish): GIS/Restorations row clickability + Luis photo-timing guidance update
+- `14fb3c1` **feat(ops-dashboard)**: Unit 2 single-pane-of-glass dashboard — schedule grid (Mon-Sun × 4 inspectors) + Hours/PTO/Alerts tiles + integration badges (Ajeera/ADP visual-only) + week nav arrows + recent activity preserved
+- `e660e6a` **feat(mi-302)**: Construction PM tab Unit 2 — new sidebar tab role-gated to super_admin + supervisor, 3 sub-views (Assignments / Today's Activity / Billable Hours), read-only, `+ Add Contractor` stubbed disabled, in-progress pulsing badge + live elapsed timer, GPS warnings amber-flagged
+
+**Buddy lane (Supabase MCP, no in-tree commits):**
+- `ops_dashboard_schema_v1` — 4 new tables (schedules / hours_entries / pto_balances / pto_transactions), RLS forced + 4 policies per table + 4 triggers per table (audit + updated_at via `gis_set_updated_at`)
+- `ops_dashboard_demo_seed` — 56 schedules + 40 hours entries + 4 PTO balances FY2026 + 82 PTO transactions
+- `mi302_demo_seed_v2` — 5 contractor assignments (Meridian / Cardinal / ProTap / Asphalt / BergenCo) + 10 arrivals + 9 departures + 1 in-progress shift + 2 GPS warnings (78m + 92m); **schema-reality correction surfaced**: company-level not per-worker, no `hourly_rate` column — flagged for Bill patent-claim review before Unit 3 ships
+- `demo_project_name_scrub_njaw_identifiers` — "DEMO Lead Service Replacement Project" → "DEMO Service Line Project" + "Demo LSL Replacement Program 2026" → "Demo Service Line Renewal Program 2026"
+- `backlog_demo_data_writes_2026_05_13` — banks today's `execute_sql` writes (photo URL UPDATEs + GIS auto-link UPDATE) as idempotent reproducible-seed migration
+
+**Doc lane (`.coordination/` drafts, all gitignored):**
+- `LEGAL_STATE.md` (legal-lane state mirror: Rabiyu engagement, $5k retainer, 3 open Qs, MI-302 patent-claim risk register)
+- `BILL_PATENT_CLAIM_ONE_PAGER_mi302_2026-05-13.md` (3-outcome A/B/C decision format for Bill review before MI-302 Unit 3)
+- `RABIYU_REPLY_DRAFT_2026-05-13.md` (3-question reply body + tone notes + send timing)
+- `RATIFICATIONS_PENDING_2026-05-13.md` (Q-OPS-1..10 + Q-302-f..i with Buddy leans + Q-302-j blocked on Bill)
+- `MI-ARCH-001_orphan_tapcard_write_side.md` (POST-DEMO architecture ticket for write-side fix, DB trigger Option B recommended)
+- `cc_doc_sync_2026-05-13_evening.md` (CC work order to commit + push the docs)
+- 49 demo photos hot-linked to Pexels CDN URLs (`execute_sql` writes; now also banked in `backlog_demo_data_writes_2026_05_13` migration). **Lesson 16 surfaced**: Postgres CTE multi-update against same row silently drops all but one write.
+
+**Three new lessons banked in STATE.md (Lessons 14/15/16):** verify shipped state via git refs + file content via Filesystem MCP directly; query `pg_proc` for canonical Postgres function names; Postgres CTE multi-write hazard with overlapping targets.
+
+**Completion percentages bumped (in STATE.md):** v0.1 87% → 89%; v1.0 78-80% → 85%; 7-module 40-42% → 44%; vision 19% → 20%.
+
+### Early AM addendum (Thu 5/14 ~01:00am → ~03:00am EDT) — Rabiyu prep wave kickoff + Mike Rodriguez scrub + Lesson 18
+
+**Triggered by Jorge directive** to lock v1.0 scope before legal engagement: "I would do all of those things and that makes us more prepared for Rabiyu so we're not going back and forth about app additions that could change the scope of legal safety or worse making it take longer and costing me more money."
+
+**Buddy lane (Supabase MCP):**
+- Migration `demo_scrub_mike_rodriguez_foreman_name` — redacted fictional foreman name (Lesson 17 hardening).
+
+**Doc lane (`.coordination/` drafts, all gitignored):**
+- `RABIYU_PREP_PACKAGE_BUILD_PLAN.md` (~400 lines, master sequencing doc).
+- `RABIYU_PREP_PACKAGE_DRAFT_2026-05-14.md` (~600 lines, 15 sections, §2 Bill placeholder).
+- `cc_doc_sync_2026-05-14_rabiyu_prep.md` (CC work order for tonight's doc-sync).
+- `cc_marketing_copy_softening_2026-05-14.md` (CC work order for marketing fixes — fires only on Jorge approval).
+
+**Findings surfaced:**
+- ToS DRAFT v0.1 + Privacy v0.1 + DPA already exist in `serrano-group-site/legal/` (generated by Buddy 5/3). Lesson 18 banked.
+- Local `supabase/migrations/` dir ends at 5/7; post-5/7 Buddy MCP migrations live remote-only — process gap, not content leak.
+- Marketing copy on `serranogroup.io`: 5-7 items flagged for Jorge review (capability-claim softenings, broken `/legal/subprocessors` link, title language).
+
+**Decisions banked (4 entries in decisions.md):** lock v1.0 scope during legal engagement, Mike Rodriguez scrub, Rabiyu prep wave kickoff, Lesson 18.
+
+**STATE.md:** Lesson 17 hardening + full Lesson 18.
+
+**Demo readiness unchanged:** v0.1 ~89% / v1.0 ~87% / 7-module ~45%. Demo health 29/29 🟢 GREEN.
+
+**Working mode:** Full agency. Same pattern as MI-OPS-HE per Jorge directive ("right now lets go. same thing we just did for that massive shipment. that worked well").
+
+---
+
+### Late-evening addendum (Wed 5/13 ~9:30pm → ~11:30pm EDT) — eye-test → Montana scrub → MI-OPS-HE Hours/Expenses Unit 1 ship
+
+**Demo eye-test PASSED on `e660e6a` (5-point gate clean).** One side-fix during eye-test: Montana Construction (DEMO) flagged as real-world leak — Jorge's actual day-job contractor on NJAW LCRI project. Renamed to Meridian Construction (DEMO) via migration `demo_scrub_montana_construction_real_world_contractor` + scrubbed STATE.md (2 places) + status.md (this file, line 32) + MI-302 build plan (3 places) + Bill patent-claim one-pager. **Lesson 17 banked** in STATE.md: `(DEMO)` suffix is a tag, not a filter — redact real-world names at source.
+
+**Architectural gap surfaced from eye-test:** PTO not clickable on Dashboard + no calendar in app. Resolved: Dashboard is a glance surface, needs paired write surface. Jorge architecture playback: "days worked in calendar on dashboard … click to interact → Hours/Expenses tab → auto funnel to Ajeera + ADP."
+
+**MI-OPS-HE ticket filed + Unit 1 backend shipped same session** (Buddy via Supabase MCP):
+- `expense_entries_schema_v1` — new table + RLS forced + 5 policies + audit/`gis_set_updated_at` triggers + 4 indexes
+- `expense_entries_demo_seed` — 20 entries across 5 statuses ($564 synced / $133 approved / $287 submitted / $0 draft / $85 denied) + 5 categories (mileage / per_diem / receipt / equipment / other). Vendors: Wawa, Home Depot, Lowe's, United Rentals, Shell, Amazon. Pat Morgan as approver.
+- `expense_receipts_bucket_setup` — PRIVATE bucket (signed URLs only), 10MB limit, 5 allowed MIME types, 4 RLS policies (firm-scoped read, own-or-supervisor insert/update, super_admin delete). Path convention `expense-receipts/{firm_id}/{inspector_id}/{uuid}.{ext}`. Pre-action on Q-OPS-HE-d (Buddy lean).
+
+**Doc lane additions (all gitignored via newly-added `MI-OPS-HE_*.md` pattern + existing `cc_*.md`):**
+- `.coordination/MI-OPS-HE_HOURS_EXPENSES_BUILD_PLAN.md` (~470 lines, 3 units, 8 Qs, strategic rollup §10 with $15.2K/yr labor-savings math)
+- `.coordination/cc_ops_he_unit2_2026-05-13.md` (~470 lines, Unit 2 read paths + Dashboard rewiring)
+- `.coordination/cc_ops_he_unit3_2026-05-13.md` (~700 lines, Unit 3 write paths + modals + mock-sync + supervisor approve/deny + 14 new pitch-mode guards)
+
+**Q-OPS-HE-a ratified in chat** (single tab w/ 3 sub-views). Q-OPS-HE-b–h queued in `RATIFICATIONS_PENDING_2026-05-13.md` Set C.
+
+**Lesson 17 banked in STATE.md** (full writeup ~50 lines): NEVER use `(DEMO)` suffix to sanitize a real-world name; use a fully fictional name. Future modules (BidGrid contractor seed, Module 2 wastewater seed, any pitch-surfacing module) apply Lesson 17 at seed-design time.
+
+**Doc-sync absorbed end-of-day:** STATE.md (active tickets new MI-OPS-HE row + Last 3 sessions addendum + completion percentages v0.1 89%/v1.0 87%/7-module 45% + Lesson 17), RECENT_CONTEXT.md (Tickets-in-flight + Outstanding items 14/15/16), decisions.md (4 new entries: Montana scrub + MI-OPS-HE ticket file + Q-OPS-HE-a ratification + bucket setup), SESSION_LOG.md (late-evening entry), .gitignore (MI-OPS-HE_* + MI-OPS-DASHBOARD_* + MI-302_CM-PM_* patterns), this status.md addendum.
+
+**Working mode:** Jorge confirmed full-agency mode ("were a team buddy, i pick up the slack where i as a human can offer my intuition. beyond that. get it done"). Buddy executed the architectural-gap response autonomously: ship backend → write build plan → write both Unit 2 + Unit 3 CC work orders → pre-act on Q-OPS-HE-d bucket → bank decisions → close out doc-sync. No CC involvement tonight; Unit 2 fires next session via `read .coordination/cc_ops_he_unit2_2026-05-13.md and execute`.
+
+---
 
 **Wed 5/6 → Fri 5/8 commits in order on `demo-banner`:**
 1. `52adf8a` Phase 2d-revision Unit 1 Step 2 (Wed 5/6 evening)

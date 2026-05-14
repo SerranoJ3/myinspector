@@ -12,11 +12,12 @@
 
 ## Right now
 
-**Sprint:** MyInspector demo polish toward CP Engineers pitch ~5/21-5/22 (Stan, gated on Jeff approving first).
-**Demo readiness:** ~85% to v1.0 as of 5/13 evening — OPS Dashboard + MI-302 Construction PM frontends shipped, dashboard is now genuinely single-pane-of-glass. Demo URL `myinspector-git-demo-banner-jserranojr340-9100s-projects.vercel.app`.
-**HEAD:** `e660e6a` on both `demo-banner` and `mi-demo-seed`. Branches synced. Both Vercel deploys READY.
-**Demo health:** 23/23 GREEN as of 5/8 ~04:30 EDT (last full pre-flight). Two new top-level surfaces added 5/13 (OPS Dashboard rewrite + Construction PM tab) — re-run pre-flight before Jeff demo recommended.
-**Lawyer engagement:** Rabiyu engagement letter under review (received + reviewed 5/13). $5k retainer + 3 open questions queued before signing — see `.coordination/LEGAL_STATE.md` for full state.
+**Sprint:** Rabiyu legal-engagement prep wave (5/14 ~01:00am EDT →). v1.0 product surface LOCKED at HEAD `94b2b21` per Jorge directive — no new product features ship until Rabiyu engagement closes. Only allowed work: legal-prep docs, demo data scrubs, marketing copy fixes (pending Jorge approval).
+**Demo readiness:** v0.1 ~89% / v1.0 ~87% / 7-module ~45% / vision ~20% (unchanged from MI-OPS-HE close — no product delta this wave).
+**HEAD:** `94b2b21` on both `demo-banner` and `mi-demo-seed` (will bump after CC fires the doc-sync block). Demo URL `myinspector-git-demo-banner-jserranojr340-9100s-projects.vercel.app` serves the locked v1.0.
+**Demo health:** 29/29 🟢 GREEN as of 5/14 ~02:15am EDT (post Mike Rodriguez scrub). contractor_name_leaks = 0; person_name_leaks = 0.
+**Critical-path blocker:** Bill patent-claim response (Outcome A/B/C). Drives MI-302 Unit 3 unblock + the Rabiyu package §2 fill-in.
+**Lawyer engagement:** Rabiyu prep package v0.1 DRAFT on disk (`.coordination/RABIYU_PREP_PACKAGE_DRAFT_2026-05-14.md`, 15 sections, §2 placeholder). Engagement letter response draft also on disk (`RABIYU_REPLY_DRAFT_2026-05-13.md`). Send-Rabiyu workflow gated on Bill response landing → §2 fill → lock.
 
 ## People in play
 

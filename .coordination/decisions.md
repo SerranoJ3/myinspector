@@ -1201,3 +1201,68 @@ A firm could be safe to display while pitch mode is on (e.g., the demo firm itse
   - **If mismatch →** schema migration first (add `contractor_workers` child table or equivalent), then Unit 3 against revised model, then patent filing amendment if needed.
 
 **Source:** Jorge — direct ask 2026-05-14 ~midnight EDT ("approve all Q-302 except j") post Q-OPS ratification commit `eaffaa5`.
+
+---
+
+## 2026-05-14 ~02:00am EDT — Lock v1.0 scope during Rabiyu legal engagement (Jorge directive)
+
+**Decision:** No new product surfaces will be added to MyInspector between now and pitch (~5/21-5/22). v1.0 scope freezes at HEAD `94b2b21` (MI-OPS-HE + OPS Dashboard + MI-302 Unit 2 + Certs & Licenses + everything else shipped through 5/13 evening close). Phase 2 / POST-DEMO items stay parked. Only allowed work in this window: legal-prep documents, demo data scrubs, marketing copy fixes (if approved), and coordination docs.
+
+**Reasoning:** Jorge directive locked 5/14 ~01:00 EDT in chat: "I would do all of those things and that makes us more prepared for Rabiyu so we're not going back and forth about app additions that could change the scope of legal safety or worse making it take longer and costing me more money." Strategic logic: legal review prices the scope handed to counsel; moving scope mid-review either (a) wastes paid review hours on work that no longer applies, or (b) creates surfaces Rabiyu didn't audit and the "we're covered" answer becomes "we're partially covered." Both bad. Bill is the only true in-flight scope variable (his patent-claim review could trigger MI-302 schema change per Outcome C); everything else stays frozen.
+
+**Operating rules for the 8-day window:**
+1. Bill goes first — his analysis is the only true variable.
+2. No new product surfaces during the legal engagement.
+3. Rabiyu package is BOTH a document AND an app walk — both surfaces audited in one engagement.
+4. No loose ends — every known leak, gap, or surface inconsistency addressed before Rabiyu sees it.
+
+**Affects:** MI-302 Unit 3 (arrival/departure write paths) stays blocked on Bill regardless of urgency. OPS Dashboard Unit 3 (schedule cell edit + PTO request from Dashboard tile) stays parked. MI-403 Field Guides Unit 2 stays parked. Module 2 Wastewater frontend stays parked. Any new feature request from Jorge between now and pitch routes to a "v1.1 / Phase 2 backlog" decision rather than an in-flight build. Only allowed in-window work: legal-prep docs (this build plan + Rabiyu package), demo data scrubs (Mike Rodriguez tonight), marketing copy fixes pending Jorge sign-off, and coordination docs.
+
+**Source:** Jorge directive 2026-05-14 ~01:00 EDT (chat).
+
+---
+
+## 2026-05-14 ~02:15am EDT — Mike Rodriguez foreman name redaction (Lesson 17 hardening)
+
+**Decision:** Replace "Mike Rodriguez foreman + 4 laborers on site" with "Crew foreman + 4 laborers on site" in the `contractor_arrival_log.notes` for the Meridian Construction (DEMO) assignment id `bbf95410-0ef0-44fb-95a9-c68696e94d12`, arrival timestamp 2026-05-08 07:15. Migration `demo_scrub_mike_rodriguez_foreman_name` shipped via Supabase MCP.
+
+**Reasoning:** Surfaced during a fresh leakage scan triggered by Jorge's "no loose ends" directive for the Rabiyu prep wave. "Mike Rodriguez" was a fictional foreman name placed in the demo seed during MI-302 backend work on 5/13. Mike Rodriguez is one of the most common names in NJ construction industry — the risk of a real-person collision is low. But per Lesson 17, the principle is to redact proper nouns at source rather than rely on generic-name common-ness as sanitization. Same failure mode as Montana Construction (Lesson 17 origin) and MI-DEMO-TOWNS (Thu 5/7) — a `(DEMO)` suffix or a generic-feeling name is a tag, not a filter. A CP Engineers prospect reading the pitch demo doesn't filter the name as "oh this is fictional" — they parse the name itself. The replacement drops the proper noun entirely ("Crew foreman + 4 laborers on site") while preserving the crew-size detail that's useful for the Construction PM demo beat.
+
+**Affects:** Demo seed is now fully person-name-free in `contractor_arrival_log.notes`. Lesson 17 stands but its scope is now widened: "redact proper nouns even when the name is generic-common" — don't assume generic-ness is filtering.
+
+**Source:** Fresh leakage scan during Rabiyu prep wave, 2026-05-14 ~02:10am EDT.
+
+---
+
+## 2026-05-14 ~02:30am EDT — Rabiyu prep wave kickoff (build plan + package draft + 2 CC work orders on disk)
+
+**Decision:** Kicked off the Rabiyu legal-engagement prep wave per Jorge's locked principle. Four artifacts shipped to disk (all gitignored):
+
+- `.coordination/RABIYU_PREP_PACKAGE_BUILD_PLAN.md` (~400 lines) — master sequencing doc covering: Jorge's locked principle, 4-day sequencing (Bill → wait → integrate → send Rabiyu → her review → pitch), "no loose ends" sweep checklist with checkboxes for completed + remaining items, master package outline (13 sections), marketing surface findings (5-7 items), risk register, strategic rollup, acceptance criteria.
+- `.coordination/RABIYU_PREP_PACKAGE_DRAFT_2026-05-14.md` (~600 lines) — the actual deliverable for Rabiyu's review. v0.1 draft, 15 sections, comprehensive coverage: executive summary, multi-tenant architecture (firm isolation + RLS + super_admin god-mode), audit log architecture (immutability + hash-chain + retention), data retention policies (compliance photos vs expense receipts bucket split), third-party integrations (mock-sync Ajeera/ADP), user roles + permissions matrix, pitch mode framing, explicit out-of-scope list (Phase 2 + POST-DEMO + architected vision), known gaps + disposition (5 items), demo firm vs production firm differences, app access details, process gaps + transparency notes, what we're asking from Rabiyu, document control. **§2 (Bill's patent analysis) is a placeholder pending Bill response.**
+- `.coordination/cc_doc_sync_2026-05-14_rabiyu_prep.md` — CC work order for the doc-sync commit (tracks STATE.md + decisions.md + SESSION_LOG.md + RECENT_CONTEXT.md + status.md updates; no code or schema changes).
+- `.coordination/cc_marketing_copy_softening_2026-05-14.md` — CC work order for the optional marketing copy fixes on `serrano-group-site/index.html` (fires only after Jorge approves the specific softenings flagged in the build plan).
+
+Also surfaced for Jorge action: send Bill the patent-claim one-pager (already drafted), send Rabiyu the engagement letter response with the consolidated package + app access details (after Bill responds and §2 is filled in).
+
+**Reasoning:** Jorge directive locked the workflow shape: "I'd like Bill to run his analysis and from that we build a file for Rabiyu to review while also putting her eyes on the actual MyInspector app. No loose ends." Same pattern that worked for MI-OPS-HE on 5/13 evening: master build plan + Buddy-shipped backend + CC work orders + decision banking + STATE.md updates. The work shape here is doc-heavy (no new product surface) but the build-plan-driven discipline scales.
+
+**Affects:** Rabiyu engagement readiness on lock by end-of-week (gated on Bill response timing). v1.0 product surface frozen at HEAD `94b2b21`. Jorge's outbound action queue: (1) send Bill, (2) review marketing copy findings + decide on softening, (3) wait on Bill, (4) integrate Bill response + send Rabiyu. Demo readiness unchanged (no product delta).
+
+**Source:** Jorge directive 2026-05-14 ~02:00am EDT ("right now lets go. same thing we just did for that massive shipment. that worked well") authorizing the same MI-OPS-HE-style execution pattern.
+
+---
+
+## 2026-05-14 ~02:45am EDT — Lesson 18 banked: audit existing on-disk scaffolding before assuming new build
+
+**Decision:** Banking Lesson 18 in STATE.md "Banked discipline lessons" section: **before scoping new work, audit existing on-disk scaffolding to see if it already exists in some form.**
+
+**Reasoning:** During tonight's Rabiyu prep sweep, Buddy expected to surface "need to draft ToS + Privacy from scratch" as a major TODO. Instead, discovered that DRAFT v0.1 versions of both already existed in `serrano-group-site/legal/` (`terms.md` + `privacy.md` + `dpa.md`), generated by Buddy on 5/3 with explicit lawyer-review punch-lists at the bottom. The work shifted from "draft from scratch" to "hand the existing drafts to Rabiyu for customization" — saved likely hours of redundant work.
+
+Similar pattern surfaced earlier in the session when checking `supabase/migrations/` directory — expected Montana Construction string leak in tracked migration files, but found that all post-5/7 Buddy MCP migrations live remote-only (not in local files). Process gap finding, not a content leak.
+
+**The lesson generalizes:** before scoping "we need to build X for Y", grep the existing repos. Buddy has memory persistence but it's lossy across sessions; the disk is the source of truth. The cost of one minute of `list_directory` + `read_text_file` before scoping is much lower than the cost of an hour redrafting something that already exists.
+
+**Affects:** Standing discipline. Next session-start checklist includes a "scaffolding audit" step before scoping new work in any repo.
+
+**Source:** Self-surfaced during the Rabiyu prep sweep when Buddy discovered ToS + Privacy drafts already existed.
