@@ -245,6 +245,8 @@ body{display:flex;flex-direction:column}
 .he-pto-stats td:first-child{color:var(--muted);width:130px}
 .he-pto-stats td:last-child{color:var(--white);font-weight:600;font-variant-numeric:tabular-nums}
 @media(max-width:767px){.he-week-table,.he-expenses-table,.he-pto-table{font-size:11px}.he-week-table th,.he-week-table td,.he-expenses-table th,.he-expenses-table td,.he-pto-table th,.he-pto-table td{padding:8px 8px}.he-pto-stats td:first-child{width:90px}}
+.he-ot-flag{font-size:11px;color:var(--muted)}
+.he-ot-flag.he-ot-warning{background:rgba(244,168,32,0.18);color:var(--orange);padding:4px 10px;border-radius:99px;font-weight:600;font-size:11px}
 
 /* TABLE */
 .table-wrap{background:var(--surface);border:1px solid var(--border);
@@ -1300,8 +1302,10 @@ html,body{overflow-x:hidden}
             <button class="btn-sm btn-orange" data-he-hours-view="mine" onclick="heShowMyHours()">My Hours</button>
             <button class="btn-sm btn-ghost" data-he-hours-view="queue" onclick="heShowHoursQueue()">Pending Approval (<span id="he-hours-queue-count">0</span>)</button>
           </div>
-          <div style="display:flex;justify-content:flex-end;margin:12px 0">
-            <button class="btn-sm btn-orange" id="he-hours-submit-batch" onclick="alert('Unit 3: batch submit to Ajeera not yet wired')" style="display:none">Submit Week to Ajeera (<span id="he-hours-draft-count">0</span> drafts)</button>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:12px 0;flex-wrap:wrap">
+            <button class="btn-sm btn-orange" onclick="openHoursEntryModal()">+ Add Entry</button>
+            <span id="he-hours-ot-flag" class="he-ot-flag"></span>
+            <button class="btn-sm btn-orange" id="he-hours-submit-batch" onclick="heHoursSubmitWeek()" style="display:none">Submit Week to Ajeera (<span id="he-hours-draft-count">0</span> drafts)</button>
           </div>
           <div class="table-wrap">
             <table class="he-week-table">
@@ -1331,7 +1335,7 @@ html,body{overflow-x:hidden}
             <button class="btn-sm btn-ghost" data-he-expenses-view="queue" onclick="heShowExpensesQueue()">Pending Approval (<span id="he-expenses-queue-count">0</span>)</button>
           </div>
           <div style="display:flex;justify-content:flex-end;margin:12px 0">
-            <button class="btn-sm btn-orange" id="he-expenses-new" onclick="alert('Unit 3: new expense modal not yet wired')">+ New Expense</button>
+            <button class="btn-sm btn-orange" id="he-expenses-new" onclick="openNewExpenseModal()">+ New Expense</button>
           </div>
           <div class="table-wrap">
             <table class="he-expenses-table">
@@ -1353,7 +1357,7 @@ html,body{overflow-x:hidden}
           <div class="he-pto-balance">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
               <h3 style="margin:0;font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;letter-spacing:.04em;color:var(--white)" id="he-pto-fy-title">PTO Balance — Fiscal Year —</h3>
-              <button class="btn-sm btn-orange" id="he-pto-request" onclick="alert('Unit 3: PTO request modal not yet wired')">+ Request PTO</button>
+              <button class="btn-sm btn-orange" id="he-pto-request" onclick="openPtoRequestModal()">+ Request PTO</button>
             </div>
             <div class="he-pto-bar-container">
               <div class="he-pto-bar" id="he-pto-bar" style="width:0%"></div>
@@ -2421,6 +2425,115 @@ html,body{overflow-x:hidden}
     <datalist id="ms-contractor-options"></datalist>
     <datalist id="ms-material-options"></datalist>
     <datalist id="ms-type_of_main-options"></datalist>
+  </div>
+</div>
+
+<!-- MI-OPS-HE Unit 3 — Hours add modal -->
+<div class="modal-overlay" id="modal-he-hours">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Add Hours Entry</div>
+        <div class="modal-sub">Log time worked. Saves as draft until you submit the week to Ajeera.</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-he-hours')">✕</button>
+    </div>
+    <div style="padding:16px 20px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div><label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Date *</label><input class="modal-input" id="he-h-date" type="date"></div>
+        <div><label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Hours *</label><input class="modal-input" id="he-h-hours" type="number" step="0.5" min="0" max="24" placeholder="8.0"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div><label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">OT hours (optional)</label><input class="modal-input" id="he-h-ot" type="number" step="0.5" min="0" max="12" placeholder="0"></div>
+        <div><label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Project</label><select class="modal-select" id="he-h-project"><option value="">— select —</option></select></div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Notes</label>
+        <input class="modal-input" id="he-h-notes" type="text" placeholder="optional context (job site, task)">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-he-hours')">Cancel</button>
+      <button class="btn-sm btn-orange" onclick="heHoursSaveEntry()">Save as Draft</button>
+    </div>
+  </div>
+</div>
+
+<!-- MI-OPS-HE Unit 3 — Expense add/edit modal -->
+<div class="modal-overlay" id="modal-he-expense">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="he-e-modal-title">New Expense</div>
+        <div class="modal-sub">Mileage auto-computes at $0.67/mi. Per diem defaults to $25 NJ.</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-he-expense')">✕</button>
+    </div>
+    <div style="padding:16px 20px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div><label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Category *</label><select class="modal-select" id="he-e-category" onchange="heExpenseCategoryChange()"><option value="mileage">🚗 Mileage</option><option value="per_diem">🍽️ Per Diem</option><option value="receipt">🧾 Receipt</option><option value="equipment">🛠️ Equipment</option><option value="other">📋 Other</option></select></div>
+        <div><label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Date *</label><input class="modal-input" id="he-e-date" type="date"></div>
+      </div>
+      <div id="he-e-mileage-group" style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Miles *</label>
+        <input class="modal-input" id="he-e-miles" type="number" step="0.1" min="0" placeholder="42.5" oninput="heExpenseRecomputeMileageAmount()">
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Auto-computed at $0.67/mile (IRS 2026)</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div><label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Amount ($) *</label><input class="modal-input" id="he-e-amount" type="number" step="0.01" min="0" placeholder="0.00"></div>
+        <div id="he-e-vendor-group"><label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Vendor</label><input class="modal-input" id="he-e-vendor" type="text" placeholder="e.g. Home Depot"></div>
+      </div>
+      <div id="he-e-receipt-group" style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Receipt photo (image/PDF)</label>
+        <input class="modal-input" id="he-e-receipt-file" type="file" accept="image/*,application/pdf" capture="environment">
+        <div id="he-e-receipt-preview" style="margin-top:6px"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div><label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Project (optional)</label><select class="modal-select" id="he-e-project"><option value="">—</option></select></div>
+        <div><label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Description</label><input class="modal-input" id="he-e-description" type="text" placeholder="what was this for?"></div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Notes</label>
+        <input class="modal-input" id="he-e-notes" type="text" placeholder="optional">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-he-expense')">Cancel</button>
+      <button class="btn-sm btn-ghost" onclick="heExpenseSave('draft')">Save Draft</button>
+      <button class="btn-sm btn-orange" onclick="heExpenseSave('submitted')">Submit for Approval</button>
+    </div>
+  </div>
+</div>
+
+<!-- MI-OPS-HE Unit 3 — PTO request modal -->
+<div class="modal-overlay" id="modal-he-pto">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Request PTO</div>
+        <div class="modal-sub">Hours auto-compute at 8/business-day. 120hr fiscal-year cap enforced.</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-he-pto')">✕</button>
+    </div>
+    <div style="padding:16px 20px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div><label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Start date *</label><input class="modal-input" id="he-p-start" type="date" onchange="hePtoRecomputeHours()"></div>
+        <div><label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">End date *</label><input class="modal-input" id="he-p-end" type="date" onchange="hePtoRecomputeHours()"></div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Hours requested *</label>
+        <input class="modal-input" id="he-p-hours" type="number" step="0.5" min="0" value="0">
+        <div id="he-p-balance-hint" style="font-size:11px;color:var(--muted);margin-top:4px"></div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Reason *</label>
+        <textarea class="modal-input" id="he-p-reason" rows="2" placeholder="e.g. Family wedding, doctor appointment, personal day"></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-he-pto')">Cancel</button>
+      <button class="btn-sm btn-orange" onclick="hePtoSubmitRequest()">Submit Request</button>
+    </div>
   </div>
 </div>
 
@@ -3778,6 +3891,18 @@ async function loadHoursWeek(weekStart){
   body.innerHTML = html;
   document.getElementById('he-hours-total').textContent = totalReg.toFixed(1);
   document.getElementById('he-hours-ot-total').textContent = totalOt.toFixed(1);
+  // Q-OPS-HE-f: OT auto-flag at >40 hrs/week — informational, not a submit-blocker.
+  const otFlag = document.getElementById('he-hours-ot-flag');
+  if(otFlag){
+    const weekTotal = totalReg + totalOt;
+    if(weekTotal > 40){
+      otFlag.classList.add('he-ot-warning');
+      otFlag.textContent = `⚠ ${(weekTotal - 40).toFixed(1)} hrs OT this week`;
+    } else {
+      otFlag.classList.remove('he-ot-warning');
+      otFlag.textContent = '';
+    }
+  }
   const batchBtn = document.getElementById('he-hours-submit-batch');
   if(batchBtn){
     batchBtn.style.display = drafts > 0 ? '' : 'none';
@@ -3816,7 +3941,7 @@ async function loadHoursPendingQueue(){
       <td style="font-variant-numeric:tabular-nums;color:${ot > 0 ? 'var(--orange)' : 'var(--muted)'}">${ot.toFixed(1)}</td>
       <td style="color:rgba(237,242,248,0.85)">${gisEscape(r.projects?.name || '—')}</td>
       <td style="color:rgba(237,242,248,0.7);font-style:italic">${gisEscape(r.notes || '—')}</td>
-      <td><button class="btn-sm btn-orange" onclick="alert('Unit 3: approve flow not yet wired')" style="font-size:10px;padding:3px 8px">Approve</button> <button class="btn-sm btn-ghost" onclick="alert('Unit 3: deny flow not yet wired')" style="font-size:10px;padding:3px 8px">Deny</button></td>
+      <td><button class="btn-sm btn-orange" onclick="heHoursApprove('${r.id}')" style="font-size:10px;padding:3px 8px">Approve</button> <button class="btn-sm btn-ghost" onclick="heHoursDeny('${r.id}')" style="font-size:10px;padding:3px 8px">Deny</button></td>
     </tr>`;
   });
   body.innerHTML = html;
@@ -3890,7 +4015,8 @@ async function loadExpensesWeek(weekStart){
       ? `<img src="${gisEscape(r.receipt_photo_url)}" alt="" style="width:28px;height:28px;border-radius:4px;object-fit:cover;vertical-align:middle;margin-right:6px" onerror="this.style.display='none'">`
       : '';
     const desc = `${thumb}${gisEscape(r.description || r.vendor || '—')}`;
-    html += `<tr>
+    const rowAttrs = r.status === 'denied' ? ` style="cursor:pointer" title="Click to edit and resubmit" onclick="heExpenseOpenEdit('${gisEscape(r.id)}')"` : '';
+    html += `<tr${rowAttrs}>
       <td>${r.date}</td>
       <td>${heCategoryLabel(r.category)}</td>
       <td style="color:rgba(237,242,248,0.85)">${desc}</td>
@@ -3936,7 +4062,7 @@ async function loadExpensesPendingQueue(){
       <td>${heCategoryLabel(r.category)}</td>
       <td style="color:rgba(237,242,248,0.85)">${desc}</td>
       <td style="font-variant-numeric:tabular-nums;font-weight:600;color:var(--white)">$${(amt/100).toFixed(2)}</td>
-      <td><button class="btn-sm btn-orange" onclick="alert('Unit 3: approve flow not yet wired')" style="font-size:10px;padding:3px 8px">Approve</button> <button class="btn-sm btn-ghost" onclick="alert('Unit 3: deny flow not yet wired')" style="font-size:10px;padding:3px 8px">Deny</button></td>
+      <td><button class="btn-sm btn-orange" onclick="heExpenseApprove('${r.id}')" style="font-size:10px;padding:3px 8px">Approve</button> <button class="btn-sm btn-ghost" onclick="heExpenseDeny('${r.id}')" style="font-size:10px;padding:3px 8px">Deny</button></td>
     </tr>`;
   });
   body.innerHTML = html;
@@ -3995,6 +4121,8 @@ async function loadPtoState(){
   const balance = Number(bal?.balance_hours||0);
   const max = Number(bal?.max_balance_hours||120);
   const pctUsed = max > 0 ? (used / max) * 100 : 0;
+  // Unit 3 cache: hePtoRecomputeHours reads this when computing cap-overflow warnings.
+  _hePtoBalanceCache = {accrued, used, balance, max};
   document.getElementById('he-pto-accrued').textContent = `${accrued.toFixed(1)} hrs`;
   document.getElementById('he-pto-used').textContent = `${used.toFixed(1)} hrs`;
   document.getElementById('he-pto-balance-val').textContent = `${balance.toFixed(1)} hrs`;
@@ -4068,10 +4196,396 @@ async function loadPtoPendingQueue(){
       <td style="font-variant-numeric:tabular-nums">${hrs.toFixed(1)}</td>
       <td><span class="he-badge he-badge-submitted">⏳ Requested</span></td>
       <td style="color:rgba(237,242,248,0.85)">${gisEscape(nameMap[t.inspector_id]||'?')}</td>
-      <td><button class="btn-sm btn-orange" onclick="alert('Unit 3: approve flow not yet wired')" style="font-size:10px;padding:3px 8px">Approve</button> <button class="btn-sm btn-ghost" onclick="alert('Unit 3: deny flow not yet wired')" style="font-size:10px;padding:3px 8px">Deny</button></td>
+      <td><button class="btn-sm btn-orange" onclick="hePtoApprove('${t.id}')" style="font-size:10px;padding:3px 8px">Approve</button> <button class="btn-sm btn-ghost" onclick="hePtoDeny('${t.id}')" style="font-size:10px;padding:3px 8px">Deny</button></td>
     </tr>`;
   });
   body.innerHTML = html;
+}
+
+// ── HOURS / EXPENSES / PTO — UNIT 3 (write paths) ──────────────────────────
+// All write functions follow Lesson 7: every INSERT/UPDATE payload populates
+// firm_id (and inspector_id for inspector-row paths) so RLS WITH CHECK passes.
+// 14 pitch-mode guards via pitchModeBlocked() — demo firm only. Friendly error
+// wrapper heFriendlyError() mirrors tcFriendlyError pattern. Phase D
+// mockSyncBatch fakes Ajeera/ADP sync with 2s delay → flip status to 'synced'
+// + populate sync timestamp. Audit log fires automatically via table triggers.
+const MILEAGE_RATE_CENTS_PER_MILE = 67;  // Q-OPS-HE-b: IRS 2026 rate
+const PTO_MAX_BALANCE_HOURS = 120;       // Matches pto_balances.max_balance_hours default
+const PER_DIEM_DEFAULT_CENTS = 2500;     // Q-OPS-HE-c: $25 NJ preset
+let _hePtoBalanceCache = {accrued:0, used:0, balance:0, max:120};
+let _heExpenseEditId = null;             // when set, modal is in edit mode (Q-OPS-HE-e)
+let _heProjectsCache = null;             // populated lazily by populateProjectsDropdowns()
+
+function heFriendlyError(error){
+  const raw = error?.message || String(error||'');
+  console.error('Hours/Expenses error:', error);
+  if(/row-level security|permission/i.test(raw)) return 'Permission denied — contact your supervisor';
+  if(/network|fetch|failed to fetch/i.test(raw)) return 'Network error — check your connection and try again';
+  if(/check constraint|violates check/i.test(raw)) return 'Invalid data — please review the form';
+  if(/foreign key|violates foreign/i.test(raw)) return 'Referenced item no longer exists — please refresh';
+  if(/duplicate|unique constraint/i.test(raw)) return 'This entry already exists';
+  if(/storage|bucket/i.test(raw)) return 'Upload failed — try again or use a smaller file';
+  return 'Something went wrong — try again, or ping Jorge';
+}
+
+async function populateProjectsDropdowns(selectIds){
+  if(!_heProjectsCache){
+    const {data} = await sb.from('projects').select('id,name').is('deleted_at', null).order('name',{ascending:true});
+    _heProjectsCache = data || [];
+  }
+  selectIds.forEach(id => {
+    const sel = document.getElementById(id);
+    if(!sel) return;
+    const placeholder = id === 'he-h-project' ? '<option value="">— select —</option>' : '<option value="">—</option>';
+    sel.innerHTML = placeholder + _heProjectsCache.map(p => `<option value="${gisEscape(p.id)}">${gisEscape(p.name||'(unnamed)')}</option>`).join('');
+  });
+}
+
+// ── Phase D: mock-sync shared helper ────────────────────────────────────
+async function mockSyncBatch(tableName, ids, integration){
+  if(!ids || !ids.length) return;
+  const statusCol = integration === 'ajeera' ? 'ajeera_sync_status' : 'adp_sync_status';
+  const timeCol = integration === 'ajeera' ? 'ajeera_synced_at' : 'adp_synced_at';
+  await sb.from(tableName).update({[statusCol]:'pending'}).in('id', ids);
+  showToast(`Syncing ${ids.length} ${ids.length === 1 ? 'entry' : 'entries'} to ${integration.toUpperCase()}…`, 'success');
+  await new Promise(r => setTimeout(r, 2000));
+  const payload = {[statusCol]:'synced', [timeCol]: new Date().toISOString()};
+  if(tableName === 'hours_entries' || tableName === 'expense_entries') payload.status = 'synced';
+  await sb.from(tableName).update(payload).in('id', ids);
+  showToast(`Synced to ${integration.toUpperCase()} ✓`, 'success');
+}
+
+// ── Phase A: Hours write paths ─────────────────────────────────────────
+function openHoursEntryModal(){
+  if(pitchModeBlocked('add hours entry')) return;
+  document.getElementById('he-h-date').value = (_heHoursWeekStart && new Date() >= _heHoursWeekStart) ? new Date().toISOString().slice(0,10) : opsIsoDate(_heHoursWeekStart || new Date());
+  document.getElementById('he-h-hours').value = '';
+  document.getElementById('he-h-ot').value = '';
+  document.getElementById('he-h-notes').value = '';
+  populateProjectsDropdowns(['he-h-project']);
+  document.getElementById('modal-he-hours').classList.add('open');
+}
+
+async function heHoursSaveEntry(){
+  if(pitchModeBlocked('save hours entry')) return;
+  const date = document.getElementById('he-h-date').value;
+  const hours = parseFloat(document.getElementById('he-h-hours').value);
+  const ot = parseFloat(document.getElementById('he-h-ot').value) || 0;
+  const projectId = document.getElementById('he-h-project').value || null;
+  const notes = document.getElementById('he-h-notes').value.trim() || null;
+  if(!date){ showToast('Date is required', 'error'); return; }
+  if(!isFinite(hours) || hours <= 0){ showToast('Hours must be > 0', 'error'); return; }
+  const payload = {
+    firm_id: currentFirmId, inspector_id: currentUser?.id, date,
+    hours_regular: hours, hours_overtime: ot,
+    project_id: projectId, notes, status:'draft', created_by: currentUser?.id,
+  };
+  const {error} = await sb.from('hours_entries').insert(payload);
+  if(error){ showToast(heFriendlyError(error), 'error'); return; }
+  showToast('Hours entry saved as draft', 'success');
+  closeModal('modal-he-hours');
+  await loadHoursWeek(_heHoursWeekStart);
+}
+
+async function heHoursSubmitWeek(){
+  if(pitchModeBlocked('submit hours week to Ajeera')) return;
+  const days = Array.from({length:7}, (_,i) => {
+    const d = new Date(_heHoursWeekStart); d.setDate(_heHoursWeekStart.getDate()+i); return opsIsoDate(d);
+  });
+  const {data, error} = await sb.from('hours_entries').update({status:'submitted'})
+    .eq('inspector_id', currentUser?.id).eq('status', 'draft')
+    .gte('date', days[0]).lte('date', days[6]).select('id');
+  if(error){ showToast(heFriendlyError(error), 'error'); return; }
+  if(!data || !data.length){ showToast('No draft entries to submit', 'success'); return; }
+  showToast(`Submitted ${data.length} hours ${data.length === 1 ? 'entry' : 'entries'} — pending supervisor approval`, 'success');
+  await loadHoursWeek(_heHoursWeekStart);
+}
+
+async function heHoursApprove(entryId){
+  if(pitchModeBlocked('approve hours entry')) return;
+  if(!confirm('Approve this hours entry? It will sync to Ajeera.')) return;
+  const {error} = await sb.from('hours_entries').update({
+    status:'approved', approved_by: currentUser?.id, approved_at: new Date().toISOString()
+  }).eq('id', entryId);
+  if(error){ showToast(heFriendlyError(error), 'error'); return; }
+  await mockSyncBatch('hours_entries', [entryId], 'ajeera');
+  await loadHoursPendingQueue();
+}
+
+async function heHoursDeny(entryId){
+  if(pitchModeBlocked('deny hours entry')) return;
+  const reason = prompt('Reason for denial (visible to inspector):');
+  if(!reason) return;
+  const {error} = await sb.from('hours_entries').update({
+    status:'denied', approved_by: currentUser?.id, approved_at: new Date().toISOString(), notes: reason
+  }).eq('id', entryId);
+  if(error){ showToast(heFriendlyError(error), 'error'); return; }
+  showToast('Entry denied — inspector notified', 'success');
+  await loadHoursPendingQueue();
+}
+
+// ── Phase B: Expenses write paths ──────────────────────────────────────
+async function openNewExpenseModal(){
+  if(pitchModeBlocked('open new expense modal')) return;
+  _heExpenseEditId = null;
+  document.getElementById('he-e-modal-title').textContent = 'New Expense';
+  document.getElementById('he-e-category').value = 'mileage';
+  document.getElementById('he-e-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('he-e-miles').value = '';
+  document.getElementById('he-e-amount').value = '';
+  document.getElementById('he-e-vendor').value = '';
+  document.getElementById('he-e-receipt-file').value = '';
+  document.getElementById('he-e-receipt-preview').innerHTML = '';
+  document.getElementById('he-e-description').value = '';
+  document.getElementById('he-e-notes').value = '';
+  await populateProjectsDropdowns(['he-e-project']);
+  document.getElementById('he-e-project').value = '';
+  heExpenseCategoryChange();
+  document.getElementById('modal-he-expense').classList.add('open');
+}
+
+async function heExpenseOpenEdit(entryId){
+  if(pitchModeBlocked('edit denied expense')) return;
+  const {data:r, error} = await sb.from('expense_entries').select('*').eq('id', entryId).maybeSingle();
+  if(error || !r){ showToast(heFriendlyError(error||'Entry not found'), 'error'); return; }
+  _heExpenseEditId = entryId;
+  document.getElementById('he-e-modal-title').textContent = 'Edit Denied Expense';
+  document.getElementById('he-e-category').value = r.category || 'other';
+  document.getElementById('he-e-date').value = r.date || '';
+  document.getElementById('he-e-miles').value = r.miles != null ? r.miles : '';
+  document.getElementById('he-e-amount').value = r.amount_cents != null ? (r.amount_cents/100).toFixed(2) : '';
+  document.getElementById('he-e-vendor').value = r.vendor || '';
+  document.getElementById('he-e-receipt-file').value = '';
+  document.getElementById('he-e-receipt-preview').innerHTML = r.receipt_photo_url ? `<div style="font-size:11px;color:var(--muted)">Existing receipt on file (re-upload to replace).</div>` : '';
+  document.getElementById('he-e-description').value = r.description || '';
+  document.getElementById('he-e-notes').value = '';  // denial reason was stored here; clear for inspector's new context
+  await populateProjectsDropdowns(['he-e-project']);
+  document.getElementById('he-e-project').value = r.project_id || '';
+  heExpenseCategoryChange();
+  document.getElementById('modal-he-expense').classList.add('open');
+}
+
+function heExpenseCategoryChange(){
+  const cat = document.getElementById('he-e-category').value;
+  document.getElementById('he-e-mileage-group').style.display = (cat === 'mileage') ? '' : 'none';
+  document.getElementById('he-e-vendor-group').style.display = (cat === 'receipt' || cat === 'equipment') ? '' : 'none';
+  document.getElementById('he-e-receipt-group').style.display = (cat === 'receipt') ? '' : 'none';
+  const amt = document.getElementById('he-e-amount');
+  amt.readOnly = (cat === 'mileage');
+  if(cat === 'per_diem' && !amt.value){ amt.value = (PER_DIEM_DEFAULT_CENTS/100).toFixed(2); }
+  if(cat === 'mileage') heExpenseRecomputeMileageAmount();
+}
+
+function heExpenseRecomputeMileageAmount(){
+  const miles = parseFloat(document.getElementById('he-e-miles').value) || 0;
+  const cents = Math.round(miles * MILEAGE_RATE_CENTS_PER_MILE);
+  document.getElementById('he-e-amount').value = (cents/100).toFixed(2);
+}
+
+async function heUploadReceiptPhoto(file){
+  if(pitchModeBlocked('upload receipt photo')) return null;
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const path = `${currentFirmId}/${currentUser?.id}/${crypto.randomUUID()}.${ext}`;
+  const {error} = await sb.storage.from('expense-receipts').upload(path, file, {contentType: file.type, cacheControl: '3600'});
+  if(error){ showToast(heFriendlyError(error), 'error'); return null; }
+  return path;  // bucket is private — display path needs signed URL via heGetReceiptDisplayUrl
+}
+
+async function heGetReceiptDisplayUrl(path){
+  if(!path) return null;
+  const {data, error} = await sb.storage.from('expense-receipts').createSignedUrl(path, 3600);
+  if(error){ console.error('Receipt signed URL:', error); return null; }
+  return data?.signedUrl || null;
+}
+
+async function heExpenseSave(targetStatus){
+  if(pitchModeBlocked('save expense')) return;
+  const category = document.getElementById('he-e-category').value;
+  const date = document.getElementById('he-e-date').value;
+  const amount = parseFloat(document.getElementById('he-e-amount').value) || 0;
+  const miles = parseFloat(document.getElementById('he-e-miles').value) || null;
+  const vendor = document.getElementById('he-e-vendor').value.trim() || null;
+  const projectId = document.getElementById('he-e-project').value || null;
+  const description = document.getElementById('he-e-description').value.trim() || null;
+  const notes = document.getElementById('he-e-notes').value.trim() || null;
+  if(!date){ showToast('Date is required', 'error'); return; }
+  if(amount <= 0){ showToast('Amount must be > 0', 'error'); return; }
+  if(category === 'mileage' && (!miles || miles <= 0)){ showToast('Miles required for mileage entry', 'error'); return; }
+  if(category === 'receipt' && !vendor){ showToast('Vendor required for receipt entry', 'error'); return; }
+  let receiptPath = null;
+  if(category === 'receipt'){
+    const file = document.getElementById('he-e-receipt-file').files[0];
+    if(file){
+      receiptPath = await heUploadReceiptPhoto(file);
+      if(!receiptPath) return;
+    }
+  }
+  const payload = {
+    firm_id: currentFirmId, inspector_id: currentUser?.id,
+    date, category, amount_cents: Math.round(amount*100),
+    miles, vendor, project_id: projectId, description, notes,
+    status: targetStatus, created_by: currentUser?.id,
+  };
+  if(receiptPath) payload.receipt_photo_url = receiptPath;
+  let err;
+  if(_heExpenseEditId){
+    // Edit mode (Q-OPS-HE-e: denied → draft/submitted resubmit)
+    const {error} = await sb.from('expense_entries').update(payload).eq('id', _heExpenseEditId);
+    err = error;
+  } else {
+    const {error} = await sb.from('expense_entries').insert(payload);
+    err = error;
+  }
+  if(err){ showToast(heFriendlyError(err), 'error'); return; }
+  showToast(targetStatus === 'draft' ? 'Expense saved as draft' : 'Expense submitted for approval', 'success');
+  closeModal('modal-he-expense');
+  _heExpenseEditId = null;
+  await loadExpensesWeek(_heExpensesWeekStart);
+}
+
+async function heExpensesSubmitWeek(){
+  if(pitchModeBlocked('submit expense batch')) return;
+  const days = Array.from({length:7}, (_,i) => {
+    const d = new Date(_heExpensesWeekStart); d.setDate(_heExpensesWeekStart.getDate()+i); return opsIsoDate(d);
+  });
+  const {data, error} = await sb.from('expense_entries').update({status:'submitted'})
+    .eq('inspector_id', currentUser?.id).eq('status', 'draft')
+    .gte('date', days[0]).lte('date', days[6]).select('id');
+  if(error){ showToast(heFriendlyError(error), 'error'); return; }
+  if(!data || !data.length){ showToast('No draft expenses to submit', 'success'); return; }
+  showToast(`Submitted ${data.length} ${data.length === 1 ? 'expense' : 'expenses'} — pending approval`, 'success');
+  await loadExpensesWeek(_heExpensesWeekStart);
+}
+
+async function heExpenseApprove(entryId){
+  if(pitchModeBlocked('approve expense')) return;
+  if(!confirm('Approve this expense? It will sync to Ajeera.')) return;
+  const {error} = await sb.from('expense_entries').update({
+    status:'approved', approved_by: currentUser?.id, approved_at: new Date().toISOString()
+  }).eq('id', entryId);
+  if(error){ showToast(heFriendlyError(error), 'error'); return; }
+  await mockSyncBatch('expense_entries', [entryId], 'ajeera');
+  await loadExpensesPendingQueue();
+}
+
+async function heExpenseDeny(entryId){
+  if(pitchModeBlocked('deny expense')) return;
+  const reason = prompt('Reason for denial (visible to inspector):');
+  if(!reason) return;
+  const {error} = await sb.from('expense_entries').update({
+    status:'denied', approved_by: currentUser?.id, approved_at: new Date().toISOString(), notes: reason
+  }).eq('id', entryId);
+  if(error){ showToast(heFriendlyError(error), 'error'); return; }
+  showToast('Expense denied — inspector notified', 'success');
+  await loadExpensesPendingQueue();
+}
+
+// ── Phase C: PTO write paths ───────────────────────────────────────────
+function openPtoRequestModal(){
+  if(pitchModeBlocked('open PTO request modal')) return;
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('he-p-start').value = today;
+  document.getElementById('he-p-end').value = today;
+  document.getElementById('he-p-hours').value = '8';
+  document.getElementById('he-p-reason').value = '';
+  hePtoRecomputeHours();
+  document.getElementById('modal-he-pto').classList.add('open');
+}
+
+function hePtoRecomputeHours(){
+  const startStr = document.getElementById('he-p-start').value;
+  const endStr = document.getElementById('he-p-end').value;
+  const hint = document.getElementById('he-p-balance-hint');
+  if(!startStr || !endStr){ if(hint) hint.textContent = ''; return; }
+  const start = new Date(startStr+'T00:00:00'), end = new Date(endStr+'T00:00:00');
+  if(isNaN(start) || isNaN(end) || end < start){
+    document.getElementById('he-p-hours').value = '0';
+    if(hint) hint.innerHTML = '<span style="color:var(--orange)">End date must be on or after start date.</span>';
+    return;
+  }
+  let businessDays = 0;
+  const cursor = new Date(start);
+  while(cursor <= end){
+    const dow = cursor.getDay();
+    if(dow !== 0 && dow !== 6) businessDays++;
+    cursor.setDate(cursor.getDate()+1);
+  }
+  const hours = businessDays * 8;
+  document.getElementById('he-p-hours').value = hours.toString();
+  const projectedUsed = (_hePtoBalanceCache.used||0) + hours;
+  if(projectedUsed > _hePtoBalanceCache.max){
+    hint.innerHTML = `<span style="color:#ef4444;font-weight:600">⚠ Would exceed ${_hePtoBalanceCache.max}hr cap (you've used ${_hePtoBalanceCache.used.toFixed(1)} hrs so far).</span>`;
+  } else {
+    const remaining = _hePtoBalanceCache.max - projectedUsed;
+    hint.textContent = `Balance after approval: ${remaining.toFixed(1)} hrs available · ${businessDays} business ${businessDays === 1 ? 'day' : 'days'}`;
+  }
+}
+
+async function hePtoSubmitRequest(){
+  if(pitchModeBlocked('submit PTO request')) return;
+  const start = document.getElementById('he-p-start').value;
+  const end = document.getElementById('he-p-end').value;
+  const hours = parseFloat(document.getElementById('he-p-hours').value);
+  const reason = document.getElementById('he-p-reason').value.trim();
+  if(!start || !end){ showToast('Start and end dates are required', 'error'); return; }
+  if(!isFinite(hours) || hours <= 0){ showToast('Hours must be > 0', 'error'); return; }
+  if(!reason){ showToast('Reason is required', 'error'); return; }
+  const projectedUsed = (_hePtoBalanceCache.used||0) + hours;
+  if(projectedUsed > _hePtoBalanceCache.max){
+    const remaining = _hePtoBalanceCache.max - _hePtoBalanceCache.used;
+    showToast(`Request exceeds 120hr cap — you have ${remaining.toFixed(1)} hrs available`, 'error');
+    return;
+  }
+  const payload = {
+    firm_id: currentFirmId, inspector_id: currentUser?.id,
+    transaction_type: 'usage', hours: -hours, effective_date: start,
+    request_status: 'requested', notes: `${reason} (${start} → ${end})`,
+    created_by: currentUser?.id,
+  };
+  const {error} = await sb.from('pto_transactions').insert(payload);
+  if(error){ showToast(heFriendlyError(error), 'error'); return; }
+  showToast('PTO request submitted — pending supervisor approval', 'success');
+  closeModal('modal-he-pto');
+  await loadPtoState();
+}
+
+async function hePtoApprove(transactionId){
+  if(pitchModeBlocked('approve PTO request')) return;
+  if(!confirm('Approve this PTO request? Balance will increment and sync to ADP.')) return;
+  // 1. Flip transaction to approved
+  const {data:tx, error:txErr} = await sb.from('pto_transactions').update({
+    request_status:'approved', approved_by: currentUser?.id, approved_at: new Date().toISOString()
+  }).eq('id', transactionId).select('*').maybeSingle();
+  if(txErr || !tx){ showToast(heFriendlyError(txErr||'Transaction not found'), 'error'); return; }
+  // 2. Increment used_hours on pto_balances via SELECT-then-UPDATE (no RPC available)
+  const fiscalYear = new Date(tx.effective_date).getFullYear();
+  const {data:bal, error:balReadErr} = await sb.from('pto_balances')
+    .select('id,used_hours')
+    .eq('inspector_id', tx.inspector_id).eq('fiscal_year', fiscalYear)
+    .is('deleted_at', null).maybeSingle();
+  if(balReadErr || !bal){
+    showToast(heFriendlyError(balReadErr||'No balance row — cannot apply usage'), 'error');
+    return;
+  }
+  const newUsed = Number(bal.used_hours||0) + Math.abs(Number(tx.hours)||0);
+  const {error:balUpdErr} = await sb.from('pto_balances').update({used_hours: newUsed}).eq('id', bal.id);
+  if(balUpdErr){ showToast(heFriendlyError(balUpdErr), 'error'); return; }
+  // 3. Mock-sync to ADP
+  await mockSyncBatch('pto_transactions', [transactionId], 'adp');
+  showToast('PTO approved — balance updated, synced to ADP', 'success');
+  await loadPtoPendingQueue();
+}
+
+async function hePtoDeny(transactionId){
+  if(pitchModeBlocked('deny PTO request')) return;
+  const reason = prompt('Reason for denial (visible to inspector):');
+  if(!reason) return;
+  const {error} = await sb.from('pto_transactions').update({
+    request_status:'denied', approved_by: currentUser?.id, approved_at: new Date().toISOString(), notes: reason
+  }).eq('id', transactionId);
+  if(error){ showToast(heFriendlyError(error), 'error'); return; }
+  showToast('PTO request denied — inspector notified', 'success');
+  await loadPtoPendingQueue();
 }
 
 // ── PROPERTIES ────────────────────────────────────────
