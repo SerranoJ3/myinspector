@@ -1076,6 +1076,9 @@ html,body{overflow-x:hidden}
       <div class="nav-link" id="nav-herald" onclick="showPanel('herald')">
         <span class="nav-icon">🗞️</span> The Herald
       </div>
+      <div class="nav-link" id="nav-field-guides" onclick="showPanel('field-guides')">
+        <span class="nav-icon">📚</span> Field Guides
+      </div>
       <div class="nav-link" id="nav-certs" onclick="showPanel('certs')">
         <span class="nav-icon">🪪</span> Certs / Licenses
       </div>
@@ -1522,6 +1525,37 @@ html,body{overflow-x:hidden}
           </div>
           <div id="herald-archive-list">
             <div class="loading">Loading archive...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FIELD GUIDES PANEL (MI-403 Unit 2 frontend, 5/15/26) -->
+      <div class="panel" id="panel-field-guides">
+        <div class="page-header">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+            <div>
+              <div class="page-title">Field Guides</div>
+              <div class="page-sub">Visual references for fittings, materials, and field procedures</div>
+            </div>
+            <button class="btn-sm btn-ghost" id="fg-back-btn" onclick="fgShowIndex()" style="display:none">‹ Back to guides</button>
+          </div>
+        </div>
+        <!-- Index view -->
+        <div id="fg-index" style="display:block">
+          <div id="fg-index-list">
+            <div class="loading"><div class="spinner"></div><br>Loading field guides...</div>
+          </div>
+        </div>
+        <!-- Detail view -->
+        <div id="fg-detail" style="display:none">
+          <div id="fg-detail-header" style="margin-bottom:16px"></div>
+          <div id="fg-page-container" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;min-height:300px">
+            <div class="loading">Loading page...</div>
+          </div>
+          <div id="fg-page-nav" style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;gap:12px">
+            <button class="btn-sm btn-ghost" id="fg-prev-btn" onclick="fgPrevPage()">‹ Prev</button>
+            <div id="fg-page-indicator" style="color:var(--muted);font-size:13px">—</div>
+            <button class="btn-sm btn-ghost" id="fg-next-btn" onclick="fgNextPage()">Next ›</button>
           </div>
         </div>
       </div>
@@ -3338,6 +3372,7 @@ function showPanel(name){
   if(name==='reports') loadReports();
   if(name==='gis-lists') loadGisLists();
   if(name==='herald') loadHerald();
+  if(name==='field-guides') loadFieldGuides();
   if(name==='certs') loadCerts();
   if(name==='cm-pm') loadCmPm();
   if(name==='hours-expenses') loadHoursExpenses();
@@ -7929,6 +7964,132 @@ async function confirmSoftDeleteMaterialsSheet(){
   } finally {
     if(btn) btn.disabled = false;
   }
+}
+
+// ── FIELD GUIDES (MI-403 Unit 2, 5/15/26) ─────────────
+// Global table (no firm_id) — visual references usable across firms. RLS gates DRAFT vs
+// published: inspectors/supervisors auto-filter to published via field_guides_read_published;
+// super_admin sees all rows + can toggle published_at. Pages render image + caption (schema
+// has no body_markdown column; spec assumption corrected per Lesson 2).
+let fgGuides = [];
+let fgPages = [];
+let fgCurrentGuide = null;
+let fgPageIdx = 0;
+const fgEscape = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+async function loadFieldGuides(){
+  fgShowIndex();
+  const list = document.getElementById('fg-index-list');
+  const {data, error} = await sb.from('field_guides').select('*').is('deleted_at', null).order('display_order', {ascending: true});
+  if(error){
+    list.innerHTML = `<div class="loading">Error loading field guides: ${fgEscape(error.message)}</div>`;
+    return;
+  }
+  fgGuides = data || [];
+  renderFieldGuideIndex();
+}
+
+function renderFieldGuideIndex(){
+  const list = document.getElementById('fg-index-list');
+  if(!fgGuides.length){
+    list.innerHTML = '<div class="loading">No field guides published yet.</div>';
+    return;
+  }
+  const cardsHtml = fgGuides.map(g => {
+    const isDraft = !g.published_at;
+    const draftBadge = isDraft ? '<span style="background:rgba(244,168,32,0.18);color:#f4a820;font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;margin-left:8px">DRAFT</span>' : '';
+    const desc = g.description ? `<div style="color:var(--muted);font-size:13px;margin-top:6px;line-height:1.4">${fgEscape(g.description)}</div>` : '';
+    const category = g.category ? `<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">${fgEscape(g.category)}</div>` : '';
+    return `<div class="fg-card" onclick="fgOpenGuide('${fgEscape(g.id)}')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;cursor:pointer;transition:border-color 120ms ease">
+      ${category}
+      <div style="font-weight:700;color:var(--white);font-size:16px">${fgEscape(g.title)}${draftBadge}</div>
+      ${desc}
+    </div>`;
+  }).join('');
+  list.innerHTML = cardsHtml;
+}
+
+async function fgOpenGuide(guideId){
+  const guide = fgGuides.find(g => g.id === guideId);
+  if(!guide) return;
+  fgCurrentGuide = guide;
+  fgPageIdx = 0;
+  document.getElementById('fg-index').style.display = 'none';
+  document.getElementById('fg-detail').style.display = 'block';
+  document.getElementById('fg-back-btn').style.display = '';
+  const {data, error} = await sb.from('field_guide_pages').select('*').eq('field_guide_id', guideId).order('page_number', {ascending: true});
+  if(error){
+    document.getElementById('fg-page-container').innerHTML = `<div class="loading">Error loading pages: ${fgEscape(error.message)}</div>`;
+    return;
+  }
+  fgPages = data || [];
+  renderFieldGuideDetail();
+}
+
+function renderFieldGuideDetail(){
+  const header = document.getElementById('fg-detail-header');
+  const container = document.getElementById('fg-page-container');
+  const indicator = document.getElementById('fg-page-indicator');
+  const prevBtn = document.getElementById('fg-prev-btn');
+  const nextBtn = document.getElementById('fg-next-btn');
+  if(!fgCurrentGuide) return;
+  const isDraft = !fgCurrentGuide.published_at;
+  const publishBtn = currentUserIsSuperAdmin
+    ? `<button class="btn-sm ${isDraft ? 'btn-orange' : 'btn-ghost'}" onclick="fgTogglePublish()" style="margin-left:12px">${isDraft ? '⬆ Publish' : '⬇ Unpublish'}</button>`
+    : '';
+  const draftBadge = isDraft ? '<span style="background:rgba(244,168,32,0.18);color:#f4a820;font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;margin-left:8px">DRAFT</span>' : '';
+  header.innerHTML = `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px">
+    <div style="font-size:20px;font-weight:700;color:var(--white)">${fgEscape(fgCurrentGuide.title)}${draftBadge}</div>
+    ${publishBtn}
+  </div>${fgCurrentGuide.description ? `<div style="color:var(--muted);font-size:13px;margin-top:6px">${fgEscape(fgCurrentGuide.description)}</div>` : ''}`;
+  if(!fgPages.length){
+    container.innerHTML = '<div class="loading">No pages yet for this guide. Awaiting source PDF upload + page seed (Jorge action).</div>';
+    indicator.textContent = '0 of 0';
+    prevBtn.disabled = true;
+    nextBtn.disabled = true;
+    return;
+  }
+  const page = fgPages[fgPageIdx];
+  const imgHtml = page.image_url
+    ? `<img src="${fgEscape(page.image_url)}" alt="${fgEscape(page.caption || '')}" style="max-width:100%;max-height:60vh;border-radius:6px;background:#fff" onerror="this.style.display='none'">`
+    : '<div style="padding:60px;color:var(--muted);font-style:italic">Image not available</div>';
+  const captionHtml = page.caption ? `<div style="margin-top:12px;color:var(--white);font-size:14px;line-height:1.5">${fgEscape(page.caption)}</div>` : '';
+  container.innerHTML = imgHtml + captionHtml;
+  indicator.textContent = `Page ${fgPageIdx + 1} of ${fgPages.length}`;
+  prevBtn.disabled = fgPageIdx === 0;
+  nextBtn.disabled = fgPageIdx === fgPages.length - 1;
+}
+
+function fgPrevPage(){ if(fgPageIdx > 0){ fgPageIdx--; renderFieldGuideDetail(); } }
+function fgNextPage(){ if(fgPageIdx < fgPages.length - 1){ fgPageIdx++; renderFieldGuideDetail(); } }
+
+function fgShowIndex(){
+  document.getElementById('fg-index').style.display = 'block';
+  document.getElementById('fg-detail').style.display = 'none';
+  document.getElementById('fg-back-btn').style.display = 'none';
+  fgCurrentGuide = null;
+  fgPages = [];
+  fgPageIdx = 0;
+}
+
+async function fgTogglePublish(){
+  if(pitchModeBlocked('field guide publish toggle')) return;
+  if(!fgCurrentGuide) return;
+  if(!currentUserIsSuperAdmin){ showToast('Super_admin only','error'); return; }
+  const wasPublished = !!fgCurrentGuide.published_at;
+  const nextValue = wasPublished ? null : new Date().toISOString();
+  const {data, error} = await sb.from('field_guides').update({ published_at: nextValue }).eq('id', fgCurrentGuide.id).select('*').single();
+  if(error){
+    console.error('fgTogglePublish error:', error);
+    showToast(tcFriendlyError(error.message || ''),'error');
+    return;
+  }
+  // Update local cache + re-render
+  Object.assign(fgCurrentGuide, data);
+  const idxInList = fgGuides.findIndex(g => g.id === data.id);
+  if(idxInList >= 0) Object.assign(fgGuides[idxInList], data);
+  showToast(wasPublished ? 'Guide unpublished' : 'Guide published','success');
+  renderFieldGuideDetail();
 }
 
 // ── CERTS / LICENSES (MI-CERTS-1) ─────────────────────
