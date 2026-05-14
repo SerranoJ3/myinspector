@@ -345,6 +345,7 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .tc-diagram-btn:disabled{opacity:0.4;cursor:not-allowed}
 .tc-diagram-btn-danger{color:#fca5a5}
 .tc-diagram-btn-danger:hover{background:rgba(220,38,38,0.18);border-color:#dc2626}
+.tc-diagram-btn-armed{background:rgba(244,168,32,0.22);border-color:#f4a820;color:#f4a820}
 .tc-diagram-sep{width:1px;height:20px;background:var(--border);margin:0 4px}
 .tc-diagram-toggle{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;user-select:none}
 .tc-diagram-toggle input{margin:0;cursor:pointer}
@@ -2034,6 +2035,9 @@ html,body{overflow-x:hidden}
               <input type="text" id="tc-diagram-house-num" placeholder="1234" maxlength="8" oninput="diagramSetHouseNumber(this.value)"
                 style="background:var(--surface3);border:1px solid var(--border);color:var(--white);font-size:12px;padding:4px 8px;border-radius:4px;width:64px;font-family:'Source Sans 3',sans-serif">
             </label>
+            <span class="tc-diagram-sep"></span>
+            <button type="button" class="tc-diagram-btn" onclick="diagramArmAnnotate()" title="Add text annotation — click canvas to place" id="tc-diagram-annotate-btn">✏️ Annotate</button>
+            <button type="button" class="tc-diagram-btn" onclick="diagramResetZoom()" title="Reset zoom">🔍 Reset Zoom</button>
             <span class="tc-diagram-sep"></span>
             <button type="button" class="tc-diagram-btn tc-diagram-btn-danger" onclick="diagramClear()" title="Clear all">Clear</button>
             <span class="tc-diagram-spacer"></span>
@@ -9783,6 +9787,18 @@ let diagramDragMoved = false;
 let diagramSnapEnabled = true;
 let diagramUndoStack = [];
 let diagramRedoStack = [];
+// MI-110 Phase 4 polish (5/15/26): annotation tool + zoom view state.
+// Zoom state lives ONLY in the editor session — does not persist to diagram payload (per spec
+// acceptance #4: "resets cleanly"). Every diagramReset/diagramLoad resets to default viewBox.
+// Annotations DO persist (already in diagramState.annotations from initial schema).
+let diagramAnnotateMode = false;
+let diagramView = { x: 0, y: 0, w: 800, h: 600 };  // current viewBox; reset on open
+let _diagramLongPressTimer = null;
+let _diagramLongPressTarget = null;  // { kind, idx } captured on pointerdown
+let _diagramTouchState = null;  // { initialDist, initialView, center } during 2-finger gesture
+const DIAGRAM_ZOOM_MIN = 0.5;
+const DIAGRAM_ZOOM_MAX = 3.0;
+const DIAGRAM_LONG_PRESS_MS = 600;
 
 function diagramReset(){
   diagramState = {
@@ -9799,17 +9815,71 @@ function diagramReset(){
   };
   diagramReadOnly = false;
   diagramArmedAssetType = null;
+  diagramAnnotateMode = false;
   diagramSelectedId = null;
   diagramDragId = null;
   diagramDragMoved = false;
   diagramSnapEnabled = true;
   diagramUndoStack = [];
   diagramRedoStack = [];
+  diagramView = { x: 0, y: 0, w: 800, h: 600 };
+  _diagramApplyView();
   const snapEl = document.getElementById('tc-diagram-snap');
   if(snapEl) snapEl.checked = true;
   const pillEl = document.getElementById('tc-diagram-readonly-pill');
   if(pillEl) pillEl.style.display = 'none';
+  const annotateBtn = document.getElementById('tc-diagram-annotate-btn');
+  if(annotateBtn) annotateBtn.classList.remove('tc-diagram-btn-armed');
   diagramSetStatus('Tap to place MP');
+  diagramRender();
+}
+
+function _diagramApplyView(){
+  const svg = document.getElementById('tc-diagram-canvas');
+  if(!svg) return;
+  svg.setAttribute('viewBox', `${diagramView.x} ${diagramView.y} ${diagramView.w} ${diagramView.h}`);
+}
+
+function diagramResetZoom(){
+  diagramView = { x: 0, y: 0, w: 800, h: 600 };
+  _diagramApplyView();
+  diagramSetStatus('Zoom reset');
+}
+
+function diagramArmAnnotate(){
+  if(diagramReadOnly) return;
+  diagramAnnotateMode = !diagramAnnotateMode;
+  diagramArmedAssetType = null;  // mutually exclusive with asset-placement mode
+  const annotateBtn = document.getElementById('tc-diagram-annotate-btn');
+  if(annotateBtn) annotateBtn.classList.toggle('tc-diagram-btn-armed', diagramAnnotateMode);
+  const svg = document.getElementById('tc-diagram-canvas');
+  if(svg) svg.style.cursor = diagramAnnotateMode ? 'text' : 'crosshair';
+  diagramSetStatus(diagramAnnotateMode ? 'Tap canvas to place annotation' : 'Annotate mode off');
+}
+
+function _diagramRenameMarker(kind, idx){
+  if(diagramReadOnly) return;
+  const target = kind === 'mp' ? diagramState.mp[idx] : diagramState.assets[idx];
+  if(!target) return;
+  const next = prompt(`Rename ${target.label}:`, target.label);
+  if(next === null) return;  // user cancelled
+  const trimmed = String(next).trim();
+  if(!trimmed || trimmed === target.label) return;
+  diagramSnapshot();
+  target.label = trimmed;
+  diagramSetStatus(`Renamed to ${trimmed}`);
+  diagramRender();
+}
+
+function _diagramDeleteAnnotation(annId){
+  if(diagramReadOnly) return;
+  const idx = diagramState.annotations.findIndex(a => a.id === annId);
+  if(idx < 0) return;
+  const ann = diagramState.annotations[idx];
+  if(!confirm(`Delete annotation "${ann.text}"?`)) return;
+  diagramSnapshot();
+  diagramState.annotations.splice(idx, 1);
+  diagramSetStatus('Annotation deleted');
   diagramRender();
 }
 
@@ -10006,12 +10076,57 @@ function _diagramHit(point){
 
 function _diagramPointerDown(evt){
   if(diagramReadOnly) return;
+  // Skip pointerdown entirely during 2-finger touch gesture (handled by touch listeners).
+  if(_diagramTouchState) return;
   evt.preventDefault();
   const svg = document.getElementById('tc-diagram-canvas');
   if(svg && svg.setPointerCapture) { try { svg.setPointerCapture(evt.pointerId); } catch(e){} }
   const pt = _diagramSvgPoint(evt);
   if(!pt) return;
   const hit = _diagramHit(pt);
+
+  // Right-click on marker → rename (Phase 4 polish 5/15/26)
+  if(evt.button === 2 && hit){
+    _diagramRenameMarker(hit.kind, hit.idx);
+    return;
+  }
+  // Right-click on annotation → delete
+  if(evt.button === 2){
+    const annHit = _diagramHitAnnotation(pt);
+    if(annHit){ _diagramDeleteAnnotation(annHit.id); return; }
+  }
+
+  // Annotation placement mode (Phase 4 polish 5/15/26)
+  if(diagramAnnotateMode){
+    const text = prompt('Annotation text:');
+    diagramAnnotateMode = false;
+    const annotateBtn = document.getElementById('tc-diagram-annotate-btn');
+    if(annotateBtn) annotateBtn.classList.remove('tc-diagram-btn-armed');
+    if(svg) svg.style.cursor = 'crosshair';
+    if(text === null || !text.trim()){ diagramSetStatus('Annotation cancelled'); return; }
+    diagramSnapshot();
+    const id = `ann-${Date.now()}-${diagramState.annotations.length}`;
+    diagramState.annotations.push({ id, x: pt.x, y: pt.y, text: text.trim(), created_at: new Date().toISOString() });
+    diagramSetStatus(`Annotation placed`);
+    diagramRender();
+    return;
+  }
+
+  // Long-press timer for rename (touch) — fires if no move within DIAGRAM_LONG_PRESS_MS
+  if(hit && evt.pointerType === 'touch'){
+    _diagramLongPressTarget = { kind: hit.kind, idx: hit.idx, id: hit.id };
+    if(_diagramLongPressTimer) clearTimeout(_diagramLongPressTimer);
+    _diagramLongPressTimer = setTimeout(() => {
+      _diagramLongPressTimer = null;
+      if(_diagramLongPressTarget && !diagramDragMoved){
+        // Cancel any in-flight drag
+        diagramDragId = null;
+        _diagramRenameMarker(_diagramLongPressTarget.kind, _diagramLongPressTarget.idx);
+        _diagramLongPressTarget = null;
+      }
+    }, DIAGRAM_LONG_PRESS_MS);
+  }
+
   // Asset placement mode
   if(diagramArmedAssetType){
     diagramSnapshot();
@@ -10070,6 +10185,9 @@ function _diagramPointerMove(evt){
   if(diagramReadOnly) return;
   if(!diagramDragId) return;
   evt.preventDefault();
+  // Any move cancels the long-press rename timer (Phase 4 polish 5/15/26)
+  if(_diagramLongPressTimer){ clearTimeout(_diagramLongPressTimer); _diagramLongPressTimer = null; }
+  _diagramLongPressTarget = null;
   const pt = _diagramSvgPoint(evt);
   if(!pt) return;
   // Snapshot once on first real move (>0.5% to avoid jitter snapshots)
@@ -10097,10 +10215,27 @@ function _diagramPointerMove(evt){
 
 function _diagramPointerUp(evt){
   if(diagramReadOnly) return;
+  if(_diagramLongPressTimer){ clearTimeout(_diagramLongPressTimer); _diagramLongPressTimer = null; }
+  _diagramLongPressTarget = null;
   if(diagramDragId){
     diagramDragId = null;
     diagramDragMoved = false;
   }
+}
+
+function _diagramHitAnnotation(point){
+  // Approximate hit-test for annotation text boxes. Annotations rendered at (x,y) with font-size 11px,
+  // estimate ~0.04 width per char, ~0.025 height. Returns {id} or null.
+  if(!diagramState || !diagramState.annotations) return null;
+  for(let i = diagramState.annotations.length - 1; i >= 0; i--){
+    const a = diagramState.annotations[i];
+    const halfW = Math.max(0.03, (a.text || '').length * 0.012);
+    const halfH = 0.025;
+    if(point.x >= a.x - halfW && point.x <= a.x + halfW && point.y >= a.y - halfH && point.y <= a.y + halfH){
+      return { id: a.id, idx: i };
+    }
+  }
+  return null;
 }
 
 function _diagramDoubleClick(evt){
@@ -10108,7 +10243,11 @@ function _diagramDoubleClick(evt){
   const pt = _diagramSvgPoint(evt);
   if(!pt) return;
   const hit = _diagramHit(pt);
-  if(!hit) return;
+  // Double-click on empty area resets zoom (Phase 4 polish 5/15/26)
+  if(!hit){
+    diagramResetZoom();
+    return;
+  }
   const target = hit.kind === 'mp' ? diagramState.mp[hit.idx] : diagramState.assets[hit.idx];
   if(!target) return;
   if(!confirm(`Delete ${target.label}?`)) return;
@@ -10220,6 +10359,17 @@ function diagramRender(){
     html += `<text x="${ax}" y="${ay-18}" text-anchor="middle" fill="#1a1a1a" font-size="10" font-weight="600" font-family="sans-serif">${a.label}</text>`;
     html += `</g>`;
   });
+  // Annotations (MI-110 Phase 4 polish 5/15/26) — text labels at user-placed coords.
+  // Right-click in editor → delete. Read-only embed renders without delete affordance.
+  (diagramState.annotations || []).forEach(a => {
+    const ax = px(a.x), ay = py(a.y);
+    const escText = (a.text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const tw = Math.max(40, escText.length * 7 + 16);
+    html += `<g class="dgm-annotation" data-ann-id="${a.id}">`;
+    html += `<rect x="${ax - tw/2}" y="${ay - 12}" width="${tw}" height="24" rx="4" fill="rgba(255,235,180,0.92)" stroke="#f4a820" stroke-width="1.5"/>`;
+    html += `<text x="${ax}" y="${ay + 4}" text-anchor="middle" fill="#1a1a1a" font-size="11" font-weight="600" font-family="'Source Sans 3', sans-serif">${escText}</text>`;
+    html += `</g>`;
+  });
   content.innerHTML = html;
 
   // ─── Polish 5/9/26: COMPASS WIDGET (toolbar SVG, outside canvas) ───
@@ -10247,6 +10397,87 @@ function diagramRender(){
   if(typeof vtcDebouncedRender === 'function') vtcDebouncedRender();
 }
 
+// ─── Zoom + pan handlers (MI-110 Phase 4 polish 5/15/26) ──────────────────────
+// View-state only — never persists to diagram payload. Reset on every diagramReset/diagramLoad.
+
+function _diagramZoomAround(scaleFactor, anchorClientX, anchorClientY){
+  const svg = document.getElementById('tc-diagram-canvas');
+  if(!svg) return;
+  const currentScale = 800 / diagramView.w;  // current zoom level (1.0 = default)
+  const nextScale = Math.max(DIAGRAM_ZOOM_MIN, Math.min(DIAGRAM_ZOOM_MAX, currentScale * scaleFactor));
+  if(nextScale === currentScale) return;
+  const newW = 800 / nextScale;
+  const newH = 600 / nextScale;
+  // Convert anchor (client coords) → SVG coords (current viewBox space)
+  const rect = svg.getBoundingClientRect();
+  const ax = diagramView.x + ((anchorClientX - rect.left) / rect.width) * diagramView.w;
+  const ay = diagramView.y + ((anchorClientY - rect.top) / rect.height) * diagramView.h;
+  // New viewBox positioned so the anchor stays under the cursor/pinch midpoint
+  diagramView.x = ax - (newW * (ax - diagramView.x) / diagramView.w);
+  diagramView.y = ay - (newH * (ay - diagramView.y) / diagramView.h);
+  diagramView.w = newW;
+  diagramView.h = newH;
+  _diagramApplyView();
+}
+
+function _diagramWheel(evt){
+  if(!evt.ctrlKey) return;  // pinch-on-trackpad arrives as ctrl+wheel; plain wheel = scroll
+  evt.preventDefault();
+  const scaleFactor = evt.deltaY < 0 ? 1.1 : 1 / 1.1;
+  _diagramZoomAround(scaleFactor, evt.clientX, evt.clientY);
+}
+
+function _diagramTouchStart(evt){
+  if(evt.touches.length !== 2) return;
+  evt.preventDefault();
+  // Cancel any active long-press / drag from the single-touch path
+  if(_diagramLongPressTimer){ clearTimeout(_diagramLongPressTimer); _diagramLongPressTimer = null; }
+  _diagramLongPressTarget = null;
+  diagramDragId = null;
+  const [t1, t2] = [evt.touches[0], evt.touches[1]];
+  const dx = t2.clientX - t1.clientX, dy = t2.clientY - t1.clientY;
+  _diagramTouchState = {
+    initialDist: Math.sqrt(dx*dx + dy*dy),
+    initialView: { ...diagramView },
+    initialMidX: (t1.clientX + t2.clientX) / 2,
+    initialMidY: (t1.clientY + t2.clientY) / 2,
+  };
+}
+
+function _diagramTouchMove(evt){
+  if(!_diagramTouchState || evt.touches.length !== 2) return;
+  evt.preventDefault();
+  const [t1, t2] = [evt.touches[0], evt.touches[1]];
+  const dx = t2.clientX - t1.clientX, dy = t2.clientY - t1.clientY;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  const midX = (t1.clientX + t2.clientX) / 2;
+  const midY = (t1.clientY + t2.clientY) / 2;
+  // Zoom around the initial pinch midpoint (delta scale relative to initial)
+  const baseScale = 800 / _diagramTouchState.initialView.w;
+  const ratio = dist / _diagramTouchState.initialDist;
+  const targetScale = Math.max(DIAGRAM_ZOOM_MIN, Math.min(DIAGRAM_ZOOM_MAX, baseScale * ratio));
+  const newW = 800 / targetScale;
+  const newH = 600 / targetScale;
+  const svg = document.getElementById('tc-diagram-canvas');
+  const rect = svg.getBoundingClientRect();
+  // Anchor at initial mid in initial viewBox space
+  const iv = _diagramTouchState.initialView;
+  const ax = iv.x + ((_diagramTouchState.initialMidX - rect.left) / rect.width) * iv.w;
+  const ay = iv.y + ((_diagramTouchState.initialMidY - rect.top) / rect.height) * iv.h;
+  // Pan via mid-point delta from initial mid
+  const panDx = ((_diagramTouchState.initialMidX - midX) / rect.width) * newW;
+  const panDy = ((_diagramTouchState.initialMidY - midY) / rect.height) * newH;
+  diagramView.x = ax - (newW * (ax - iv.x) / iv.w) + panDx;
+  diagramView.y = ay - (newH * (ay - iv.y) / iv.h) + panDy;
+  diagramView.w = newW;
+  diagramView.h = newH;
+  _diagramApplyView();
+}
+
+function _diagramTouchEnd(evt){
+  if(evt.touches.length < 2) _diagramTouchState = null;
+}
+
 function diagramAttachListeners(){
   const svg = document.getElementById('tc-diagram-canvas');
   if(!svg || svg._dgmAttached) return;
@@ -10256,6 +10487,15 @@ function diagramAttachListeners(){
   svg.addEventListener('pointerup', _diagramPointerUp);
   svg.addEventListener('pointercancel', _diagramPointerUp);
   svg.addEventListener('dblclick', _diagramDoubleClick);
+  // Suppress browser context menu — right-click is repurposed for rename/delete (Phase 4 polish 5/15/26)
+  svg.addEventListener('contextmenu', e => e.preventDefault());
+  // Ctrl+wheel zoom (desktop trackpad pinch arrives as ctrl+wheel in most browsers)
+  svg.addEventListener('wheel', _diagramWheel, { passive: false });
+  // Touch 2-finger pinch + pan (Phase 4 polish 5/15/26)
+  svg.addEventListener('touchstart', _diagramTouchStart, { passive: false });
+  svg.addEventListener('touchmove', _diagramTouchMove, { passive: false });
+  svg.addEventListener('touchend', _diagramTouchEnd);
+  svg.addEventListener('touchcancel', _diagramTouchEnd);
   // Close asset picker when clicking outside
   document.addEventListener('click', (e) => {
     const wrap = document.querySelector('.tc-diagram-asset-wrap');
@@ -10335,6 +10575,13 @@ function _diagramInnerSVG(diagram, opts){
     inner += `<text x="${ax}" y="${ay-16}" text-anchor="middle" fill="${labelTextColor}" font-size="9" font-weight="600" font-family="sans-serif">${escapeStr(a.label)}</text>`;
     inner += `</g>`;
   });
+  // Annotations (MI-110 Phase 4 polish 5/15/26)
+  (diagram.annotations || []).forEach(a => {
+    const ax = px(a.x), ay = py(a.y);
+    const tw = Math.max(36, (a.text || '').length * 6 + 12);
+    inner += `<g class="dgm-annotation"><rect x="${ax - tw/2}" y="${ay - 10}" width="${tw}" height="20" rx="3" fill="rgba(255,235,180,0.9)" stroke="#f4a820" stroke-width="1"/>`;
+    inner += `<text x="${ax}" y="${ay + 3}" text-anchor="middle" fill="#1a1a1a" font-size="9" font-weight="600" font-family="'Source Sans 3', sans-serif">${escapeStr(a.text || '')}</text></g>`;
+  });
   return inner;
 }
 
@@ -10403,6 +10650,13 @@ function diagramReadOnlyEmbed(diagram, opts){
     inner += `<text x="${ax}" y="${ay+4}" text-anchor="middle" fill="#fff" font-size="12" font-weight="800" font-family="Rajdhani, sans-serif">${escapeStr(letter)}</text>`;
     inner += `<text x="${ax}" y="${ay-16}" text-anchor="middle" fill="#1a1a1a" font-size="9" font-weight="600" font-family="sans-serif">${escapeStr(a.label)}</text>`;
     inner += `</g>`;
+  });
+  // Annotations (MI-110 Phase 4 polish 5/15/26) — read-only embed renders without delete affordance.
+  (diagram.annotations || []).forEach(a => {
+    const ax = px(a.x), ay = py(a.y);
+    const tw = Math.max(40, (a.text || '').length * 7 + 16);
+    inner += `<g class="dgm-annotation"><rect x="${ax - tw/2}" y="${ay - 12}" width="${tw}" height="24" rx="4" fill="rgba(255,235,180,0.92)" stroke="#f4a820" stroke-width="1.5"/>`;
+    inner += `<text x="${ax}" y="${ay + 4}" text-anchor="middle" fill="#1a1a1a" font-size="11" font-weight="600" font-family="'Source Sans 3', sans-serif">${escapeStr(a.text || '')}</text></g>`;
   });
 
   // Sprint Polish 5/10/26: compass moved OUT of the diagram canvas and into the
