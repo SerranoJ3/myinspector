@@ -1,6 +1,8 @@
 # Coordination Status — MyInspector
 
-**Last updated:** 2026-05-14 ~03:00am EDT (Rabiyu prep wave kicked off). HEAD `94b2b21` on both `demo-banner` and `mi-demo-seed`. v1.0 product surface LOCKED per Jorge directive — only legal-prep docs, demo data scrubs, and marketing copy fixes (pending Jorge approval) ship in this window.
+**Last updated:** 2026-05-14 evening EDT (v1.0 Final Push doc-sync absorbing Phase 1 verification + Phase 2 MI-302 Unit 3 write paths + Phase 3 OPS Dashboard Unit 3 schedule cell edit ships). HEAD `a9dbb9e` pre-this-commit on both `demo-banner` and `mi-demo-seed`. **MyInspector v1.0 functionally complete (~95%).** Demo health 31/31 🟢 GREEN. Demo-ready for 5/21-5/22 pitch.
+
+**Previously updated:** 2026-05-13 ~22:45 EDT (Rabiyu prep wave kicked off + late-session strategy lane + Lesson 20A/B/C banked). HEAD `09c6b86` on both `demo-banner` and `mi-demo-seed`. v1.0 product surface LOCKED per Jorge directive — only legal-prep docs, demo data scrubs, and marketing copy fixes (pending Jorge approval) ship in this window.
 
 **Previously updated:** 2026-05-13 evening (50% checkpoint hit then full-completion push initiated). HEAD `e660e6a` on both `demo-banner` and `mi-demo-seed`. **Doc-sync DEFICIT REDUCED:** 5/13 evening commits absorbed below. 5/9-5/12 chronological detail (~30 commits) still pruned to summary; full per-commit list deferred to weekend window. Header-level + Last 3 sessions in STATE.md is current.
 
@@ -15,7 +17,42 @@
 
 ## Current state
 
-**Active branches:** `demo-banner` and `mi-demo-seed` both at `1535612` (chore(gitignore): exclude .coordination/LEGAL_STATE.md — legal/business lane scratch). main untouched per §22.
+**Active branches:** `demo-banner` and `mi-demo-seed` both at `a9dbb9e` pre-Phase-5 doc-sync (Phase 5 doc-sync commit bumps HEAD on both). main untouched per §22.
+
+## Thu 5/14 evening EDT — v1.0 Final Push addendum (4 phases shipped continuous-execution)
+
+Per `.coordination/cc_v1_final_push_2026-05-14.md` fired in continuous-execution mode. 4 phases + 1 doc-sync commit.
+
+**Phase 1 (MI-DEMO-UI v3.1 signup-toast follow-up) — detected as already-in-HEAD via Lesson 14:** gate landed `f27fc46` Sat 5/9 ~14:37 EDT; lines 2981-2983 of index.html already select `Welcome to ${firm.firm_name}!` when `firm_safe_to_display === true` and fall back to generic toast otherwise. No-op + skipped per spec.
+
+**Phase 2 — `753f3a0` MI-302 Construction PM Unit 3 write paths (+416/-2):** completes the Construction PM frontend.
+- `cmpmLogArrival` — `#modal-cmpm-arrival` modal with GPS via `navigator.geolocation.getCurrentPosition()` + inline `gps_accuracy_m` + amber warning chip when `accuracy > 50m` (Q-302-e), required photo via `<input type="file" accept="image/*" capture="environment">` (Q-302-d), INSERT to `contractor_arrival_log` with `firm_id: currentFirmId` (Lesson 7) + `contractor_assignment_id` + `arrived_at` + `gps_lat/lng/accuracy_m` + `photo_url` (uploaded via `cmpmUploadContractorPhoto` to `inspection-photos` bucket at path `{firm_id}/contractor-logs/{assignment_id}/{photo_uuid}.{ext}`) + `recorded_by_id/email` + `notes`. Friendly block on photo capture failure per Q-302-i.
+- `cmpmLogDeparture` — photo OPTIONAL (Q-302-d), blocked when no active arrival via state-cached `_cmpmActiveArrivalLog` check + friendly toast per Q-302-h, INSERT to `contractor_departure_log` with `arrival_log_id` auto-populated.
+- `cmpmAddAssignment` — super_admin/supervisor only, INSERT to `contractor_assignments` with `firm_id` + `project_id` (firm's first active project) + `contractor_name` + `contractor_role` + `start_date` + `notes` + `active: true`.
+- All three guarded by `pitchModeBlocked()`; all carry `firm_id` per Lesson 7; all wrap errors via `cmpmFriendlyError` (RLS / network / check / FK / duplicate / storage → human copy, raw to `console.error`).
+- Modal HTML appended at end of body: `#modal-cmpm-actions` / `#modal-cmpm-arrival` / `#modal-cmpm-departure` / `#modal-cmpm-new-contractor`.
+- Q-302-j patent-claim resolved via `.coordination/BILL_Q302J_DECISION_2026-05-14.md` Outcome B (company-level identity sufficient, no schema rework, departure photo optional confirmed correct).
+
+**Phase 3 — `a9dbb9e` OPS Dashboard Unit 3 schedule cell edit + alerts routing (+151/-3):** completes the OPS Dashboard write surface.
+- `opsOpenScheduleCellModal(inspectorId, fullName, date)` — super_admin/supervisor only, pre-fetches existing `schedules` row by `inspector_id + date`, opens modal with shift_start / shift_end / notes inputs.
+- `opsSaveScheduleCell` — manual SELECT-then-UPDATE-or-INSERT pattern; no UNIQUE constraint on `(firm_id, inspector_id, date)` per `pg_constraint` verification, so `.upsert({onConflict})` not viable. INSERT carries `firm_id` + `inspector_id` + `date` + shift fields per Lesson 7; UPDATE branch handles existingId.
+- `opsDeleteScheduleCell` — soft-delete via `deleted_at = now()`.
+- Alerts-tile PTO chip now clickable: routes to `showPanel('hours-expenses')` + `switchHoursExpensesSubview('pto')` + `heShowPtoQueue()` if `heCanSeeQueue()` — cross-links existing MI-OPS-HE Unit 3 supervisor approval queue rather than duplicating ~150 lines per spec rationale. (PTO request flow + supervisor approve/deny already shipped `fe27af7` via `hePtoSubmitRequest` / `hePtoApprove` / `hePtoDeny` against the ACTUAL schema: `pto_transactions.transaction_type='usage'` + `request_status='requested'` — discovered via Lesson 7 + Lesson 16 patterns during MI-OPS-HE build.)
+- Schedule grid cells get onclick when `currentUserIsSuperAdmin || currentUserRole === 'supervisor'`.
+- Write path guarded by `pitchModeBlocked()`, carries `firm_id` per Lesson 7, wraps errors via `opsFriendlyError`.
+- Q-OPS-3..10 ratified `eaffaa5`.
+
+**Phase 4 (verification gate, no commit):**
+- `git rev-parse demo-banner origin/demo-banner` both at `a9dbb9e03cdf3a80eebe5bbe29115c64c4d3afe5` — branches in parity.
+- 4 spec'd function strings present in local index.html: `cmpmLogArrival` ✅ / `opsSaveScheduleCell` ✅ / `hePtoSubmitRequest` ✅ / `firm_safe_to_display === true` ×3 ✅.
+- Demo pre-flight health check ran via Supabase MCP `execute_sql` against `.coordination/demo_pre_flight_health_check.sql` (294-line single-CTE query) → **31/31 🟢 GREEN** (spec required 29/29; metrics include new MI-OPS-HE expense seed + `expense_receipts_bucket_exists` + `expense_receipts_policy_count = 4`). Audit chain head `4324` at 2026-05-14 01:10:44 UTC; zero rogue writes in last 4h; zero CP-internal leakage; zero person-name / contractor-name / placeholder / mapcall / Carlo / cruft leaks.
+- Vercel `web_fetch_vercel_url` returned 401 (deployment protection) → fallback per Lesson 14 to local file verification + git ref parity + Supabase MCP health check. Vercel auto-deploy hook proven track record this session.
+
+**Phase 5 (this commit, doc-sync):** STATE.md / status.md / decisions.md / SESSION_LOG.md / RECENT_CONTEXT.md all updated per spec §5. Completion bumps absorbed: v0.1 89%→92% / v1.0 87%→95% / 7-module 45%→50% / vision 20%→22%.
+
+**MyInspector v1.0 functionally complete (~95%).** Demo-ready for 5/21-5/22 pitch. Remaining pre-pitch work is non-code Jorge-lane: pitch-deck rebalance (drop 7-module slide, lead with Module 1 + Luis + audit) + final eye-test pass on demo URL + MI-DEMO-DEPLOY ritual finalize + Rabiyu engagement signing.
+
+---
 
 **Local main is 1 behind `origin/main`.** Missing commit is `4d70901` (Phase 2b refactor squash merge, Sun 0:52). Run `git fetch && git checkout main && git pull` to catch up before any new branch off main.
 
@@ -50,7 +87,7 @@ Four Lead commits + four Buddy Supabase MCP migrations + seven `.coordination/` 
 
 **Completion percentages bumped (in STATE.md):** v0.1 87% → 89%; v1.0 78-80% → 85%; 7-module 40-42% → 44%; vision 19% → 20%.
 
-### Early AM addendum (Thu 5/14 ~01:00am → ~03:00am EDT) — Rabiyu prep wave kickoff + Mike Rodriguez scrub + Lesson 18
+### Late-evening addendum (Wed 5/13 ~21:00 → ~22:45 EDT) — Rabiyu prep wave kickoff + Mike Rodriguez scrub + Lesson 20 (A/B/C)
 
 **Triggered by Jorge directive** to lock v1.0 scope before legal engagement: "I would do all of those things and that makes us more prepared for Rabiyu so we're not going back and forth about app additions that could change the scope of legal safety or worse making it take longer and costing me more money."
 

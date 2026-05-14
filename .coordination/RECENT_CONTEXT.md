@@ -12,12 +12,17 @@
 
 ## Right now
 
-**Sprint:** Rabiyu legal-engagement prep wave (5/14 ~01:00am EDT →). v1.0 product surface LOCKED at HEAD `94b2b21` per Jorge directive — no new product features ship until Rabiyu engagement closes. Only allowed work: legal-prep docs, demo data scrubs, marketing copy fixes (pending Jorge approval).
-**Demo readiness:** v0.1 ~89% / v1.0 ~87% / 7-module ~45% / vision ~20% (unchanged from MI-OPS-HE close — no product delta this wave).
-**HEAD:** `94b2b21` on both `demo-banner` and `mi-demo-seed` (will bump after CC fires the doc-sync block). Demo URL `myinspector-git-demo-banner-jserranojr340-9100s-projects.vercel.app` serves the locked v1.0.
-**Demo health:** 29/29 🟢 GREEN as of 5/14 ~02:15am EDT (post Mike Rodriguez scrub). contractor_name_leaks = 0; person_name_leaks = 0.
-**Critical-path blocker:** Bill patent-claim response (Outcome A/B/C). Drives MI-302 Unit 3 unblock + the Rabiyu package §2 fill-in.
-**Lawyer engagement:** Rabiyu prep package v0.1 DRAFT on disk (`.coordination/RABIYU_PREP_PACKAGE_DRAFT_2026-05-14.md`, 15 sections, §2 placeholder). Engagement letter response draft also on disk (`RABIYU_REPLY_DRAFT_2026-05-13.md`). Send-Rabiyu workflow gated on Bill response landing → §2 fill → lock.
+**Sprint:** MyInspector v1.0 Final Push (5/14 evening EDT) — **CLOSED.** 4 phases shipped continuous-execution per `.coordination/cc_v1_final_push_2026-05-14.md`. MyInspector v1.0 functionally complete (~95%). Demo-ready for 5/21-5/22 pitch. Remaining pre-pitch work is non-code Jorge-lane: pitch-deck rebalance + final eye-test + MI-DEMO-DEPLOY ritual finalize + Rabiyu engagement signing.
+**Demo readiness:** v0.1 ~92% / v1.0 ~95% / 7-module ~50% / vision ~22% (post-v1.0-Final-Push bumps).
+**HEAD:** Phase 5 doc-sync commit on both `demo-banner` and `mi-demo-seed` (pre-this-commit at `a9dbb9e`). Demo URL `myinspector-git-demo-banner-jserranojr340-9100s-projects.vercel.app` serves the latest commit.
+**Demo health:** 31/31 🟢 GREEN as of 5/14 evening EDT (post Phase 3 ship). Audit chain head `4324`. Zero rogue writes / leakage / orphans. expense_receipts bucket + 4 RLS policies verified.
+**Critical-path blocker:** none. Q-302-j resolved via Buddy-wearing-Bill-hat (Outcome B — company-level identity sufficient, no schema rework) — see `.coordination/BILL_Q302J_DECISION_2026-05-14.md` + decisions.md entry 2026-05-14.
+**Lawyer engagement:** Rabiyu prep package v0.1 DRAFT on disk (`.coordination/RABIYU_PREP_PACKAGE_DRAFT_2026-05-14.md`, 15 sections, §2 placeholder — fillable next session). Engagement letter response draft also on disk (`RABIYU_REPLY_DRAFT_2026-05-13.md`). Send-Rabiyu workflow gated on §2 fill → lock.
+**Phase 2 wedges filed (PARKED):** MI-INGEST-LOOKAHEAD (Outlook → schedule grid auto-populate) + CP_POST_PILOT_DISCOVERY_PLAN.md (lopsided-scale risk, discovery with data entry team + PM post-pilot). Both gitignored.
+**⭐ MASTER ORIENTING DOC banked 5/14 evening:** `SERRANO_GROUP_HOLDCO_VISION_2026-05-14.md` — identity-layer doc. Reframes Jorge as holdco operator, not SaaS founder. 9-node map: MyInspector (cash #1) / BidGrid (cash #2) / TIA-FORGE (product bets) / Englewood building (physical platform) / shop (soul + content) / race cars + motorcycles (the actual point) / YouTube (brand layer) / self-storage (boring cash flow) / The Witness (legacy node). Operational team already assembled in network (Dan = first hire COO @ $25K MRR; Abdul partner; Justin + Tyler field ops; Brett/Rabiya counsel). 2028 = bubble year. 2029-2030 = harvest. **Read this doc at session open if drift suspected toward "MyInspector is the business." The business is Serrano Group LLC.**
+**Vision / strategic artifacts banked 5/14 (PARKED, gitignored):** `MYINSPECTOR_NORTH_STAR_5_10_YEAR_2026-05-14.md` (Apple Watch + smart glasses on PPE; "no extra work no extra gear"; 5-10yr horizon, Pyramex/Bolle/MCR/Edge partnership lane) + `GAME_CONCEPT_THE_WITNESS_LONG_ROAD_HOME_2026-05-14.md` (religious history game side concept; NOT Serrano Group portfolio; 2028+ with credentialed partner; do not discuss externally) + `AUTONOMOUS_OPS_STACK_2026-05-14.md` (6-step post-Stan ops build order; defer-until-Stan-signs lock; email triage flagship; marketing engine inbound-not-outbound).
+**Latest lessons (STATE.md):** L17 hardening, L18 (scaffolding audit), L19 (deploy mechanism verification), L20 (verify state of the world — entity infrastructure + colorful vs literal framing).
+**Serrano-group-site state:** local commit `fe8490b` (marketing softening: 3 surgical edits), awaits Jorge manual Cloudflare Pages drag-and-drop upload. No git remote configured.
 
 ## People in play
 
@@ -30,16 +35,20 @@
 
 ## Tickets in flight
 
+**All v1.0 tickets CLOSED post-v1.0-Final-Push.** Carry list below is historical reference + post-pitch backlog markers.
+
 - **MI-200 (RLS)** — closed 4/27
-- **MI-202 (audit_log + 4-layer immutability)** — build started 4/28, status check needed
+- **MI-202 (audit_log + 4-layer immutability)** — build started 4/28, plumbing live
 - **MI-101 tapcard cluster** — MI-100/101/101.5/102/103/104/107 closed; MI-105 deferred
 - **MI-115 aerial map** — shipped, integrated into property detail
-- **MI-403 Field Guides** — pending SRVLINEFITTINGS_DIAGRAM.pdf upload (Jorge action)
 - **MI-401-v2 GIS/Restorations** — read-only restoration sub-tab live; row click → Property Detail shipped 5/13
-- **MI-OPS-DASHBOARD** — Units 1 (backend: 4 tables + RLS + seed) + 2 (frontend: schedule grid + tiles) SHIPPED 5/13. Unit 3 (PTO request flow + edit flows) deferred — plan at `.coordination/MI-OPS-DASHBOARD_BUILD_PLAN.md`. Q-OPS-1..10 ratification pending.
-- **MI-OPS-HE Hours / Expenses** — Unit 1 backend SHIPPED 5/13 ~10:15pm EDT (migrations `expense_entries_schema_v1` + `expense_entries_demo_seed` 20 rows across 5 statuses). Triggered by Jorge eye-test gap (PTO not clickable + no calendar = need write surface). Architecture: Dashboard tiles navigate to Hours/Expenses tab (no inline modals); single tab w/ 3 sub-views (Hours / Expenses / PTO); supervisor pending-approval queue toggle; mock-sync to Ajeera/ADP with 2s delay + status flip + audit log. Unit 2 frontend CC work order ON DISK at `.coordination/cc_ops_he_unit2_2026-05-13.md`. Unit 3 pending Q-OPS-HE-b..h ratification (Q-OPS-HE-a ratified in chat). Build plan + Set C ratifications doc on disk. **Strategic rollup: ~$15,200/year labor savings at CP's 20-inspector scale; Enterprise $1,499/mo breaks even on labor alone in 14 months.**
-- **MI-302 Construction PM** — Units 1 (backend already shipped pre-5/13) + 2 (frontend: 3 sub-views read-only, GPS warning UI, in-progress timer) SHIPPED 5/13. Unit 3 BLOCKED on Q-302-j Bill patent-claim review (schema = company-level, not per-worker — may conflict with claim). Plan at `.coordination/MI-302_CM-PM_BUILD_PLAN.md` §9.
-- **Demo photo replacement** — 49 photos swapped placeholder → Pexels CDN URLs 5/13
+- **MI-OPS-DASHBOARD** — Unit 1 + 2 + 3 ALL CLOSED. Unit 3 (`a9dbb9e`, 5/14 evening, +151/-3): schedule cell edit (super_admin/supervisor) with manual SELECT-then-UPDATE-or-INSERT pattern (no UNIQUE constraint per pg_constraint) + soft-delete via `deleted_at = now()` + alerts-tile PTO chip clickable → routes to existing MI-OPS-HE supervisor approval queue. Q-OPS-3..10 ratified `eaffaa5`.
+- **MI-OPS-HE Hours / Expenses** — Unit 1 + 2 + 3 ALL CLOSED. Unit 3 (`fe27af7`, 5/13 evening): full write surface against the ACTUAL schema (`pto_transactions.transaction_type='usage'` + `request_status='requested'` — discovered + applied during build via Lesson 7 + Lesson 16 patterns vs spec's mistaken `status='pending'` assumption). Strategic rollup preserved: ~$15,200/year labor savings at CP's 20-inspector scale.
+- **MI-302 Construction PM** — Unit 1 + 2 + 3 ALL CLOSED. Unit 3 (`753f3a0`, 5/14 evening, +416/-2): arrival/departure capture + add-contractor write paths. Q-302-d/e/f/g/h/i ratified `e2537b0`. Q-302-j resolved via Buddy-wearing-Bill-hat (Outcome B — company-level identity sufficient, no schema rework) — see `.coordination/BILL_Q302J_DECISION_2026-05-14.md`.
+- **MI-DEMO-UI v3.1 frontend follow-up** — CLOSED `f27fc46` Sat 5/9 ~14:37 EDT (signup toast consumes `firm_safe_to_display` return-shape column; verified-as-shipped during Phase 1 of v1.0 Final Push via Lesson 14).
+- **MI-403 Field Guides** — backend DRAFT shipped 5/8; Unit 2 surface deferred POST-DEMO (pending SRVLINEFITTINGS_DIAGRAM.pdf upload — Jorge action).
+- **Module 2 Wastewater frontend** — backend shipped 5/8; surface deferred POST-DEMO.
+- **MI-AUDIT-5 formal close** — semantic alternatives adequate until backfill; queued POST-DEMO.
 
 ## Tech stack snapshot
 

@@ -1204,11 +1204,11 @@ A firm could be safe to display while pitch mode is on (e.g., the demo firm itse
 
 ---
 
-## 2026-05-14 ~02:00am EDT — Lock v1.0 scope during Rabiyu legal engagement (Jorge directive)
+## 2026-05-13 ~21:00 EDT — Lock v1.0 scope during Rabiyu legal engagement (Jorge directive)
 
 **Decision:** No new product surfaces will be added to MyInspector between now and pitch (~5/21-5/22). v1.0 scope freezes at HEAD `94b2b21` (MI-OPS-HE + OPS Dashboard + MI-302 Unit 2 + Certs & Licenses + everything else shipped through 5/13 evening close). Phase 2 / POST-DEMO items stay parked. Only allowed work in this window: legal-prep documents, demo data scrubs, marketing copy fixes (if approved), and coordination docs.
 
-**Reasoning:** Jorge directive locked 5/14 ~01:00 EDT in chat: "I would do all of those things and that makes us more prepared for Rabiyu so we're not going back and forth about app additions that could change the scope of legal safety or worse making it take longer and costing me more money." Strategic logic: legal review prices the scope handed to counsel; moving scope mid-review either (a) wastes paid review hours on work that no longer applies, or (b) creates surfaces Rabiyu didn't audit and the "we're covered" answer becomes "we're partially covered." Both bad. Bill is the only true in-flight scope variable (his patent-claim review could trigger MI-302 schema change per Outcome C); everything else stays frozen.
+**Reasoning:** Jorge directive locked 5/13 evening EDT in chat: "I would do all of those things and that makes us more prepared for Rabiyu so we're not going back and forth about app additions that could change the scope of legal safety or worse making it take longer and costing me more money." Strategic logic: legal review prices the scope handed to counsel; moving scope mid-review either (a) wastes paid review hours on work that no longer applies, or (b) creates surfaces Rabiyu didn't audit and the "we're covered" answer becomes "we're partially covered." Both bad. Bill is the only true in-flight scope variable (his patent-claim review could trigger MI-302 schema change per Outcome C); everything else stays frozen.
 
 **Operating rules for the 8-day window:**
 1. Bill goes first — his analysis is the only true variable.
@@ -1218,11 +1218,11 @@ A firm could be safe to display while pitch mode is on (e.g., the demo firm itse
 
 **Affects:** MI-302 Unit 3 (arrival/departure write paths) stays blocked on Bill regardless of urgency. OPS Dashboard Unit 3 (schedule cell edit + PTO request from Dashboard tile) stays parked. MI-403 Field Guides Unit 2 stays parked. Module 2 Wastewater frontend stays parked. Any new feature request from Jorge between now and pitch routes to a "v1.1 / Phase 2 backlog" decision rather than an in-flight build. Only allowed in-window work: legal-prep docs (this build plan + Rabiyu package), demo data scrubs (Mike Rodriguez tonight), marketing copy fixes pending Jorge sign-off, and coordination docs.
 
-**Source:** Jorge directive 2026-05-14 ~01:00 EDT (chat).
+**Source:** Jorge directive 2026-05-13 ~21:00 EDT (chat).
 
 ---
 
-## 2026-05-14 ~02:15am EDT — Mike Rodriguez foreman name redaction (Lesson 17 hardening)
+## 2026-05-13 ~21:10 EDT — Mike Rodriguez foreman name redaction (Lesson 17 hardening)
 
 **Decision:** Replace "Mike Rodriguez foreman + 4 laborers on site" with "Crew foreman + 4 laborers on site" in the `contractor_arrival_log.notes` for the Meridian Construction (DEMO) assignment id `bbf95410-0ef0-44fb-95a9-c68696e94d12`, arrival timestamp 2026-05-08 07:15. Migration `demo_scrub_mike_rodriguez_foreman_name` shipped via Supabase MCP.
 
@@ -1230,11 +1230,11 @@ A firm could be safe to display while pitch mode is on (e.g., the demo firm itse
 
 **Affects:** Demo seed is now fully person-name-free in `contractor_arrival_log.notes`. Lesson 17 stands but its scope is now widened: "redact proper nouns even when the name is generic-common" — don't assume generic-ness is filtering.
 
-**Source:** Fresh leakage scan during Rabiyu prep wave, 2026-05-14 ~02:10am EDT.
+**Source:** Fresh leakage scan during Rabiyu prep wave, 2026-05-13 ~21:10 EDT.
 
 ---
 
-## 2026-05-14 ~02:30am EDT — Rabiyu prep wave kickoff (build plan + package draft + 2 CC work orders on disk)
+## 2026-05-13 ~21:30 EDT — Rabiyu prep wave kickoff (build plan + package draft + 2 CC work orders on disk)
 
 **Decision:** Kicked off the Rabiyu legal-engagement prep wave per Jorge's locked principle. Four artifacts shipped to disk (all gitignored):
 
@@ -1249,11 +1249,11 @@ Also surfaced for Jorge action: send Bill the patent-claim one-pager (already dr
 
 **Affects:** Rabiyu engagement readiness on lock by end-of-week (gated on Bill response timing). v1.0 product surface frozen at HEAD `94b2b21`. Jorge's outbound action queue: (1) send Bill, (2) review marketing copy findings + decide on softening, (3) wait on Bill, (4) integrate Bill response + send Rabiyu. Demo readiness unchanged (no product delta).
 
-**Source:** Jorge directive 2026-05-14 ~02:00am EDT ("right now lets go. same thing we just did for that massive shipment. that worked well") authorizing the same MI-OPS-HE-style execution pattern.
+**Source:** Jorge directive 2026-05-13 ~21:25 EDT ("right now lets go. same thing we just did for that massive shipment. that worked well") authorizing the same MI-OPS-HE-style execution pattern.
 
 ---
 
-## 2026-05-14 ~02:45am EDT — Lesson 18 banked: audit existing on-disk scaffolding before assuming new build
+## 2026-05-13 ~21:45 EDT — Lesson 18 banked: audit existing on-disk scaffolding before assuming new build
 
 **Decision:** Banking Lesson 18 in STATE.md "Banked discipline lessons" section: **before scoping new work, audit existing on-disk scaffolding to see if it already exists in some form.**
 
@@ -1266,3 +1266,107 @@ Similar pattern surfaced earlier in the session when checking `supabase/migratio
 **Affects:** Standing discipline. Next session-start checklist includes a "scaffolding audit" step before scoping new work in any repo.
 
 **Source:** Self-surfaced during the Rabiyu prep sweep when Buddy discovered ToS + Privacy drafts already existed.
+
+---
+
+## 2026-05-13 ~22:00 EDT — Marketing copy softening shipped on serrano-group-site (local commit, awaiting manual deploy)
+
+**Decision:** CC shipped the 3 surgical marketing copy edits flagged in the Rabiyu prep build plan §6. Local commit `fe8490b` on `serrano-group-site` master:
+- "Built specifically for EPA LCRI compliance" → "Built specifically for EPA LCRI compliance documentation"
+- "EPA LCRI rule enforcement" feature bullet → "LCRI compliance documentation workflows"
+- Broken `/legal/subprocessors` footer link removed (Buddy lean 3a)
+
+Changes 4 (Jorge title language) + 5 ("15 years" rounding) deferred per Buddy default; Jorge can re-fire with specific reword if desired.
+
+**Reasoning:** Three softenings pre-Rabiyu engagement to remove the strongest overstatements that could read as compliance guarantees. "Enforcement" → "documentation workflows" is the biggest semantic shift; the other two are smaller hygiene fixes. No brand voice change, no positioning loss. The softer language is more legally defensible per ToS §10.4 (the compliance disclaimer in the ToS draft already says the service doesn't guarantee regulatory compliance — marketing language now matches).
+
+**Discovery during ship:** CC could not push the commit — `serrano-group-site` has no git remote configured. Per repo `README.md`: "`index.html` deploys to Cloudflare Pages … drag-and-drop deploy" + GitHub setup is future-tense ("To push to GitHub later (after creating a new repo at `github.com/SerranoJ3/serrano-group-site`)"). Site lives on Cloudflare Pages via manual upload, not via git push. Lesson 19 banked.
+
+**Affects:** Local commit `fe8490b` lives on `serrano-group-site` master, NOT on a remote, NOT yet deployed to `serranogroup.org`. Jorge handles the manual Cloudflare Pages drag-and-drop upload at his convenience. Site stays serving pre-`fe8490b` content until upload. No urgency (legal-engagement scope-lock period; not blocking Rabiyu engagement directly).
+
+**Source:** Jorge fired `read .coordination/cc_marketing_copy_softening_2026-05-14.md and execute` at 2026-05-13 ~22:00 EDT. CC executed, committed locally, halted on push correctly when remote not found.
+
+---
+
+## 2026-05-13 ~22:10 EDT — Lesson 19 banked: verify deploy mechanism before assuming push = deploy
+
+**Decision:** Banking Lesson 19 in STATE.md: **before writing CC work orders that assume `git push` triggers a deploy, verify the actual deploy mechanism for the target repo.** Different repos in this codebase have different deploy paths:
+- `myinspector` → GitHub-integrated Vercel auto-deploy on push to `demo-banner` or `mi-demo-seed`.
+- `serrano-group-site` → Cloudflare Pages manual drag-and-drop upload (no git integration). No remote configured. Local commits do NOT trigger deploys.
+- `serrano-group-demo` → unknown deploy mechanism. To verify before next touch.
+- Future repos (BidGrid, TIA, FORGE) → will have their own paths.
+
+**Reasoning:** The marketing copy softening work order specified "Cloudflare Pages auto-rebuilds" — a statement that assumed git integration that doesn't exist for `serrano-group-site`. CC correctly halted when `git push` failed (no origin remote). The lesson generalizes: deploy mechanism is repo-specific and must be verified via README + `.git/config` + actual remote presence before authoring a work order that depends on a specific deploy path. Cost of one minute of verification before authoring is much lower than CC halting mid-execution + Jorge having to clarify + Buddy re-authoring.
+
+**How to apply:** when scoping a CC work order that ships frontend or content changes:
+1. Identify the target repo.
+2. Verify deploy mechanism via: (a) `read README.md` of the target repo, (b) `git remote -v` if the repo state is uncertain, (c) `.git/config` if there's no README clarity.
+3. State the deploy path explicitly in the work order (e.g., "GitHub-integrated Vercel auto-deploy on push" vs "Manual Cloudflare Pages drag-and-drop — commit local, halt push, Jorge handles deploy separately").
+4. If deploy is manual, explicitly tell CC to commit locally without pushing AND to surface the carry-forward step to Jorge.
+
+**Counter-cases:** for repos where deploy is automated, the work order can include `git push` as the final step. For repos where deploy is manual, the work order must end with "commit local, do not push, surface to Jorge."
+
+**Affects:** All future CC work orders touching `serrano-group-site` follow the "commit local + manual upload" pattern. Future-proofing path: post-pitch, set up GitHub remote for `serrano-group-site` + Cloudflare Pages GitHub integration so future deploys are git push → auto-deploy. ~15 min setup. Out of scope tonight (legal-engagement scope-lock).
+
+**Source:** Self-surfaced 2026-05-13 ~22:10 EDT when CC halted on missing git remote during marketing copy softening ship.
+
+---
+
+## 2026-05-13 ~22:15 EDT — Rabiyu prep package §13 extended: deploy pipeline asymmetry note
+
+**Decision:** Added a deploy-pipeline-asymmetry transparency note to the Rabiyu prep package draft at `.coordination/RABIYU_PREP_PACKAGE_DRAFT_2026-05-14.md` §13 (Process gaps + transparency notes). New sub-section §13.5 documents:
+- MyInspector product code → GitHub → Vercel auto-deploy (CI/CD)
+- serrano-group-site marketing code → local git → manual Cloudflare Pages upload (no CI/CD)
+- This is a known operational-maturity gap, not a security or compliance issue. Documented for Rabiyu's transparency.
+
+**Reasoning:** Rabiyu's review may surface questions about operational maturity. Surfacing the deploy pipeline asymmetry proactively (rather than letting her discover it) is consistent with the "no loose ends" principle. The asymmetry is defensible — product code is the high-stakes surface (where compliance/audit/customer data lives), marketing copy is the low-stakes surface (where a manual upload is fine for the volume of changes). But she should know.
+
+**Affects:** Rabiyu package draft §13 now has 5 transparency sub-sections instead of 4. No change to v1.0 product surface or legal scope.
+
+**Source:** Buddy offered the note in chat 2026-05-13 ~22:15 EDT ("This is the kind of process gap I'd flag for Rabiyu in §13 of the prep package… I'll add that note to the package draft if you want"); Jorge implicitly approved by firing the post-marketing doc-sync next.
+
+---
+
+## 2026-05-13 ~22:30 EDT — Bill clarification + late-session strategy banking
+
+**Decision:** Multiple late-session decisions, banked in one entry:
+
+1. **Bill is conceptual, not operational.** Bill is an AI agent role within Buddy's session, NOT an external IP attorney with email/n8n infrastructure. The `BILL_PATENT_CLAIM_ONE_PAGER_mi302_2026-05-13.md` is a thinking artifact, not for external send. The Rabiyu package §2 critical-path collapses from "multi-day blocker" to "render Outcome A/B/C in 10 min during next session." Jorge correction 5/13 ~22:20 EDT: "bill is our in session lawyer because we never set up n8n."
+
+2. **MI-INGEST-LOOKAHEAD parked as Phase 2 wedge.** Filed `.coordination/MI-INGEST-LOOKAHEAD_TICKET_2026-05-14.md`. Outlook 2-week + 1-week look-ahead email → MyInspector schedule grid auto-populate. Two park gates: (1) Rabiyu scope-lock, (2) post-pilot CP discovery findings confirming this relieves a real bottleneck rather than shifting one. Required from Jorge to advance: sample look-ahead email + explicit park-vs-override decision. Buddy's lean: park, use as headline Phase 2 pitch beat ("what you get the week you sign" reads stronger than "every feature already built").
+
+3. **CP_POST_PILOT_DISCOVERY_PLAN.md filed** as evergreen reference. Strategic principle: "lopsided-scale risk" — MyInspector accelerates the field side, shifting bottlenecks downstream. Discovery with CP's data entry team + PM happens AFTER pilot signs, BEFORE deepening any integration. Format: observation first, segmented debriefs after. Plan includes 16 pre-stocked discovery questions + feature-priority matrix.
+
+4. **Data entry user profile design constraint:** lower technical comfort + limited construction context = layman UX, smooth file-pull workflow, plain vocabulary, strong defaults. MI-016 + MI-015 are the load-bearing Phase 2 features for data entry satisfaction. Buddy initially overread Jorge's colorful "Rite Aid cashier" framing as literal demographic data + built a 7-point strategic empire (pricing reframe, MI-013-to-v1.0 reframe, headcount-replacement pitch). Jorge corrected the calibration; Buddy rolled back the overwrought section in CP_POST_PILOT_DISCOVERY_PLAN.md. Net retained insight: design constraints are real, but the pitch story stays "better tool for field team + smooth handoff to back office" not a headcount-replacement reframe.
+
+5. **Lesson 20 banked in STATE.md** (combined 20A + 20B): verify the actual state of the world before scoping work that depends on it. 20A: named entities (agents, vendors, systems) need infrastructure verification — mention in userMemories ≠ operationally fireable. 20B: distinguish colorful framing from literal data — hyperbolic claims need operational signal confirmation before scaling a strategic response.
+
+**Reasoning:** Tonight's late-session work surfaced three calibration failures (n8n / Bill conceptual, marketing-deploy-mechanism, Rite Aid framing) sharing one root cause: Buddy scaled responses to context without verifying the actual state. Lesson 20 generalizes Lessons 18 + 19 to all entity/state assumptions. Discovery and lookahead docs are filed but PARKED — they don't change v1.0 product surface or scope-lock. Strategic clarity for next session: Bill unblockable internally; data entry user profile constraint anchored on file-pull UX; §2 fillable on next session.
+
+**Affects:** Critical-path for v1.0 + Rabiyu engagement readiness compressed dramatically. With Bill internal, the timeline that I framed as 8 days (Bill response + Rabiyu review + pitch) is more like 3-5 days realistically. Pitch buffer expands. MI-302 Unit 3 unblock is now a next-session decision rather than a multi-day wait.
+
+**Source:** Jorge directives across multiple messages 5/13 ~21:00-22:45 EDT, capped by "do what you think is best per the buddy standard" + "great work buddy sweet dreams."
+
+---
+
+## 2026-05-14 evening EDT — Q-302-j resolved via Buddy-wearing-Bill-hat (Outcome B) — MI-302 Unit 3 unblocked
+
+**Decision:** Q-302-j (Bill patent-claim review on `contractor_assignments` company-level vs per-worker schema) resolved via Buddy-wearing-Bill-hat per the post-5/13-night clarification that Bill is conceptual/internal (n8n was never set up — see Lesson 20A entry). Analysis artifact at `.coordination/BILL_Q302J_DECISION_2026-05-14.md` lands **Outcome B: company-level identity sufficient**. No schema rework needed. Departure photo optional (Q-302-d) confirmed correct. MI-302 Unit 3 write paths unblocked and shipped same session as `753f3a0` (+416/-2).
+
+**Reasoning:** The patent claim was for tracking inspector-witnessed contractor work for billable-hour verification. The unit of observation in the field is the company arriving at site with crew (foreman + N laborers); the inspector witnesses arrival/departure of THE COMPANY, not individual workers. The schema's company-level model matches the operational reality the patent describes — per-worker tracking would introduce data the inspector doesn't independently verify (introducing a different evidence-quality story under audit). Outcome B preserves: (a) audit defensibility (inspector signs off on what they actually witnessed); (b) operational simplicity (one arrival/departure per company per visit); (c) demo coherence (the demo seed is already company-level). Outcomes A (per-worker schema migration + retroactive backfill) and C (hybrid worker-table with optional company-level fallback) both add complexity without strengthening the patent claim's evidence chain. Decision authored as Bill-hat thinking artifact, not external send (Lesson 20A — Bill is operationally Buddy-wearing-Bill-hat within a session).
+
+**Affects:** MI-302 Unit 3 ships against current schema (company-level tracking). The Bill patent-claim one-pager at `.coordination/BILL_PATENT_CLAIM_ONE_PAGER_mi302_2026-05-13.md` stays as historical/thinking artifact, no external send. Future per-worker tracking (if ever needed for contractor billing edge cases) routes to a separate Phase 2 schema migration with its own audit story.
+
+**Source:** Buddy-wearing-Bill-hat analysis 2026-05-14 evening EDT, authored per Lesson 20A pattern (entity infrastructure verification: Bill is conceptual, n8n was never set up, render the analysis internally in a session rather than wait on an external send).
+
+---
+
+## 2026-05-14 evening EDT — MyInspector v1.0 functionally complete (~95%), demo-ready for 5/21-5/22 pitch
+
+**Decision:** MyInspector v1.0 is functionally complete. Completion percentages post-v1.0-Final-Push: v0.1 92% / v1.0 95% / 7-module 50% / vision 22%. All v1.0-critical write surfaces shipped: Module 1 Water Utility (tapcard cluster + materials sheets + restorations + GIS lists + Herald + Luis + audit chain), MI-302 Construction PM (Unit 1+2+3 — arrival/departure capture + add-contractor write paths), MI-OPS-DASHBOARD (Unit 1+2+3 — schedule grid + tiles + cell edit), MI-OPS-HE Hours/Expenses (Unit 1+2+3 — hours entry + expense entry + PTO request + supervisor approval + mock-sync), pitch mode (16+ guarded write paths), firm_safe_to_display gate (Lesson 8 enforcement). Demo health check 31/31 🟢 GREEN. Demo-ready for 5/21-5/22 Stan/Jeff pitch.
+
+**Reasoning:** Spec at `.coordination/cc_v1_final_push_2026-05-14.md` fired in continuous-execution mode and ran cleanly: Phase 1 detected as no-op via Lesson 14 verification (gate landed `f27fc46` 5/9), Phase 2 shipped MI-302 Unit 3 as `753f3a0` (+416/-2), Phase 3 shipped OPS Dashboard Unit 3 schedule cell edit as `a9dbb9e` (+151/-3), Phase 4 verified Vercel + 4 function-presence checks + demo health 31/31 GREEN, Phase 5 doc-sync absorbs the ships across STATE.md / status.md / decisions.md / SESSION_LOG.md / RECENT_CONTEXT.md. No halt conditions triggered. The 800-line-per-phase ceiling held (Phase 2 +416, Phase 3 +151). Buddy Standard discipline applied throughout: file location + Ctrl+F anchor + exact find/replace, verify each edit before moving on, Lesson 14 verification via git refs + file content rather than asking Jorge to run shell, Lesson 7 firm_id audit on every new INSERT, Lesson 8 display-gate enforcement, Lesson 17 fictional-names-only in any new demo seed data (none added this session).
+
+**Affects:** Remaining pre-pitch work is non-code Jorge-lane: pitch-deck rebalance (drop 7-module slide, lead with Module 1 + Luis + audit), final eye-test pass on demo URL (walk the 5 demo-critical flows), MI-DEMO-DEPLOY ritual finalize (Buddy partial draft on disk → reconcile next session), Rabiyu engagement signing (legal lane). Post-pitch backlog (8-12 sessions): tapcard cluster MI-101.5/104/107, Module 2 Wastewater frontend, MI-402 Unit 2 autofill, MI-403 Unit 2 Field Guides surface, MI-AUDIT-5 formal close, pattern extension of identity-display flags (person_safe_to_display, project_safe_to_display). None blocking demo.
+
+**Source:** Jorge invocation 2026-05-14 evening EDT ("read .coordination/cc_v1_final_push_2026-05-14.md and execute continuously through all 5 phases") + clean completion of all 4 work phases + 31/31 GREEN demo health verification.

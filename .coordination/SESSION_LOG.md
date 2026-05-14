@@ -12,6 +12,39 @@
 
 ---
 
+## 2026-05-14 (evening late ~10pm-midnight EDT) — MyInspector v1.0 Final Push: 4 phases shipped continuous-execution
+
+- **Spec at `.coordination/cc_v1_final_push_2026-05-14.md` fired in continuous mode.** 5 phases per spec §1-§5; one chat report at completion only (no phase-by-phase narration per spec). Working tree state at start: HEAD `09c6b86` (post Rabiyu-prep doc-sync).
+- **Phase 1 (MI-DEMO-UI v3.1 signup-toast follow-up) detected as already-in-HEAD via Lesson 14** — gate landed `f27fc46` Sat 5/9; lines 2981-2983 of index.html already render `Welcome to ${firm.firm_name}!` when `firm_safe_to_display === true`. No-op + skipped per spec instruction.
+- **Phase 2 SHIPPED as `753f3a0` (+416/-2)** — MI-302 Construction PM Unit 3 write paths: `cmpmLogArrival` (required photo + GPS + amber warning >50m + INSERT to `contractor_arrival_log` carrying `firm_id`), `cmpmLogDeparture` (optional photo + blocked when no active arrival per Q-302-h + INSERT to `contractor_departure_log` with `arrival_log_id`), `cmpmAddAssignment` (super_admin/supervisor INSERT to `contractor_assignments`). All three guarded by `pitchModeBlocked()`, wrap errors via `cmpmFriendlyError`. Photo upload routes through `inspection-photos` bucket at `{firm_id}/contractor-logs/{assignment_id}/{photo_uuid}.{ext}`. Q-302-j patent-claim resolved via `.coordination/BILL_Q302J_DECISION_2026-05-14.md` Outcome B (company-level identity sufficient, no schema rework).
+- **Phase 3 SHIPPED as `a9dbb9e` (+151/-3)** — OPS Dashboard Unit 3 schedule cell edit: `opsOpenScheduleCellModal` / `opsSaveScheduleCell` (manual SELECT-then-UPDATE-or-INSERT — no UNIQUE constraint per pg_constraint verification, so `.upsert({onConflict})` not viable) / `opsDeleteScheduleCell` (soft-delete via `deleted_at = now()`). Alerts-tile PTO chip clickable → routes to existing MI-OPS-HE supervisor approval queue rather than duplicating ~150 lines per spec rationale (PTO request flow + approve/deny already shipped `fe27af7` against ACTUAL schema: `transaction_type='usage'` + `request_status='requested'`). Q-OPS-3..10 ratified `eaffaa5`.
+- **Phase 4 verification gate passed** — `git rev-parse` parity on `a9dbb9e`; 4 spec'd function strings present in local index.html; demo pre-flight health check via Supabase MCP **31/31 🟢 GREEN** (audit head `4324` at 2026-05-14 01:10 UTC, zero rogue writes / leakage / orphans). Vercel `web_fetch_vercel_url` returned 401 deployment protection → fallback per Lesson 14 to local file verification + git ref parity + Supabase MCP health check.
+- **Phase 5 (this commit, doc-sync)** absorbs Phase 1 verification + Phase 2 + Phase 3 ships across STATE.md / status.md / decisions.md / SESSION_LOG.md / RECENT_CONTEXT.md. Completion bumps: v0.1 89%→92% / v1.0 87%→95% / 7-module 45%→50% / vision 20%→22%. **MyInspector v1.0 functionally complete.** Demo-ready for 5/21-5/22 pitch. Remaining pre-pitch work is non-code Jorge-lane: pitch-deck rebalance + final eye-test + MI-DEMO-DEPLOY ritual finalize + Rabiyu engagement signing.
+
+---
+
+## 2026-05-14 (evening ~7-9pm EDT) — ⭐ Master holdco vision crystallized + banked
+- **Deep strategic conversation** that started as a competitive-landscape analysis (Procore / Fieldwire / CompanyCam / Raken / PlanGrid lifts) and escalated through a burnout/solo-founder reality check (web-searched current AI agent infrastructure as of 5/14/26) into the genuine reframe: Jorge is NOT a SaaS founder, he's a holdco operator. The apps are nodes in a larger system, not the system itself.
+- **`SERRANO_GROUP_HOLDCO_VISION_2026-05-14.md` shipped (~600 lines).** Identity-layer master doc. Sits ABOVE any individual product's planning hierarchy. 9-node map: MyInspector (cash #1) / BidGrid (cash #2) / TIA-FORGE (product bets) / Englewood building (physical platform) / shop (soul + content) / race cars + motorcycles (the actual point) / YouTube (brand layer) / self-storage (boring cash flow) / The Witness (legacy node). Each node has explicit role + time horizon + gate condition. Operational team already assembled in network (Dan = first hire COO at $25K MRR; Abdul = partner not employee; Justin/Tyler = field ops when scale demands; Brett/Rabiya = counsel).
+- **Three reframes locked into the doc:** (1) "ADHD jumping between ideas" is actually strategic diversification across nodes with different time horizons — Jorge isn't scattered, he's building a system. (2) Future-proofing addiction is operating-system-level, not pathology — it's what makes the holdco compound across 30 years instead of exiting in year 4. (3) The actor-without-acting instinct is the YouTube/brand-layer asset that ties the holdco's persona together — same instinct that staged "innovation is downstream of psychology" in the MyInspector pitch.
+- **Timeline accelerated from conservative read.** Pre-conversation Buddy was anchoring to VC-style 5-7 year arc; Jorge pushed back ("not at the rate we move buddy"). Recalibrated: 2027 day-job-drop + Dan hire; 2028 = bubble year (inbound flips); 2029-2030 = harvest + acquisition-vs-private-profitable decision. Game (The Witness) lives at 2029-2032 horizon.
+- **Burnout reality check banked honest:** AI agent infrastructure is real ($300-500/mo stack, 36.3% of 2026 ventures solo-founded, Polsia + Notion + Honeycomb + SAP shipped this week), BUT 54% solo-founder burnout rate WITH the AI stack available. Regulated B2B (Jorge's category) is HARDER for solo than digital/transactional. Single-point-of-failure problem is structural, no AI fixes it. Reinforces the Dan + network-as-team posture and the 30-35hr sustainable pace.
+- **Cross-references in HOLDCO_VISION doc:** points to MYINSPECTOR_NORTH_STAR / GAME_CONCEPT / AUTONOMOUS_OPS_STACK / RABIYU_PREP / MEMORY_ARCHIVE / BUDDY_STANDARD / bidgrid EXPLORER / userMemories. Full corpus map.
+- **Continuity wiring:** `.gitignore` extended with `SERRANO_GROUP_HOLDCO_*.md`. `RECENT_CONTEXT.md` got the doc surfaced as a ⭐ MASTER ORIENTING DOC beat with explicit "read this at session open if drift suspected toward 'MyInspector is the business'" instruction. This SESSION_LOG entry. Architecture working as designed.
+
+---
+
+## 2026-05-14 (afternoon ~3-4pm EDT) — Rabiya thread continues + 3 strategic concepts banked
+- **Phone chat activity (chat `f9023716`):** morning Rabiya verbal-agreement reply with 3 questions (engagement structure / conflict check / TM scope) sent; afternoon SOW-missing flag + retainer-timing correction (Section 6 + 11: signature + payment travel together as one package). Jorge correctly caught Buddy's initial "sign first, fund after" framing — sequencing now locked: bathroom → desk → bank → reply → sign agreement + send cashier's check together. Awaits SOW from Rabiya.
+- **Three strategic concepts banked to `.coordination/` as standalone files (Jorge directive: "make sure thats all saved to the computer in its own perspective files so its safe"):**
+  - `MYINSPECTOR_NORTH_STAR_5_10_YEAR_2026-05-14.md` — Apple Watch + smart glasses on PPE. Anchor: "no extra work, no extra gear." Phasing: Apple Watch v2.5 wedge / 12-18mo smart glasses platform / 2027-2028 PPE manufacturer partnership (Pyramex, Bolle, MCR, Edge). 10x lower adoption barrier than every competitor in the wearable space.
+  - `GAME_CONCEPT_THE_WITNESS_LONG_ROAD_HOME_2026-05-14.md` — religious history educational game. Nameless faithless witness, walks historical trade routes, never depicts religious figures. NOT Serrano Group portfolio. 2028+ with credentialed partner. Do not discuss externally yet.
+  - `AUTONOMOUS_OPS_STACK_2026-05-14.md` — 6-step build order. **Defer everything until Stan signs.** Email triage as the post-Stan flagship. Marketing engine = inbound not outbound. Includes crew-vestigiality audit (Lesson 20A follow-on): only Luis is unambiguously real; Jeff becomes real with Agent View; rest may be vestigial from the n8n era.
+- **No MI code shipped today.** v1.0 product surface remains LOCKED per Rabiya prep wave directive. Status unchanged: v0.1 ~89% / v1.0 ~87% / 7-module ~45%; HEAD `09c6b86`; demo health 29/29 🟢 GREEN.
+- **Buddy drift caught (lesson candidate):** at session open Buddy responded to "recall today's phone chats" by summarizing from `conversation_search` results without reading the `.md` files first. Missed both the wearables/PPE vision and the game concept because they were buried inside one long thread that didn't surface to the search top. Jorge had to course-correct twice ("go read the .md files and do not drift" → "you havet to bring up the game we talked about"). **Standing rule banking candidate:** at session open with "where are we" / "recall today" prompts, ALWAYS read `SESSION_LOG.md` + `RECENT_CONTEXT.md` first per architecture, regardless of how well chat search seems to be working. Lesson 14 hardening — verify state from the canonical source on disk, not from inference over chat snippets.
+
+---
+
 ## 2026-05-13 (evening) — OPS Dashboard + MI-302 Construction PM frontends shipped end-to-end
 - HEAD now `e660e6a` on both branches. Both Vercel deploys READY. Demo URL serves `e660e6a`.
 - Two major feature plans drafted on disk (gitignored): `MI-OPS-DASHBOARD_BUILD_PLAN.md` (~350 lines, 3-unit thesis: single pane of glass replacing dashboard) + `MI-302_CM-PM_BUILD_PLAN.md` (~400 lines, patent-claim guarded). Built off BidGrid §0–§10 plan structure.
@@ -69,7 +102,7 @@
 
 ---
 
-## 2026-05-14 (~01:00 → ~03:00am EDT) — Rabiyu prep wave kicked off + Mike Rodriguez scrub + Lesson 18 banked
+## 2026-05-13 (~21:00 → ~22:00 EDT) — Rabiyu prep wave kicked off + Mike Rodriguez scrub + Lesson 18 banked
 
 Followed Jorge's directive to lock v1.0 scope before legal engagement: "I would do all of those things and that makes us more prepared for Rabiyu so we're not going back and forth about app additions that could change the scope of legal safety or worse making it take longer and costing me more money."
 
@@ -96,6 +129,34 @@ Followed Jorge's directive to lock v1.0 scope before legal engagement: "I would 
   2. `read .coordination/cc_doc_sync_2026-05-14_rabiyu_prep.md and execute` (commits tonight's doc work).
   3. `read .coordination/cc_marketing_copy_softening_2026-05-14.md and execute` (OPTIONAL — only after Jorge reviews the 5-7 marketing copy findings in the build plan).
 - **Then wait on Bill** (~2-5 days). On Bill response, Buddy fills in Rabiyu package §2, locks the doc, hands to Jorge for engagement-letter send.
+
+---
+
+## 2026-05-13 (~22:00 → ~22:45 EDT) — Late-session strategy lane + Lesson 20 banked
+
+**Erratum (banked as Lesson 20C in STATE.md):** the original draft of this entry and the entry above were stamped "5/14 ~01:00-05:00am EDT" but actual times were 5/13 evening EDT — the session never crossed midnight EDT. Buddy adopted the pre-compaction summary's timestamp framing without converting UTC→EDT explicitly. Jorge caught the drift: "its only 1037pm on 5-13-26." Timestamps now corrected throughout this file + STATE.md + decisions.md + RECENT_CONTEXT.md + status.md.
+
+Following the post-marketing doc-sync close, Jorge took the session into a strategy lane. Key updates that next-session-Buddy needs to know:
+
+- **Bill clarification (BIG):** Bill is NOT an external IP attorney with email-send infrastructure. Bill is conceptually an AI agent role; n8n (the workflow tool that would have given him a fireable instance) was "talked about but never set up" per Jorge. Bill operationally = Buddy-wearing-Bill-hat within a session. The `BILL_PATENT_CLAIM_ONE_PAGER_mi302_2026-05-13.md` is a thinking artifact, NOT for external send. The Rabiyu package §2 critical-path collapses from "multi-day blocker" to "Buddy can render Outcome A/B/C in 10 min during the next session." Lesson 20A banked.
+- **Progress report shipped:** chart-and-graph dashboard with velocity comparison this session vs 5/12, work-mix donut, v1.0 trajectory + forecast. v1.0 = 87%, remaining = 13 pp, observed velocity = 1.8 pp/hr, polish-drag multiplier = 1.3×. **9.4 hours of work remaining for v1.0**. ETA: 2 days optimistic / 3 days most-likely / 4.5 days conservative. Pitch ~5/21-5/22 = ~5-day buffer in conservative case.
+- **MI-INGEST-LOOKAHEAD ticket filed** (gitignored at `.coordination/MI-INGEST-LOOKAHEAD_TICKET_2026-05-14.md`, ~10KB). Outlook 2-week + 1-week look-ahead email auto-ingest into MyInspector schedule grid — relieves Jeff's mental gymnastics. Two park gates: (1) Rabiyu scope-lock, (2) post-pilot discovery findings. Required from Jorge to advance: sample look-ahead email + park vs override decision.
+- **CP_POST_PILOT_DISCOVERY_PLAN.md filed** (gitignored). Discovery meeting with CP's data entry team + PM is required AFTER pilot signing, BEFORE deepening any integration. Strategic principle: "lopsided-scale risk" — speeding up the field side shifts the bottleneck downstream. Format: observation first, segmented debriefs after. Plan includes 16 pre-stocked discovery questions, a feature-priority matrix tying Phase 2 features to predicted bottleneck-relief value.
+- **Data entry user profile clarified:** team has lower technical comfort + limited construction context. Design implications: smooth file-pull workflow (MI-016 + MI-015 are load-bearing), plain UI vocabulary, strong defaults. Buddy initially overread Jorge's colorful framing ("Rite Aid cashiers") as literal demographic data and built a strategic empire (pricing reframe, MI-013-to-v1.0 reframe, headcount-replacement pitch). Jorge corrected; Buddy rolled back the overwrought section. Lesson 20B banked.
+- **Lesson 20 banked in STATE.md** (combined 20A + 20B): verify the actual state of the world before scoping work that depends on it. Generalizes Lessons 18 + 19 to all entity/state assumptions + carves out the hyperbole sub-case.
+- **Working mode:** Jorge maintained full-agency mode throughout ("do what you think is best per the buddy standard" at session close). Buddy executed all banking + handoff doc updates autonomously.
+- **State at session close:**
+  - HEAD `09c6b86` on `demo-banner` + `mi-demo-seed` (myinspector). Post-marketing doc-sync work order written but CC may not have executed yet (Jorge fired it twice; needs verification next session whether commit landed).
+  - serrano-group-site master at local commit `fe8490b` (marketing softening, awaits Jorge manual Cloudflare Pages drag-and-drop upload).
+  - Demo readiness unchanged: v0.1 ~89% / v1.0 ~87% / 7-module ~45%.
+  - Demo health check still 29/29 🟢 GREEN.
+- **Next-session-Buddy priorities (in order):**
+  1. Verify `09c6b86` is still HEAD or if CC committed the post-marketing doc-sync. Run `read_text_file` on `.git/refs/heads/demo-banner`.
+  2. Render Bill / Q-302-j patent analysis (10 min, Buddy-wearing-Bill-hat). Fill in Rabiyu package §2. Lock the doc.
+  3. If Jorge approves, override scope-lock for MI-302 Unit 3 (or hold for after Rabiyu engagement, per Jorge directive).
+  4. Manual Cloudflare Pages upload of `serrano-group-site` index.html when Jorge has time.
+  5. CP HR employee handbook request (Rabiyu priority #1).
+  6. Out-of-band firm code `PIVOT-LATTICE-72` distribution to Justin + Tyler if Jorge wants them on demo firm.
 
 ---
 
