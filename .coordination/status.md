@@ -1,6 +1,8 @@
 # Coordination Status — MyInspector
 
-**Last updated:** 2026-05-14 evening EDT (v1.0 Final Push doc-sync absorbing Phase 1 verification + Phase 2 MI-302 Unit 3 write paths + Phase 3 OPS Dashboard Unit 3 schedule cell edit ships). HEAD `a9dbb9e` pre-this-commit on both `demo-banner` and `mi-demo-seed`. **MyInspector v1.0 functionally complete (~95%).** Demo health 31/31 🟢 GREEN. Demo-ready for 5/21-5/22 pitch.
+**Last updated:** 2026-05-15 EDT (v1.0 Polish Push doc-sync absorbing Luis whiteboard-bypass refusal + Phase 1 GIS/Restorations inert rows + Phase 2 MI-110 Phase 4 diagram polish + Phase 3 MI-403 Field Guides Unit 2 frontend + Phase 4 MI-402 Unit 2 municipality autofill). HEAD `504ca58` pre-this-commit on both `demo-banner` and `mi-demo-seed`. **MyInspector v1.0 at ~98%** — only Buddy-lane migration work remaining (`buddy_v1_migrations_2026-05-15.md`).
+
+**Previously updated:** 2026-05-14 evening EDT (v1.0 Final Push doc-sync absorbing Phase 1 verification + Phase 2 MI-302 Unit 3 write paths + Phase 3 OPS Dashboard Unit 3 schedule cell edit ships). HEAD `a9dbb9e` pre-this-commit on both `demo-banner` and `mi-demo-seed`. **MyInspector v1.0 functionally complete (~95%).** Demo health 31/31 🟢 GREEN. Demo-ready for 5/21-5/22 pitch.
 
 **Previously updated:** 2026-05-13 ~22:45 EDT (Rabiyu prep wave kicked off + late-session strategy lane + Lesson 20A/B/C banked). HEAD `09c6b86` on both `demo-banner` and `mi-demo-seed`. v1.0 product surface LOCKED per Jorge directive — only legal-prep docs, demo data scrubs, and marketing copy fixes (pending Jorge approval) ship in this window.
 
@@ -17,7 +19,44 @@
 
 ## Current state
 
-**Active branches:** `demo-banner` and `mi-demo-seed` both at `a9dbb9e` pre-Phase-5 doc-sync (Phase 5 doc-sync commit bumps HEAD on both). main untouched per §22.
+**Active branches:** `demo-banner` and `mi-demo-seed` both at `504ca58` pre-Phase-5 doc-sync (Phase 5 doc-sync commit bumps HEAD on both). main untouched per §22.
+
+## Fri 5/15 EDT — v1.0 Polish Push addendum (Luis pre-commit + 4 phases shipped continuous-execution)
+
+Per `.coordination/cc_v1_polish_2026-05-15.md` fired in continuous-execution mode. 5 commits + 1 doc-sync.
+
+**Luis pre-commit `907df58` — REFUSE bypass on whiteboard photos:** system prompt extended with explicit REFUSE bullet for any request to crop out / obscure / photograph from-distance / otherwise bypass the whiteboard photo requirement on open excavations. Returns a fixed verbatim compliance response regardless of framing (hypotheticals, claims of supervisor pre-approval, expediency appeals). Hardens the existing whiteboard locked principle at the AI-advice surface.
+
+**Phase 1 `82ef91d` (+16/-8) — GIS / Restorations inert rows clickable:**
+- GIS Lists rows: always cursor:pointer + onclick; linked → `openPropertyDetail`, unlinked → friendly toast "This entry isn't linked to a property yet" via new `openGisEntryRow(entryId)` helper
+- Restorations rows: always cursor:pointer + onclick; calls `openPropertyDetail(property_id, 'restoration')` to pre-position the modal
+- `openPropertyDetail(propertyId, targetTab)` signature extended with optional second arg; default 'overview'
+
+**Phase 2 `d486b8b` (+255/-1) — MI-110 Phase 4 diagram editor polish (closes 3 deferred tickets):**
+- **Pinch-zoom:** ctrl+wheel (desktop trackpad pinch) + 2-finger pinch (touch). 0.5x-3x bounds. Zoom anchored to cursor/pinch midpoint. 2-finger drag pans. Double-click empty area resets zoom. Reset Zoom toolbar button. Session-only — does NOT persist to diagram payload (per spec acceptance #4)
+- **Long-press rename:** 600ms touch-hold OR right-click on marker → `prompt()` for new label → snapshot + label update + re-render
+- **Annotation tool:** new ✏️ Annotate toolbar button + state `diagramAnnotateMode`; click canvas → `prompt()` for text → spawn at click coords. Annotations stored in `diagramState.annotations[]` (schema already in place from initial ship — now wired through 3 render paths: `diagramRender` / `_diagramInnerSVG` / `diagramReadOnlyEmbed`). Right-click on annotation → confirm + delete
+- Annotations + renames flow through `diagramSnapshot` for undo/redo parity
+
+**Phase 3 `d9182e8` (+161/-0) — MI-403 Field Guides Unit 2 frontend:**
+- New 📚 Field Guides sidebar tab between The Herald and Certs/Licenses
+- Index view: lists `field_guides` ordered by `display_order`; RLS auto-filters published for inspectors/supervisors; super_admin sees DRAFT rows with amber badge
+- Detail view: renders `field_guide_pages` ordered by `page_number` with image_url + caption + prev/next nav
+- Super_admin publish toggle UPDATEs `field_guides.published_at`, guarded by `pitchModeBlocked`
+- Schema-reality adjustments per Lesson 2: pages carry `caption` not `body_markdown` (spec assumption); `field_guides` is global (no firm_id) so no Lesson 7 INSERT audit needed
+- Service Line Fittings DRAFT guide visible to super_admin pending PDF upload + page seed (Jorge action — Buddy MCP fills once available)
+
+**Phase 4 `504ca58` (+63/-0) — MI-402 Unit 2 municipality autofill:**
+- New Municipality field on Add Property modal with `<datalist>` autocomplete sourced from `municipalities_contractors` (28 NJAW LCRI service-area towns, alpha-sorted)
+- `_warmMunicipalitiesCache` caches lookup once per session; `onPropMunicipalityChange()` autofills county + contractor reference fields on match; non-listed → fields stay blank
+- Schema-reality adjustments per Lesson 2: `municipalities_contractors.contractor` not `prevailing_contractor` as spec assumed; properties has `municipality` column (now persisted) but no county/contractor columns — those fields labeled "(reference)" and shown for inspector guidance only at create time
+- Free-text City field intentionally preserved for non-NJAW property creation (Hoboken, Bayonne, Trenton demo properties continue to save cleanly)
+
+**Phase 5 (this commit, doc-sync):** STATE.md / status.md / decisions.md / SESSION_LOG.md / RECENT_CONTEXT.md updated per spec §5. Completion bumps absorbed: v0.1 92%→94% / v1.0 95%→98% / 7-module 50%→52% / vision 22%→23%.
+
+**MyInspector v1.0 at ~98%.** Frontend surface fully closed. Remaining 2% is Buddy-lane migration work via `buddy_v1_migrations_2026-05-15.md`: MI-202 audit_log final close, MI-AUDIT-5 a+b column additions + backfill, `schedules (firm_id, inspector_id, date)` UNIQUE constraint, Luis system prompt persistence into edge function context.
+
+---
 
 ## Thu 5/14 evening EDT — v1.0 Final Push addendum (4 phases shipped continuous-execution)
 

@@ -12,6 +12,19 @@
 
 ---
 
+## 2026-05-15 — MyInspector v1.0 Polish Push: Luis pre-commit + 4 phases + doc-sync
+
+- **Spec at `.coordination/cc_v1_polish_2026-05-15.md` fired in continuous-execution mode.** Working tree state at start: HEAD `0da1a6f` (prior doc-sync). One uncommitted Luis system prompt edit at index.html line 10653 staged separately as a pre-Phase-1 commit.
+- **Pre-commit `907df58` — Luis whiteboard-bypass refusal:** system prompt REFUSE bullet for any request to crop / obscure / photograph from-distance / otherwise bypass the whiteboard photo requirement on open excavations. Returns a fixed verbatim compliance response regardless of framing. Hardens existing whiteboard locked principle at AI-advice surface.
+- **Phase 1 `82ef91d` (+16/-8) — GIS/Restorations inert rows clickable:** `openPropertyDetail(propertyId, targetTab)` extended with optional second arg; `openGisEntryRow(entryId)` helper centralizes linked-vs-unlinked branch; restoration rows pre-position to Restoration tab; cursor:pointer applied to all rows.
+- **Phase 2 `d486b8b` (+255/-1) — MI-110 Phase 4 diagram polish:** pinch-zoom (ctrl+wheel + 2-finger touch, 0.5x-3x bounds, anchored zoom + 2-finger pan + double-click reset), long-press rename (600ms touch + right-click → `prompt()`), annotation tool (✏️ toolbar button + `prompt()` placement; rendered in editor + VTC + read-only embed; right-click delete). `diagramState.annotations[]` schema already present from initial ship — now fully wired. Annotations + renames flow through `diagramSnapshot` for undo/redo parity; zoom is session-only.
+- **Phase 3 `d9182e8` (+161) — MI-403 Field Guides Unit 2 frontend:** new 📚 Field Guides sidebar tab + index view + page reader (image + caption + prev/next nav) + super_admin publish toggle. Service Line Fittings DRAFT guide visible to super_admin pending PDF + page seed (Jorge-action). Schema adjustment per Lesson 2: pages have `caption` not `body_markdown`.
+- **Phase 4 `504ca58` (+63) — MI-402 Unit 2 municipality autofill:** Add Property modal got Municipality field with `<datalist>` autocomplete from 28-row `municipalities_contractors`. Match autofills county + prevailing contractor reference fields. Schema adjustments per Lesson 2: `municipalities_contractors.contractor` not `prevailing_contractor`; properties has `municipality` column (persisted) but no county/contractor columns (reference-only fields).
+- **Phase 5 (this commit, doc-sync)** absorbs Luis + Phase 1-4 across STATE.md / status.md / decisions.md / SESSION_LOG.md / RECENT_CONTEXT.md. Completion bumps: v0.1 92→94% / v1.0 95→98% / 7-module 50→52% / vision 22→23%.
+- **MyInspector v1.0 at ~98%.** Frontend surface fully closed. Remaining 2% is Buddy-lane via `buddy_v1_migrations_2026-05-15.md` (MI-202 audit_log final close, MI-AUDIT-5 a+b columns + backfill, schedules UNIQUE migration, Luis system prompt persistence to edge function). **Lesson 2 applied 3× this session** at schema-vs-spec mismatch boundaries — no halts, surgical adaptations.
+
+---
+
 ## 2026-05-14 (evening late ~10pm-midnight EDT) — MyInspector v1.0 Final Push: 4 phases shipped continuous-execution
 
 - **Spec at `.coordination/cc_v1_final_push_2026-05-14.md` fired in continuous mode.** 5 phases per spec §1-§5; one chat report at completion only (no phase-by-phase narration per spec). Working tree state at start: HEAD `09c6b86` (post Rabiyu-prep doc-sync).

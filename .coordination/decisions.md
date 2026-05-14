@@ -1370,3 +1370,59 @@ Changes 4 (Jorge title language) + 5 ("15 years" rounding) deferred per Buddy de
 **Affects:** Remaining pre-pitch work is non-code Jorge-lane: pitch-deck rebalance (drop 7-module slide, lead with Module 1 + Luis + audit), final eye-test pass on demo URL (walk the 5 demo-critical flows), MI-DEMO-DEPLOY ritual finalize (Buddy partial draft on disk → reconcile next session), Rabiyu engagement signing (legal lane). Post-pitch backlog (8-12 sessions): tapcard cluster MI-101.5/104/107, Module 2 Wastewater frontend, MI-402 Unit 2 autofill, MI-403 Unit 2 Field Guides surface, MI-AUDIT-5 formal close, pattern extension of identity-display flags (person_safe_to_display, project_safe_to_display). None blocking demo.
 
 **Source:** Jorge invocation 2026-05-14 evening EDT ("read .coordination/cc_v1_final_push_2026-05-14.md and execute continuously through all 5 phases") + clean completion of all 4 work phases + 31/31 GREEN demo health verification.
+
+---
+
+## 2026-05-15 EDT — Luis whiteboard-bypass refusal hardening (locked at AI-advice surface)
+
+**Decision:** Luis system prompt (index.html:10656) extended with an explicit REFUSE bullet for any request to photograph an open excavation in a way that bypasses the whiteboard photo requirement (crop out, obscure with flash, photograph from a distance/angle that hides the whiteboard, "just curious" hypotheticals, claims of supervisor pre-approval, appeals to expediency). Returns a fixed verbatim compliance response. Shipped as standalone pre-Phase-1 commit `907df58` to keep the discipline edit isolated from feature work.
+
+**Reasoning:** The whiteboard rule is a locked CLAUDE.md principle ("hole in the ground = whiteboard"). Pitch mode + RLS + audit chain enforce it on the *write* path. But Luis is an AI advice surface that could in principle help a user reason their way around the rule if not explicitly refused. The cost of a leak is high (a single compliance bypass via AI-suggested workaround poisons the audit story for CDM-Smith review). The cost of the rule is zero (legitimate workflows don't need a bypass; the response itself is short and friendly). Asymmetry favors the explicit refusal. Pattern is reusable for any future locked principle that has an AI-advice attack surface (CS Carlo authorization, no-work invariants, etc.) — pre-emptively add a REFUSE bullet rather than trust the model to infer from context.
+
+**Affects:** Luis behavior on whiteboard-bypass framings. No DB change, no schema change, no migration. System prompt persistence to edge function context is queued for the Buddy migration lane (`buddy_v1_migrations_2026-05-15.md`) — the index.html copy is what the chat surface uses; the edge function `luis-proxy` has its own prompt scope that should mirror for defense-in-depth.
+
+**Source:** Jorge directive 2026-05-14 evening EDT (pre-Phase-1 instruction: "before phase 1 also commit the uncommitted Luis system prompt edit at index.html line 10653 as a standalone commit").
+
+---
+
+## 2026-05-15 EDT — MI-110 Phase 4 polish: zoom session-only; annotations + renames persist
+
+**Decision:** Diagram editor zoom state (`diagramView = { x, y, w, h }`) lives in editor session memory only — never serialized to `tapcard_data.diagram` payload. Every `diagramReset` / `diagramLoad` resets to default `viewBox = 0 0 800 600`. Annotations and marker renames DO persist (annotations via `diagramState.annotations[]`; renames as the marker's `label` field). Right-click + 600ms long-press both invoke `_diagramRenameMarker`. Annotation delete via right-click on annotation (confirm prompt).
+
+**Reasoning:** Zoom is a viewing convenience that should not surprise the next reader of a saved diagram. If two inspectors view the same saved diagram, they should see identical scaled output regardless of who saved it. Persisting zoom would create the failure mode "I saved at 2.5x zoom; coworker opens it and the diagram looks broken / mostly empty / scrolled off." Resetting zoom on every load eliminates that class of surprise. Annotations + renames are content-bearing intent — they belong in the saved payload. The undo/redo system already handles both via `diagramSnapshot()` so the editor experience stays coherent.
+
+Long-press gesture chosen for touch rename because it's the dominant touch idiom for "options on this element" (Apple Maps, Slack, etc.). Right-click chosen for desktop because the existing double-click handler is already bound to marker delete (with confirm). Splitting rename + delete across right-click + double-click keeps the click-cost asymmetric in the correct direction: delete (destructive) needs a deliberate gesture; rename (low-stakes) gets the lighter gesture.
+
+**Affects:** All future diagram editor users get pinch-zoom + rename + annotation. Read-only diagram embeds (Property Detail submissions list + VTC paper preview) render annotations as styled rect+text without delete affordance. `diagramReadOnlyEmbed` and `_diagramInnerSVG` both inherit annotation rendering.
+
+**Source:** Spec `.coordination/cc_v1_polish_2026-05-15.md` §2 acceptance #4 ("preserves zoom level (or resets cleanly, document the choice)") explicitly invited the choice; resets-cleanly chosen with rationale.
+
+---
+
+## 2026-05-15 EDT — Schema-vs-spec reality applied 3× via Lesson 2 (Phases 3 + 4)
+
+**Decision:** Three schema-vs-spec mismatches surfaced during the polish push and were resolved by adapting to actual schema rather than rebuilding from spec assumption — Lesson 2 (verify schema state before acting on stale spec context) applied in flight:
+
+1. **`field_guide_pages.body_markdown` doesn't exist.** Spec §3 said pages render "title + body markdown + image." Actual columns: `id, field_guide_id, page_number, image_url, caption, annotations(jsonb), created_at, updated_at`. Adapted: page reader renders image_url + caption + optional annotations overlay (deferred); body_markdown absent in v1.0.
+
+2. **`municipalities_contractors.contractor` not `prevailing_contractor`.** Spec §4 referenced `prevailing_contractor` column. Actual column is `contractor`. Adapted: form label says "Prevailing Contractor (reference)"; query selects `contractor` field.
+
+3. **`properties` has no `county` or `contractor` columns.** Spec §4 implied autofill writes into existing property columns. Actual schema has `municipality` (now persisted) but no county/contractor columns. Adapted: those two fields labeled "(reference)" — they're shown to the inspector for guidance at create time but not persisted. This decision keeps the autofill demonstration alive while honoring "no new write paths added" from spec.
+
+**Reasoning:** Each mismatch caught via Supabase MCP `execute_sql` against `information_schema.columns` before writing the frontend. The cost of verification was three SQL queries (~5 seconds each). The cost of building against spec assumption then discovering at runtime would have been frontend rework + RLS errors + halt cycles. Lesson 2 explicitly carved out this case ("brief context can be days stale"); applied here without halting, surgical adaptations, and noted in commit messages so future readers see the rationale.
+
+**Affects:** Future v1.0 polish + Phase 2 features should continue to verify schema before acting on spec assumptions. The three reference-only fields in the Add Property modal (Municipality / County / Prevailing Contractor) are useful as inspector guidance without persisting county/contractor — a viable pattern for any "lookup-driven hint" field that doesn't fit the existing column shape.
+
+**Source:** Self-surfaced 2026-05-15 EDT during Phase 3 + Phase 4 execution. Pattern continues to demonstrate Lesson 2's asymmetry (cheap verification vs expensive rework).
+
+---
+
+## 2026-05-15 EDT — MyInspector v1.0 at 98%, only Buddy-lane migration work remaining
+
+**Decision:** MyInspector v1.0 frontend surface is fully closed after the v1.0 Polish Push completes. All v1.0 user-facing tickets either SHIPPED or have a working frontend awaiting Buddy-lane migration polish. Completion percentages post-Polish Push: v0.1 94% / v1.0 98% / 7-module 52% / vision 23%. The remaining 2% is Buddy-lane via `buddy_v1_migrations_2026-05-15.md`: (a) MI-202 audit_log final close (decision-or-Layer-5 build), (b) MI-AUDIT-5 a+b column additions + backfill (replacing the semantic substitutes wired post-5/8), (c) `schedules (firm_id, inspector_id, date)` UNIQUE constraint migration (so the manual SELECT-then-UPDATE-or-INSERT pattern in `opsSaveScheduleCell` can simplify to `.upsert({onConflict})`), (d) Luis system prompt persistence into edge function context (defense-in-depth for the whiteboard-bypass refusal — index.html copy is one surface; edge function prompt is the other).
+
+**Reasoning:** Spec at `.coordination/cc_v1_polish_2026-05-15.md` fired in continuous-execution mode and closed cleanly: pre-commit Luis hardening + 4 phases + doc-sync, no halt conditions triggered. The 1000-line-per-phase ceiling held (Phase 2 +255, Phase 3 +161, Phase 4 +63, Phase 1 +16). Buddy Standard discipline applied throughout: file location + Ctrl+F anchor + exact find/replace, schema verification before acting on spec assumptions (Lesson 2 applied 3× this session), session-only zoom state for diagram polish (resets cleanly per spec §2 acceptance #4), Lesson 7 firm_id audit on the one INSERT touched (saveProperty got new `municipality` field — already had firm_id), Lesson 17 fictional-names-only (none added this session).
+
+**Affects:** CC lane is **done** for v1.0. Remaining v1.0 work routes to Buddy via the migrations work order. Demo readiness preserved at 31/31 GREEN (no schema/data changes this session — pure frontend). Pitch-readiness flips from "demo-ready" → "demo-ready + final closeout in Buddy lane." Post-pitch backlog unchanged: tapcard cluster MI-101.5/104/107, Module 2 Wastewater frontend, ASTM module, pattern extension of identity-display flags.
+
+**Source:** Jorge invocation 2026-05-14/15 ("read .coordination/cc_v1_polish_2026-05-15.md and execute continuously through all 5 phases, and before phase 1 also commit the uncommitted Luis system prompt edit") + clean completion of all 5 phases + 5 commits shipped + ff-merged to mi-demo-seed without conflict.
