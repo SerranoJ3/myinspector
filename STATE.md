@@ -1,5 +1,8 @@
 # MyInspector — Current State
 
+> **⛔ DEPLOY LAW (re-stated 7/21 after the prod regression): `main` is the ONLY deployable branch, and every production deploy is PREVIEW-FIRST — Jorge eyeballs the preview and gives the word; only then does main get pushed (git auto-deploy = prod). The May demo-banner/mi-demo-seed split that served prod from preview branches is dead: those branches are historical artifacts now, never deploy targets. CC never pushes main without the preview gate passing.**
+
+
 > **Purpose:** Single source of truth for session continuity. Read at session open. Update at session close.
 > **CLAUDE.md** holds locked principles. **STATE.md** holds live state.
 > Conflict with Claude memory: this file wins.

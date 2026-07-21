@@ -1045,6 +1045,8 @@ html,body{overflow-x:hidden}
   <div class="main">
     <!-- SIDEBAR -->
     <div class="sidebar">
+      <!-- PACK 01 (WATER) NAV — untouched default -->
+      <div id="nav-pack-water">
       <div class="sidebar-section">Field Ops</div>
       <div class="nav-link active" id="nav-dashboard" onclick="showPanel('dashboard')">
         <span class="nav-icon">📊</span> Dashboard
@@ -1082,7 +1084,36 @@ html,body{overflow-x:hidden}
       <div class="nav-link" id="nav-certs" onclick="showPanel('certs')">
         <span class="nav-icon">🪪</span> Certs / Licenses
       </div>
+      </div>
+      <!-- PACK 02 (CMT) NAV — hidden unless the workspace wears the cmt pack -->
+      <div id="nav-pack-cmt" style="display:none">
+      <div class="sidebar-section">Field Testing</div>
+      <div class="nav-link" id="nav-cmt-tests" onclick="showPanel('cmt-tests')">
+        <span class="nav-icon">🧪</span> Tests
+      </div>
+      <div class="nav-link" id="nav-cmt-samples" onclick="showPanel('cmt-samples')">
+        <span class="nav-icon">🏷️</span> Samples
+      </div>
+      <div class="sidebar-section">Office</div>
+      <div class="nav-link" id="nav-cmt-specs" onclick="showPanel('cmt-specs')">
+        <span class="nav-icon">📐</span> Job Specs
+      </div>
+      <div class="nav-link" id="nav-cmt-certs" onclick="showPanel('cmt-certs')">
+        <span class="nav-icon">🎓</span> Certifications
+      </div>
+      <div class="nav-link" id="nav-cmt-log" onclick="showPanel('cmt-log')">
+        <span class="nav-icon">📁</span> Test Log
+      </div>
+      </div>
       <div class="sidebar-bottom">
+        <!-- PACK02: workspace mode toggle — supervisors/owners/super_admin only -->
+        <div id="pack-toggle-wrap" style="display:none;margin-bottom:10px">
+          <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Workspace Mode</div>
+          <select id="pack-toggle" class="modal-select" style="width:100%;font-size:12px" onchange="switchPack(this.value)">
+            <option value="water">Water Utility</option>
+            <option value="cmt">Material Testing</option>
+          </select>
+        </div>
         <div class="user-badge">
           <div class="user-avatar" id="sidebar-avatar">?</div>
           <div>
@@ -1571,9 +1602,127 @@ html,body{overflow-x:hidden}
         </div>
       </div>
 
+      <!-- ══════════ PACK 02 (CMT) PANELS — rendered only when active_pack='cmt' ══════════ -->
+      <div class="panel" id="panel-cmt-tests">
+        <div class="page-header">
+          <div class="page-title">Field Tests</div>
+          <div class="page-sub">Registry-driven — every test carries its ASTM reference. Pass/fail is computed from spec, never typed.</div>
+        </div>
+        <div class="modal-row" style="margin-bottom:14px">
+          <div class="modal-field"><label class="modal-label">Project</label>
+            <select class="modal-select" id="cmt-project-select" onchange="cmtProjectChanged()"></select></div>
+          <div class="modal-field"><label class="modal-label">Governing Spec (mix design / proctor)</label>
+            <select class="modal-select" id="cmt-spec-select"></select></div>
+        </div>
+        <div id="cmt-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
+        <div id="cmt-test-tiles" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:16px"></div>
+        <div id="cmt-form-wrap" style="display:none">
+          <div class="table-wrap" style="padding:18px">
+            <div class="table-header" style="padding:0 0 10px 0">
+              <div class="table-title" id="cmt-form-title"></div>
+              <span id="cmt-form-astm" style="font-size:11px;color:var(--muted)"></span>
+            </div>
+            <div id="cmt-form-fields"></div>
+            <div id="cmt-form-photos"></div>
+            <div id="cmt-passfail" style="margin:12px 0;font-weight:700"></div>
+            <div id="cmt-oot-wrap" style="display:none" class="modal-field">
+              <label class="modal-label">Out-of-tolerance — inspector note (required)</label>
+              <textarea class="modal-input" id="cmt-oot-note" rows="2" placeholder="What happened, who was notified"></textarea>
+            </div>
+            <button class="btn-sm btn-orange" id="cmt-submit-btn" onclick="cmtSubmitTest()">Submit Test</button>
+            <button class="btn-sm" onclick="cmtCloseForm()">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-cmt-samples">
+        <div class="page-header">
+          <div class="page-title">Sample Register</div>
+          <div class="page-sub">Chain of custody: cast → cure → transport → lab → break. Every move is audit-logged.</div>
+        </div>
+        <div class="table-wrap"><div id="cmt-samples-list"><div class="loading">Loading…</div></div></div>
+      </div>
+
+      <div class="panel" id="panel-cmt-specs">
+        <div class="page-header">
+          <div class="page-title">Job Specs</div>
+          <div class="page-sub">Mix designs, proctor baselines, sieve bands — the numbers pass/fail computes against.</div>
+        </div>
+        <button class="btn-sm btn-orange" style="margin-bottom:12px" onclick="cmtOpenSpecModal()">+ Add Spec</button>
+        <div class="table-wrap"><div id="cmt-specs-list"><div class="loading">Loading…</div></div></div>
+      </div>
+
+      <div class="panel" id="panel-cmt-certs">
+        <div class="page-header">
+          <div class="page-title">Certifications</div>
+          <div class="page-sub">ACI, CWI, nuclear gauge, OSHA — expiry tracked at 90/60/30 days.</div>
+        </div>
+        <button class="btn-sm btn-orange" style="margin-bottom:12px" onclick="cmtOpenCertModal()">+ Add Certification</button>
+        <div class="table-wrap"><div id="cmt-certs-list"><div class="loading">Loading…</div></div></div>
+      </div>
+
+      <div class="panel" id="panel-cmt-log">
+        <div class="page-header">
+          <div class="page-title">Test Log</div>
+          <div class="page-sub">Every submission, newest first — tap for the report.</div>
+        </div>
+        <div class="table-wrap"><div id="cmt-log-list"><div class="loading">Loading…</div></div></div>
+      </div>
+
     </div>
   </div>
 </div>
+
+<!-- CMT ADD-SPEC MODAL -->
+<div class="modal-overlay" id="modal-cmt-spec">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add Job Spec</div>
+      <button class="modal-close" onclick="closeModal('modal-cmt-spec')">✕</button>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field"><label class="modal-label">Kind</label>
+        <select class="modal-select" id="cmtspec-kind">
+          <option value="mix_design">Mix Design</option>
+          <option value="proctor">Proctor Baseline</option>
+          <option value="sieve_spec">Sieve Spec Band</option>
+          <option value="other">Other</option>
+        </select></div>
+      <div class="modal-field"><label class="modal-label">Name</label>
+        <input class="modal-input" id="cmtspec-name" placeholder="4000psi pump mix — Deck 3"></div>
+    </div>
+    <div class="modal-field"><label class="modal-label">Material ID (proctor preload key, optional)</label>
+      <input class="modal-input" id="cmtspec-material" placeholder="DGA-1"></div>
+    <div class="modal-field"><label class="modal-label">Parameters (key: value per line)</label>
+      <textarea class="modal-input" id="cmtspec-params" rows="6" placeholder="design_strength_psi: 4000&#10;slump_min_in: 3&#10;slump_max_in: 5&#10;air_min_pct: 4.5&#10;air_max_pct: 7.5&#10;temp_min_f: 50&#10;temp_max_f: 90"></textarea></div>
+    <button class="btn-sm btn-orange" onclick="cmtSaveSpec()">Save Spec</button>
+  </div>
+</div>
+
+<!-- CMT ADD-CERT MODAL -->
+<div class="modal-overlay" id="modal-cmt-cert">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add Certification</div>
+      <button class="modal-close" onclick="closeModal('modal-cmt-cert')">✕</button>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field"><label class="modal-label">Holder</label>
+        <input class="modal-input" id="cmtcert-holder" placeholder="Inspector name"></div>
+      <div class="modal-field"><label class="modal-label">Certification</label>
+        <input class="modal-input" id="cmtcert-name" placeholder="ACI Field Grade I / CWI / OSHA-30"></div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field"><label class="modal-label">Cert #</label>
+        <input class="modal-input" id="cmtcert-no"></div>
+      <div class="modal-field"><label class="modal-label">Expires</label>
+        <input class="modal-input" type="date" id="cmtcert-expires"></div>
+    </div>
+    <button class="btn-sm btn-orange" onclick="cmtSaveCert()">Save</button>
+  </div>
+</div>
+
+
 
 <!-- ADD PROPERTY MODAL -->
 <div class="modal-overlay" id="modal-property">
@@ -3316,7 +3465,7 @@ async function initApp(user){
   try {
     const {data:profile} = await sb
       .from('profiles')
-      .select('firm_id,role,firms(name,firm_safe_to_display)')
+      .select('firm_id,role,firms(name,firm_safe_to_display,active_pack,sample_prefix)')
       .eq('id',user.id)
       .maybeSingle();
     if(profile){
@@ -3329,6 +3478,12 @@ async function initApp(user){
       currentFirmIsDemo = profile.firms?.firm_safe_to_display === true;
       currentFirmSafeToDisplay = profile.firms?.firm_safe_to_display === true; // MI-DEMO-UI v3: gates firm name in user-role + signup toast
       currentUserIsSuperAdmin = isSuperAdmin; // global mirror for role-gated UI (Tapcard Office Fill, etc.)
+      // PACK02: workspace vertical — firms.active_pack decides which pack the UI wears.
+      // Water is the default; existing accounts see zero change. super_admin may carry a
+      // per-device override (set when the firms write path is unavailable — always loud).
+      ACTIVE_PACK = profile.firms?.active_pack || 'water';
+      if (isSuperAdmin && localStorage.getItem('mi_pack_override')) ACTIVE_PACK = localStorage.getItem('mi_pack_override');
+      currentFirmPrefix = profile.firms?.sample_prefix || null;
     }
   } catch(e) {
     console.warn('Profile load failed, continuing:', e);
@@ -3359,6 +3514,9 @@ async function initApp(user){
       roleEl.style.color = '';
     }
   }
+
+  applyPack();   // PACK02: swap nav/panels to the workspace's vertical (water = untouched path)
+  if (ACTIVE_PACK === 'cmt') cmtInit();   // async fire — CMT panels fill as data lands
 
   // MI-OPS-DASHBOARD Unit 2: renderOpsDashboard now owns the welcome-date string
   // (dash-date element was removed with the legacy stat-grid layout).
@@ -3391,6 +3549,10 @@ function showPanel(name){
   if(name==='certs') loadCerts();
   if(name==='cm-pm') loadCmPm();
   if(name==='hours-expenses') loadHoursExpenses();
+  if(name==='cmt-samples') cmtLoadSamples();
+  if(name==='cmt-specs') cmtLoadSpecs();
+  if(name==='cmt-certs') cmtLoadCerts();
+  if(name==='cmt-log') cmtLoadLog();
 }
 
 // ── DASHBOARD ─────────────────────────────────────────
@@ -11070,6 +11232,464 @@ function showToast(msg,type='success'){
   t.className='toast show '+(type==='success'?'success':'error');
   setTimeout(()=>t.className='toast',3000);
 }
+
+// ── AUTO AUTH ─────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// PACK02 — vertical config-pack layer (CC_ORDER_2026-07-21). One skeleton, never
+// forked: water keeps its exact DOM/code path; CMT renders from the DB registry.
+// ══════════════════════════════════════════════════════════════════════════════
+let ACTIVE_PACK = 'water';
+let currentFirmPrefix = null;
+
+const PACKS = {
+  water: { id:'water', version:1, name:'Water Utility', moduleKey:'water', nav:'nav-pack-water' },
+  cmt:   { id:'cmt',   version:1, name:'Material Testing', moduleKey:'cmt', nav:'nav-pack-cmt' },
+};
+
+function applyPack(){
+  const cmt = ACTIVE_PACK === 'cmt';
+  document.getElementById('nav-pack-water').style.display = cmt ? 'none' : '';
+  document.getElementById('nav-pack-cmt').style.display = cmt ? '' : 'none';
+  // toggle visibility: supervisor+ only (mode is a workspace decision, not per-inspector)
+  const canToggle = ['owner','supervisor','super_admin'].includes(currentUserRole);
+  const wrap = document.getElementById('pack-toggle-wrap');
+  wrap.style.display = canToggle ? '' : 'none';
+  document.getElementById('pack-toggle').value = ACTIVE_PACK;
+  if(cmt){
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));
+    document.getElementById('panel-cmt-tests').classList.add('active');
+    document.getElementById('nav-cmt-tests').classList.add('active');
+  }
+}
+
+async function switchPack(pack){
+  if(!PACKS[pack]) return;
+  // PROD_HOTFIX: the 7/21 toggle failed SILENTLY (firms row never updated; reload showed
+  // water because water was still true). Now: write, CONFIRM the row came back changed,
+  // only then reload. Every failure path is loud, and super_admin gets a per-device
+  // override fallback so a demo can proceed while the write path is investigated.
+  const {data, error} = await sb.from('firms').update({active_pack: pack})
+    .eq('id', currentFirmId).select('id,active_pack');
+  if(error || !data || !data.length || data[0].active_pack !== pack){
+    const why = error ? error.message : (!data || !data.length ? 'no firm row matched (RLS or firm_id) — 0 rows updated' : 'row did not take the new value');
+    if(currentUserIsSuperAdmin){
+      localStorage.setItem('mi_pack_override', pack);
+      showToast('Firms write failed ('+why+') — using super_admin DEVICE override. Flag this.', 'error');
+      setTimeout(()=>location.reload(), 1400);
+      return;
+    }
+    showToast('Could not switch mode: '+why, 'error');
+    document.getElementById('pack-toggle').value = ACTIVE_PACK;   // snap back, never lie
+    return;
+  }
+  localStorage.removeItem('mi_pack_override');
+  location.reload();   // clean re-init under the new pack — no half-dressed UI
+}
+
+// ── CMT state ────────────────────────────────────────────────────────────────
+const CMT = { types: [], tab: 'concrete', specs: [], projects: [], activeType: null,
+              photos: {}, samplesCache: [] };
+const CMT_TABS = [['concrete','Concrete'],['soils','Soils'],['rebar','Rebar'],
+                  ['masonry','Masonry'],['welding','Welding']];
+
+async function cmtInit(){
+  const [{data:types},{data:projects}] = await Promise.all([
+    sb.from('test_types').select('*').eq('enabled',true).order('sort'),
+    sb.from('projects').select('id,name,contract_number').is('deleted_at',null).order('name'),
+  ]);
+  CMT.types = types||[]; CMT.projects = projects||[];
+  const ps = document.getElementById('cmt-project-select');
+  ps.innerHTML = '<option value="">Select project…</option>' +
+    CMT.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  cmtRenderTabs();
+}
+
+function cmtRenderTabs(){
+  document.getElementById('cmt-tabs').innerHTML = CMT_TABS.map(([k,label])=>
+    `<button class="btn-sm ${CMT.tab===k?'btn-orange':''}" onclick="cmtSetTab('${k}')">${label}</button>`).join('');
+  const tiles = CMT.types.filter(t=>t.tab===CMT.tab);
+  document.getElementById('cmt-test-tiles').innerHTML = tiles.map(t=>
+    `<div class="table-wrap" style="padding:14px;cursor:pointer" onclick="cmtOpenForm('${t.id}')">
+       <div style="font-weight:700;color:var(--white)">${t.name}</div>
+       <div style="font-size:11px;color:var(--muted);margin-top:4px">${t.astm_ref} · ${t.astm_year}</div>
+     </div>`).join('') || '<div class="loading">No test types in this tab.</div>';
+}
+function cmtSetTab(k){ CMT.tab=k; cmtCloseForm(); cmtRenderTabs(); }
+
+async function cmtProjectChanged(){
+  const pid = document.getElementById('cmt-project-select').value;
+  const sel = document.getElementById('cmt-spec-select');
+  if(!pid){ sel.innerHTML=''; CMT.specs=[]; return; }
+  const {data} = await sb.from('job_specs').select('*')
+    .eq('project_id',pid).eq('active',true).is('deleted_at',null);
+  CMT.specs = data||[];
+  sel.innerHTML = '<option value="">No governing spec</option>' +
+    CMT.specs.map(s=>`<option value="${s.id}">${s.name} (${s.kind})</option>`).join('');
+}
+
+// ── registry-driven form renderer ────────────────────────────────────────────
+function cmtOpenForm(typeId){
+  const t = CMT.types.find(x=>x.id===typeId);
+  if(!t) return;
+  CMT.activeType = t; CMT.photos = {};
+  document.getElementById('cmt-form-title').textContent = t.name;
+  document.getElementById('cmt-form-astm').textContent = t.astm_ref + ' · ' + t.astm_year;
+  const spec = CMT.specs.find(s=>s.id===document.getElementById('cmt-spec-select').value);
+  const fields = (t.field_schema.fields||[]).map(f=>{
+    const specVal = f.from_spec && spec ? (spec.params[f.from_spec] ?? '') : '';
+    const val = specVal !== '' ? specVal : (f.default ?? '');
+    const hint = f.hint ? `<div style="font-size:10px;color:var(--muted)">${f.hint}</div>` : '';
+    if(f.type==='computed')
+      return `<div class="modal-field"><label class="modal-label">${f.label}${f.unit?' ('+f.unit+')':''} — computed</label>
+        <input class="modal-input" id="cmtf-${f.key}" readonly style="opacity:.75" data-calc="${encodeURIComponent(f.calc)}"></div>`;
+    if(f.type==='select')
+      return `<div class="modal-field"><label class="modal-label">${f.label}${f.required?' *':''}</label>
+        <select class="modal-select" id="cmtf-${f.key}" onchange="cmtRecalc()"><option value="">—</option>
+        ${f.options.map(o=>`<option>${o}</option>`).join('')}</select>${hint}</div>`;
+    if(f.type==='checkbox' || f.type==='checkitem')
+      return `<div class="modal-field" style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="cmtf-${f.key}" data-checkitem="${f.type==='checkitem'}" onchange="cmtRecalc()">
+        <label class="modal-label" style="margin:0">${f.label}${f.required?' *':''}</label></div>`;
+    if(f.type==='textarea' || f.type==='gradation')
+      return `<div class="modal-field"><label class="modal-label">${f.label}${f.required?' *':''}</label>
+        <textarea class="modal-input" id="cmtf-${f.key}" rows="3" oninput="cmtRecalc()"></textarea>${hint}</div>`;
+    if(f.type==='sample_ref')
+      return `<div class="modal-field"><label class="modal-label">${f.label} *</label>
+        <select class="modal-select" id="cmtf-${f.key}" onchange="cmtSampleRefChanged(this.value)"></select>${hint}</div>`;
+    const step = f.step ? ` step="${f.step}"` : '';
+    const numAttrs = f.type==='number' ? ` type="number"${step}` : ' type="text"';
+    const matHook = f.key==='material_key' ? ` onblur="cmtProctorPreload(this.value)"` : '';
+    return `<div class="modal-field"><label class="modal-label">${f.label}${f.unit?' ('+f.unit+')':''}${f.required?' *':''}</label>
+      <input class="modal-input" id="cmtf-${f.key}"${numAttrs} value="${val}" oninput="cmtRecalc()"${matHook}>${hint}</div>`;
+  }).join('');
+  document.getElementById('cmt-form-fields').innerHTML = fields;
+  document.getElementById('cmt-form-photos').innerHTML = (t.photo_reqs||[]).map(p=>
+    `<div class="modal-field"><label class="modal-label">📷 ${p.label}${p.required?' *':''}</label>
+      <input type="file" accept="image/*" capture="environment" id="cmtp-${p.key}" onchange="cmtPhotoPicked('${p.key}',this)"></div>`).join('');
+  if((t.field_schema.fields||[]).some(f=>f.type==='sample_ref')) cmtFillSampleRefs();
+  document.getElementById('cmt-form-wrap').style.display='';
+  document.getElementById('cmt-test-tiles').style.display='none';
+  cmtRecalc();
+}
+function cmtCloseForm(){
+  document.getElementById('cmt-form-wrap').style.display='none';
+  document.getElementById('cmt-test-tiles').style.display='';
+  CMT.activeType=null;
+}
+
+async function cmtFillSampleRefs(){
+  const pid = document.getElementById('cmt-project-select').value;
+  const q = sb.from('samples').select('id,sample_no,cast_date,status').is('deleted_at',null)
+    .in('status',['cast','curing','transport','lab']).order('cast_date',{ascending:false}).limit(200);
+  const {data} = pid ? await q.eq('project_id',pid) : await q;
+  CMT.samplesCache = data||[];
+  const sel = document.querySelector('[id^="cmtf-"][id$="sample_no"]') || document.getElementById('cmtf-sample_no');
+  if(sel) sel.innerHTML = '<option value="">Select sample…</option>' +
+    CMT.samplesCache.map(s=>`<option value="${s.sample_no}">${s.sample_no} (cast ${s.cast_date}, ${s.status})</option>`).join('');
+}
+function cmtSampleRefChanged(no){
+  const s = CMT.samplesCache.find(x=>x.sample_no===no);
+  const age = document.getElementById('cmtf-age_days');
+  if(s && age){ age.value = Math.round((Date.now() - new Date(s.cast_date)) / 86400000); cmtRecalc(); }
+}
+
+// proctor preload: once a proctor exists for a material, it IS the baseline
+async function cmtProctorPreload(materialKey){
+  if(!materialKey) return;
+  const pid = document.getElementById('cmt-project-select').value;
+  let q = sb.from('test_submissions')
+    .select('field_data,submitted_at')
+    .in('test_type_id',['soils_proctor_standard','soils_proctor_modified'])
+    .eq('field_data->>material_key', materialKey)
+    .is('deleted_at',null).order('submitted_at',{ascending:false}).limit(1);
+  if(pid) q = q.eq('project_id',pid);
+  const {data} = await q;
+  if(data && data.length){
+    const fd = data[0].field_data;
+    const tgt = document.getElementById('cmtf-proctor_max_density');
+    if(tgt && fd.max_dry_density_pcf){ tgt.value = fd.max_dry_density_pcf; }
+    showToast('Proctor baseline loaded: '+fd.max_dry_density_pcf+' pcf @ '+fd.omc_pct+'% OMC','success');
+    cmtRecalc();
+  }
+}
+
+// computed fields + live pass/fail — spec-computed, never typed
+function cmtFieldVals(){
+  const out = {};
+  (CMT.activeType.field_schema.fields||[]).forEach(f=>{
+    const el = document.getElementById('cmtf-'+f.key);
+    if(!el) return;
+    if(f.type==='checkbox'||f.type==='checkitem') out[f.key] = el.checked;
+    else out[f.key] = el.value === '' ? null : (isNaN(+el.value) || f.type==='text' || f.type==='textarea' || f.type==='select' || f.type==='gradation' || f.type==='sample_ref' ? el.value : +el.value);
+  });
+  return out;
+}
+function cmtRecalc(){
+  if(!CMT.activeType) return;
+  const t = CMT.activeType, v = cmtFieldVals();
+  (t.field_schema.fields||[]).filter(f=>f.type==='computed').forEach(f=>{
+    try{
+      const keys = Object.keys(v);
+      const fn = new Function(...keys, 'return (' + f.calc + ');');
+      const res = fn(...keys.map(k=>v[k]));
+      const el = document.getElementById('cmtf-'+f.key);
+      if(el && isFinite(res)){ el.value = Math.round(res*100)/100; v[f.key] = res; }
+    }catch(e){}
+  });
+  const pf = cmtPassFail(t.pass_logic, v);
+  const el = document.getElementById('cmt-passfail');
+  if(pf === null){ el.textContent=''; document.getElementById('cmt-oot-wrap').style.display='none'; }
+  else {
+    el.innerHTML = pf ? '<span style="color:#7dff9e">● PASS (spec-computed)</span>'
+                      : '<span style="color:#ff8a7d">● FAIL — out of tolerance (spec-computed)</span>';
+    document.getElementById('cmt-oot-wrap').style.display = pf ? 'none' : '';
+  }
+  return {vals:v, pass:pf};
+}
+function cmtPassFail(logic, v){
+  if(!logic || logic.kind==='none') return null;
+  const n = k => v[k]==null?null:+v[k];
+  switch(logic.kind){
+    case 'range': {
+      const val=n(logic.value_key), lo=n(logic.min_key), hi=n(logic.max_key);
+      return (val==null||lo==null||hi==null) ? null : (val>=lo && val<=hi);
+    }
+    case 'gte': {
+      const val=n(logic.value_key), lo=n(logic.min_key);
+      return (val==null||lo==null) ? null : val>=lo;
+    }
+    case 'gte_spec_at_age': {
+      const val=n(logic.value_key), spec=n(logic.spec_key), age=n(logic.age_key);
+      if(val==null||spec==null) return null;
+      if(age!=null && age < (logic.full_age||28)) return null;   // early breaks inform, only 28-day judges
+      return val>=spec;
+    }
+    case 'checklist_all_pass': {
+      const items = (CMT.activeType.field_schema.fields||[]).filter(f=>f.type==='checkitem');
+      return items.length ? items.every(f=>v[f.key]===true) : null;
+    }
+    case 'select_equals': return v[logic.value_key]==null ? null : v[logic.value_key]===logic.expect;
+    case 'gradation_in_band': return null;   // spec-band overlay charts land with real sieve bands (v1.1)
+    default: return null;
+  }
+}
+
+function cmtPhotoPicked(key, input){
+  if(input.files && input.files[0]) CMT.photos[key] = input.files[0];
+}
+
+async function cmtSubmitTest(){
+  const t = CMT.activeType;
+  if(!t) return;
+  const pid = document.getElementById('cmt-project-select').value;
+  if(!pid){ showToast('Select a project first','error'); return; }
+  const rc = cmtRecalc(), v = rc.vals, pass = rc.pass;
+  // required-field enforcement — the inspector physically cannot submit non-compliant
+  const missing = (t.field_schema.fields||[]).filter(f=>f.required &&
+    f.type!=='computed' && (v[f.key]==null || v[f.key]==='' || (f.type==='checkitem' && v[f.key]!==true && pass!==false)));
+  // checkitems: allowed unchecked only when acknowledged as FAIL with a note
+  const hardMissing = missing.filter(f=>f.type!=='checkitem');
+  if(hardMissing.length){ showToast('Required: '+hardMissing.map(f=>f.label).join(', '),'error'); return; }
+  for(const p of (t.photo_reqs||[])){
+    if(p.required && !CMT.photos[p.key]){ showToast('Required photo: '+p.label,'error'); return; }
+  }
+  let ootNote = null;
+  if(pass===false){
+    ootNote = document.getElementById('cmt-oot-note').value.trim();
+    if(ootNote.length < 10){ showToast('Out-of-tolerance requires an inspector note (≥10 chars)','error'); return; }
+  }
+  // photos → storage
+  const photoRecs = [];
+  for(const [key,file] of Object.entries(CMT.photos)){
+    const path = `cmt/${currentFirmId}/${crypto.randomUUID()}.jpg`;
+    const {error:upErr} = await sb.storage.from('inspection-photos').upload(path, file);
+    if(upErr){ showToast('Photo upload failed: '+upErr.message,'error'); return; }
+    photoRecs.push({key, path});
+  }
+  const gps = await new Promise(res=>{
+    if(!navigator.geolocation) return res({});
+    navigator.geolocation.getCurrentPosition(
+      p=>res({lat:p.coords.latitude,lng:p.coords.longitude}), ()=>res({}), {timeout:4000});
+  });
+  const specId = document.getElementById('cmt-spec-select').value || null;
+  const row = {
+    firm_id: currentFirmId, project_id: pid, test_type_id: t.id,
+    astm_ref: t.astm_ref, astm_year: t.astm_year, spec_id: specId,
+    field_data: v, photos: photoRecs,
+    computed: {pass_inputs: v, engine:'pack02-v1'},
+    pass_flag: pass, out_of_tolerance: pass===false,
+    inspector_note: ootNote, gps_lat: gps.lat, gps_lng: gps.lng,
+    submitted_by: currentUser.id, status:'submitted',
+  };
+  const {data:ins, error} = await sb.from('test_submissions').insert(row).select('id').single();
+  if(error){ showToast('Submit failed: '+error.message,'error'); return; }
+  // sample-making tests: auto-register with generated IDs + break schedule
+  if(t.makes_samples){
+    const n = +v.n_cylinders || +v.n_specimens || +v.n_prisms || 0;
+    const paving = v.paving === true;
+    const today = new Date().toISOString().slice(0,10);
+    for(let i=0;i<n;i++){
+      const {data:no, error:noErr} = await sb.rpc('next_sample_no',
+        {p_firm: currentFirmId, p_project: pid, p_cast: today});
+      if(noErr){ showToast('Sample ID generation failed: '+noErr.message,'error'); break; }
+      const {data:sched} = await sb.rpc('cmt_break_schedule', {p_cast: today, p_paving: paving});
+      await sb.from('samples').insert({
+        firm_id: currentFirmId, project_id: pid, submission_id: ins.id,
+        sample_no: no, kind: t.id.startsWith('masonry_prism')?'other':(t.tab==='masonry'?'cube':'cylinder'),
+        cast_date: today, break_schedule: sched,
+        custody_log: [{event:'cast', at:new Date().toISOString(), by: currentUser.id}],
+      });
+    }
+    showToast(`Test submitted — ${n} sample(s) registered with break schedules`,'success');
+  } else {
+    showToast(pass===false ? 'Submitted — FLAGGED out-of-tolerance for supervisor review' : 'Test submitted','success');
+  }
+  cmtCloseForm();
+}
+
+// ── samples register ─────────────────────────────────────────────────────────
+const CMT_STATUS_FLOW = {cast:'curing', curing:'transport', transport:'lab', lab:'broken'};
+async function cmtLoadSamples(){
+  const {data} = await sb.from('samples').select('*').is('deleted_at',null)
+    .order('cast_date',{ascending:false}).limit(300);
+  const el = document.getElementById('cmt-samples-list');
+  if(!data || !data.length){ el.innerHTML='<div class="loading">No samples yet — cast cylinders from a Concrete test.</div>'; return; }
+  el.innerHTML = '<table style="width:100%;font-size:13px"><tr style="color:var(--muted);text-align:left">'+
+    '<th style="padding:8px">Sample #</th><th>Kind</th><th>Cast</th><th>Breaks Due</th><th>Status</th><th></th></tr>'+
+    data.map(s=>{
+      const due = (s.break_schedule||[]).map(b=>`${b.day}d: ${b.due}`).join(' · ');
+      const next = CMT_STATUS_FLOW[s.status];
+      return `<tr style="border-top:1px solid var(--border)">
+        <td style="padding:8px;font-weight:600;color:var(--white)">${s.sample_no}</td>
+        <td>${s.kind}</td><td>${s.cast_date}</td>
+        <td style="font-size:11px;color:var(--muted)">${due}</td>
+        <td>${s.status}</td>
+        <td>${next?`<button class="btn-sm" onclick="cmtAdvanceSample('${s.id}','${next}')">→ ${next}</button>`:''}</td></tr>`;
+    }).join('')+'</table>';
+}
+async function cmtAdvanceSample(id, next){
+  const {data:s} = await sb.from('samples').select('custody_log').eq('id',id).single();
+  const log = (s?.custody_log)||[];
+  log.push({event:next, at:new Date().toISOString(), by: currentUser.id});
+  const {error} = await sb.from('samples').update({status:next, custody_log:log, updated_at:new Date().toISOString()}).eq('id',id);
+  if(error){ showToast('Custody update failed: '+error.message,'error'); return; }
+  showToast('Sample → '+next+' (audit-logged)','success');
+  cmtLoadSamples();
+}
+
+// ── job specs ────────────────────────────────────────────────────────────────
+function cmtOpenSpecModal(){ document.getElementById('modal-cmt-spec').classList.add('open'); }
+async function cmtSaveSpec(){
+  const pid = document.getElementById('cmt-project-select').value;
+  if(!pid){ showToast('Pick a project on the Tests page first (spec belongs to a project)','error'); return; }
+  const params = {};
+  document.getElementById('cmtspec-params').value.split('\n').forEach(line=>{
+    const m = line.match(/^\s*([A-Za-z0-9_]+)\s*:\s*(.+?)\s*$/);
+    if(m) params[m[1]] = isNaN(+m[2]) ? m[2] : +m[2];
+  });
+  const {error} = await sb.from('job_specs').insert({
+    firm_id: currentFirmId, project_id: pid,
+    kind: document.getElementById('cmtspec-kind').value,
+    name: document.getElementById('cmtspec-name').value.trim(),
+    material_key: document.getElementById('cmtspec-material').value.trim() || null,
+    params, created_by: currentUser.id,
+  });
+  if(error){ showToast('Save failed: '+error.message,'error'); return; }
+  closeModal('modal-cmt-spec'); showToast('Spec saved','success'); cmtLoadSpecs(); cmtProjectChanged();
+}
+async function cmtLoadSpecs(){
+  const {data} = await sb.from('job_specs').select('*, projects(name)').is('deleted_at',null).order('created_at',{ascending:false});
+  const el = document.getElementById('cmt-specs-list');
+  el.innerHTML = (data && data.length) ? data.map(s=>
+    `<div style="padding:10px;border-top:1px solid var(--border)">
+       <b style="color:var(--white)">${s.name}</b> <span style="color:var(--muted)">· ${s.kind} · ${s.projects?.name||''}${s.material_key?' · material '+s.material_key:''}</span>
+       <div style="font-size:11px;color:var(--muted)">${Object.entries(s.params).map(([k,val])=>k+'='+val).join(' · ')}</div>
+     </div>`).join('') : '<div class="loading">No specs yet.</div>';
+}
+
+// ── certifications ───────────────────────────────────────────────────────────
+function cmtOpenCertModal(){ document.getElementById('modal-cmt-cert').classList.add('open'); }
+async function cmtSaveCert(){
+  const {error} = await sb.from('certifications').insert({
+    firm_id: currentFirmId,
+    holder_name: document.getElementById('cmtcert-holder').value.trim(),
+    cert_name: document.getElementById('cmtcert-name').value.trim(),
+    cert_no: document.getElementById('cmtcert-no').value.trim() || null,
+    expires: document.getElementById('cmtcert-expires').value || null,
+  });
+  if(error){ showToast('Save failed: '+error.message,'error'); return; }
+  closeModal('modal-cmt-cert'); showToast('Certification saved','success'); cmtLoadCerts();
+}
+async function cmtLoadCerts(){
+  const {data} = await sb.from('certifications_status').select('*').order('expires',{ascending:true});
+  const el = document.getElementById('cmt-certs-list');
+  const chip = st => ({expired:'#ff8a7d', expiring_30:'#ff8a7d', expiring_60:'#e69500',
+                       expiring_90:'#ffd54a', active:'#7dff9e'})[st] || 'var(--muted)';
+  el.innerHTML = (data && data.length) ? '<table style="width:100%;font-size:13px">'+
+    data.map(c=>`<tr style="border-top:1px solid var(--border)">
+      <td style="padding:8px;color:var(--white)">${c.holder_name||''}</td>
+      <td>${c.cert_name}${c.cert_no?' #'+c.cert_no:''}</td>
+      <td>${c.expires||'no expiry'}</td>
+      <td style="color:${chip(c.status)};font-weight:700">${c.status.replace('_',' ')}</td></tr>`).join('')+'</table>'
+    : '<div class="loading">No certifications tracked yet.</div>';
+}
+
+// ── test log + per-submission ASTM report (Track 1 default template) ─────────
+async function cmtLoadLog(){
+  const {data} = await sb.from('test_submissions')
+    .select('*, test_types(name,tab), projects(name)')
+    .is('deleted_at',null).order('submitted_at',{ascending:false}).limit(200);
+  const el = document.getElementById('cmt-log-list');
+  el.innerHTML = (data && data.length) ? '<table style="width:100%;font-size:13px">'+
+    '<tr style="color:var(--muted);text-align:left"><th style="padding:8px">Test</th><th>Project</th><th>Result</th><th>When</th><th></th></tr>'+
+    data.map(s=>{
+      const pf = s.pass_flag===true?'<span style="color:#7dff9e">PASS</span>'
+               : s.pass_flag===false?'<span style="color:#ff8a7d">FAIL'+(s.supervisor_review?'':' · needs review')+'</span>'
+               : '<span style="color:var(--muted)">—</span>';
+      return `<tr style="border-top:1px solid var(--border)">
+        <td style="padding:8px;color:var(--white)">${s.test_types?.name||s.test_type_id}</td>
+        <td>${s.projects?.name||''}</td><td>${pf}</td>
+        <td style="font-size:11px;color:var(--muted)">${new Date(s.submitted_at).toLocaleString()}</td>
+        <td><button class="btn-sm" onclick="cmtReport('${s.id}')">Report</button></td></tr>`;
+    }).join('')+'</table>' : '<div class="loading">No tests submitted yet.</div>';
+}
+
+async function cmtReport(id){
+  const {data:s} = await sb.from('test_submissions')
+    .select('*, test_types(name,tab,field_schema), projects(name,client_name,location), firms(name)')
+    .eq('id',id).single();
+  if(!s){ showToast('Could not load submission','error'); return; }
+  const fields = (s.test_types?.field_schema?.fields||[]);
+  const rows = fields.map(f=>{
+    let val = s.field_data[f.key];
+    if(val===true) val='YES'; if(val===false) val='NO'; if(val==null) val='—';
+    return `<tr><td>${f.label||f.key}</td><td><b>${val}</b>${f.unit?' '+f.unit:''}</td></tr>`;
+  }).join('');
+  const pf = s.pass_flag===true?'<span class="pass">PASS</span>':s.pass_flag===false?'<span class="fail">FAIL — see note</span>':'<i>informational</i>';
+  const w = window.open('','_blank');
+  w.document.write(`<!doctype html><html><head><title>Test Report — ${s.test_types?.name}</title><style>
+    body{font:13px/1.5 Georgia,serif;color:#111;max-width:820px;margin:30px auto;padding:0 20px}
+    h1{font-size:20px;border-bottom:3px solid #111;padding-bottom:6px} h2{font-size:14px;margin-top:20px}
+    table{width:100%;border-collapse:collapse;margin-top:8px} td,th{border:1px solid #999;padding:6px 10px;text-align:left}
+    .meta td{border:none;padding:2px 8px 2px 0} .pass{color:#0a7d34;font-weight:bold} .fail{color:#b0201a;font-weight:bold}
+    .sig{margin-top:48px;display:flex;gap:60px} .sig div{flex:1;border-top:1px solid #111;padding-top:4px;font-size:11px}
+    .foot{margin-top:30px;font-size:10px;color:#555} @media print {button{display:none}}
+  </style></head><body>
+    <button onclick="print()" style="float:right">Print / Save PDF</button>
+    <h1>${s.firms?.name||'—'} — Field Test Report</h1>
+    <table class="meta"><tr><td><b>Test:</b> ${s.test_types?.name}</td><td><b>Standard:</b> ${s.astm_ref} (${s.astm_year})</td></tr>
+    <tr><td><b>Project:</b> ${s.projects?.name||''}</td><td><b>Client:</b> ${s.projects?.client_name||'—'}</td></tr>
+    <tr><td><b>Date:</b> ${new Date(s.submitted_at).toLocaleString()}</td><td><b>GPS:</b> ${s.gps_lat?(+s.gps_lat).toFixed(5)+', '+(+s.gps_lng).toFixed(5):'—'}</td></tr></table>
+    <h2>Results</h2><table>${rows}</table>
+    <h2>Determination</h2><p>${pf}${s.inspector_note?'<br><b>Inspector note:</b> '+s.inspector_note:''}</p>
+    <p style="font-size:11px;color:#555">Pass/fail is computed from the governing specification — never manually entered. Submission ${s.id} · audit-chained.</p>
+    <div class="sig"><div>Field Inspector</div><div>Engineer of Record${s.signed_at?' — signed '+new Date(s.signed_at).toLocaleDateString():' (pending)'}</div></div>
+    <div class="foot">Generated by MyInspector — multi-industry field inspection platform. Read-only record; edits require a new submission per the audit chain.</div>
+  </body></html>`);
+  w.document.close();
+}
+
 
 // ── AUTO AUTH ─────────────────────────────────────────
 sb.auth.onAuthStateChange((event,session)=>{
