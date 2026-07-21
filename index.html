@@ -1650,6 +1650,10 @@ html,body{overflow-x:hidden}
         </div>
         <button class="btn-sm btn-orange" style="margin-bottom:12px" onclick="cmtOpenSpecModal()">+ Add Spec</button>
         <div class="table-wrap"><div id="cmt-specs-list"><div class="loading">Loading…</div></div></div>
+        <div class="page-header" style="margin-top:18px"><div class="page-title" style="font-size:18px">Drawing Register</div>
+          <div class="page-sub">Rev-tracked drawings the visit reports cite (supersede-authority gate follows)</div></div>
+        <button class="btn-sm btn-orange" style="margin-bottom:12px" onclick="cmtOpenDrawingModal()">+ Register Drawing</button>
+        <div class="table-wrap"><div id="cmt-drawings-register"><div class="loading">Loading…</div></div></div>
       </div>
 
       <div class="panel" id="panel-cmt-certs">
@@ -1719,6 +1723,35 @@ html,body{overflow-x:hidden}
         <input class="modal-input" type="date" id="cmtcert-expires"></div>
     </div>
     <button class="btn-sm btn-orange" onclick="cmtSaveCert()">Save</button>
+  </div>
+</div>
+
+<!-- CMT DRAWING REGISTER MODAL -->
+<div class="modal-overlay" id="modal-cmt-drawing">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Register Drawing / Document</div>
+      <button class="modal-close" onclick="closeModal('modal-cmt-drawing')">✕</button>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field"><label class="modal-label">Type</label>
+        <select class="modal-select" id="cmtdw-type"><option value="drawing">Drawing</option><option value="document">Document</option></select></div>
+      <div class="modal-field"><label class="modal-label">Number</label>
+        <input class="modal-input" id="cmtdw-number" placeholder="S-201"></div>
+    </div>
+    <div class="modal-field"><label class="modal-label">Name</label>
+      <input class="modal-input" id="cmtdw-name" placeholder="Foundation plan — Level 2"></div>
+    <div class="modal-row">
+      <div class="modal-field"><label class="modal-label">Rev. Number</label>
+        <input class="modal-input" id="cmtdw-rev" placeholder="3"></div>
+      <div class="modal-field"><label class="modal-label">Rev. Date</label>
+        <input class="modal-input" type="date" id="cmtdw-revdate"></div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="cmtdw-approved"><label class="modal-label" style="margin:0">Approved</label></div>
+      <div class="modal-field" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="cmtdw-noted"><label class="modal-label" style="margin:0">Noted</label></div>
+    </div>
+    <button class="btn-sm btn-orange" onclick="cmtSaveDrawing()">Register</button>
   </div>
 </div>
 
@@ -3465,7 +3498,7 @@ async function initApp(user){
   try {
     const {data:profile} = await sb
       .from('profiles')
-      .select('firm_id,role,firms(name,firm_safe_to_display,active_pack,sample_prefix)')
+      .select('firm_id,role,firms(name,firm_safe_to_display,active_pack,sample_prefix,report_config)')
       .eq('id',user.id)
       .maybeSingle();
     if(profile){
@@ -3484,6 +3517,7 @@ async function initApp(user){
       ACTIVE_PACK = profile.firms?.active_pack || 'water';
       if (isSuperAdmin && localStorage.getItem('mi_pack_override')) ACTIVE_PACK = localStorage.getItem('mi_pack_override');
       currentFirmPrefix = profile.firms?.sample_prefix || null;
+      currentFirmReportCfg = profile.firms?.report_config || {};
     }
   } catch(e) {
     console.warn('Profile load failed, continuing:', e);
@@ -3550,7 +3584,7 @@ function showPanel(name){
   if(name==='cm-pm') loadCmPm();
   if(name==='hours-expenses') loadHoursExpenses();
   if(name==='cmt-samples') cmtLoadSamples();
-  if(name==='cmt-specs') cmtLoadSpecs();
+  if(name==='cmt-specs'){ cmtLoadSpecs(); cmtLoadDrawings(); }
   if(name==='cmt-certs') cmtLoadCerts();
   if(name==='cmt-log') cmtLoadLog();
 }
@@ -11291,7 +11325,8 @@ async function switchPack(pack){
 const CMT = { types: [], tab: 'concrete', specs: [], projects: [], activeType: null,
               photos: {}, samplesCache: [] };
 const CMT_TABS = [['concrete','Concrete'],['soils','Soils'],['rebar','Rebar'],
-                  ['masonry','Masonry'],['welding','Welding']];
+                  ['masonry','Masonry'],['welding','Welding'],
+                  ['steel','CFS / Steel'],['fireproofing','Fireproofing']];
 
 async function cmtInit(){
   const [{data:types},{data:projects}] = await Promise.all([
@@ -11354,6 +11389,41 @@ function cmtOpenForm(typeId){
     if(f.type==='textarea' || f.type==='gradation')
       return `<div class="modal-field"><label class="modal-label">${f.label}${f.required?' *':''}</label>
         <textarea class="modal-input" id="cmtf-${f.key}" rows="3" oninput="cmtRecalc()"></textarea>${hint}</div>`;
+    if(f.type==='tristate_list'){
+      const states = f.states || ['C','D','NA'];
+      const stLabel = {C:'In Compliance', D:'Discrepancy', NA:'N/A'};
+      return `<div class="modal-field"><label class="modal-label">${f.label}</label>` +
+        f.items.map((it,ii)=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:13px">${it}</span>
+          <span style="white-space:nowrap">${states.map(st=>
+            `<label style="font-size:11px;margin-left:8px"><input type="radio" name="cmtf-${f.key}-${ii}" value="${st}" onchange="cmtRecalc()"> ${stLabel[st]||st}</label>`).join('')}</span>
+        </div>`).join('') + `</div>`;
+    }
+    if(f.type==='readings_grid'){
+      // SFRM thickness: 6 locations x actual+corrected rows x 12 tests
+      let rows='';
+      for(let L=1;L<=6;L++) for(const sub of ['','A']){
+        rows += `<tr><td style="padding:2px 6px;color:var(--muted)">${L}${sub}${sub==='A'?' (corr.)':''}</td>` +
+          Array.from({length:12},(_,c)=>`<td><input data-rg="${f.key}" data-loc="${L}${sub}" data-col="${c+1}"
+            style="width:44px;background:var(--card2);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:2px" onchange="cmtRecalc()"></td>`).join('') + '</tr>';
+      }
+      return `<div class="modal-field"><label class="modal-label">${f.label} — inches (leave blank = unused; starred cols per variant = flange tips)</label>
+        <div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:11px">
+        <tr><td></td>${Array.from({length:12},(_,c)=>`<td style="padding:2px 6px;color:var(--muted)">#${c+1}</td>`).join('')}</tr>${rows}</table></div></div>`;
+    }
+    if(f.type==='density_grid'){
+      let rows='';
+      for(let i=1;i<=4;i++){
+        rows += `<tr><td style="padding:2px 4px;color:var(--muted)">S${i}</td>` +
+          ['member','position','len_in','wid_in','thk_in','wet_wt_lb'].map(k=>
+            `<td><input data-dg="${f.key}" data-row="${i}" data-k="${k}" placeholder="${k}"
+             style="width:${k==='member'?'150':'64'}px;background:var(--card2);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:2px" onchange="cmtRecalc()"></td>`).join('') +
+          `<td><input data-dg="${f.key}" data-row="${i}" data-k="dry_wts" placeholder="dry wts 0/8/16…hrs comma-sep"
+             style="width:200px;background:var(--card2);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:2px" onchange="cmtRecalc()"></td></tr>`;
+      }
+      return `<div class="modal-field"><label class="modal-label">${f.label} — dims in inches, weights in lbs</label>
+        <div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:11px">${rows}</table></div></div>`;
+    }
     if(f.type==='sample_ref')
       return `<div class="modal-field"><label class="modal-label">${f.label} *</label>
         <select class="modal-select" id="cmtf-${f.key}" onchange="cmtSampleRefChanged(this.value)"></select>${hint}</div>`;
@@ -11363,7 +11433,15 @@ function cmtOpenForm(typeId){
     return `<div class="modal-field"><label class="modal-label">${f.label}${f.unit?' ('+f.unit+')':''}${f.required?' *':''}</label>
       <input class="modal-input" id="cmtf-${f.key}"${numAttrs} value="${val}" oninput="cmtRecalc()"${matHook}>${hint}</div>`;
   }).join('');
-  document.getElementById('cmt-form-fields').innerHTML = fields;
+  document.getElementById('cmt-form-fields').innerHTML = fields +
+    `<div class="modal-field" id="cmt-drawings-box"><label class="modal-label">Drawings / Documents used on this visit (from the job register)</label>
+       <div id="cmt-drawings-list" style="font-size:12px;color:var(--muted)">no register entries for this project — add them under Job Specs → Drawings</div></div>` +
+    ((t.id==='rebar_placement'||t.id==='cfs_inspection') ?
+    `<div class="modal-field"><label class="modal-label">Elements inspected on this visit (floor + element ID — the which-of-50 answer)</label>
+       <div id="cmt-pins-rows"></div>
+       <button type="button" class="btn-sm" onclick="cmtAddPinRow()">+ element</button></div>` : '');
+  cmtFillDrawings();
+  if(document.getElementById('cmt-pins-rows')) cmtAddPinRow();
   document.getElementById('cmt-form-photos').innerHTML = (t.photo_reqs||[]).map(p=>
     `<div class="modal-field"><label class="modal-label">📷 ${p.label}${p.required?' *':''}</label>
       <input type="file" accept="image/*" capture="environment" id="cmtp-${p.key}" onchange="cmtPhotoPicked('${p.key}',this)"></div>`).join('');
@@ -11418,6 +11496,32 @@ async function cmtProctorPreload(materialKey){
 function cmtFieldVals(){
   const out = {};
   (CMT.activeType.field_schema.fields||[]).forEach(f=>{
+    if(f.type==='tristate_list'){
+      out[f.key] = (f.items||[]).map((it,ii)=>{
+        const sel = document.querySelector('input[name="cmtf-'+f.key+'-'+ii+'"]:checked');
+        return { item: it, state: sel ? sel.value : null };
+      });
+      return;
+    }
+    if(f.type==='readings_grid'){
+      const g = {};
+      document.querySelectorAll('input[data-rg="'+f.key+'"]').forEach(inp=>{
+        if(inp.value==='') return;
+        (g[inp.dataset.loc] = g[inp.dataset.loc] || {})[inp.dataset.col] = +inp.value;
+      });
+      out[f.key] = g;
+      return;
+    }
+    if(f.type==='density_grid'){
+      const rows = {};
+      document.querySelectorAll('input[data-dg="'+f.key+'"]').forEach(inp=>{
+        if(inp.value==='') return;
+        (rows[inp.dataset.row] = rows[inp.dataset.row] || {})[inp.dataset.k] =
+          inp.dataset.k==='member'||inp.dataset.k==='position'||inp.dataset.k==='dry_wts' ? inp.value : +inp.value;
+      });
+      out[f.key] = Object.values(rows);
+      return;
+    }
     const el = document.getElementById('cmtf-'+f.key);
     if(!el) return;
     if(f.type==='checkbox'||f.type==='checkitem') out[f.key] = el.checked;
@@ -11470,6 +11574,19 @@ function cmtPassFail(logic, v){
       return items.length ? items.every(f=>v[f.key]===true) : null;
     }
     case 'select_equals': return v[logic.value_key]==null ? null : v[logic.value_key]===logic.expect;
+    case 'tristate_no_discrepancies': {
+      const list = v[logic.list_key] || [];
+      if(!list.length || list.every(x=>!x.state)) return null;
+      return !list.some(x=>x.state==='D');
+    }
+    case 'sfrm_thickness': {
+      const comp = sfrmThicknessCompute(v);
+      return comp && comp.rows.length ? comp.rows.every(r=>r.status==='PASS') : null;
+    }
+    case 'sfrm_density': {
+      const comp = sfrmDensityCompute(v);
+      return comp && comp.n ? comp.pass : null;
+    }
     case 'gradation_in_band': return null;   // spec-band overlay charts land with real sieve bands (v1.1)
     default: return null;
   }
@@ -11522,8 +11639,20 @@ async function cmtSubmitTest(){
     inspector_note: ootNote, gps_lat: gps.lat, gps_lng: gps.lng,
     submitted_by: currentUser.id, status:'submitted',
   };
+  row.drawings_used = [...document.querySelectorAll('#cmt-drawings-list input:checked')].map(x=>x.value);
+  row.report_no = cmtReportNo(t);
   const {data:ins, error} = await sb.from('test_submissions').insert(row).select('id').single();
   if(error){ showToast('Submit failed: '+error.message,'error'); return; }
+  // element pins (Missing #1 foundation) ride with the submission
+  const pinRows = [...document.querySelectorAll('#cmt-pins-rows .cmt-pin-row')].map(r=>({
+    element_type: r.querySelector('[data-p="type"]').value.trim(),
+    location: r.querySelector('[data-p="loc"]').value.trim(),
+    remarks: r.querySelector('[data-p="rem"]').value.trim() || null,
+  })).filter(p=>p.element_type || p.location);
+  if(pinRows.length){
+    await sb.from('element_pins').insert(pinRows.map(p=>({
+      ...p, firm_id: currentFirmId, project_id: pid, submission_id: ins.id })));
+  }
   // sample-making tests: auto-register with generated IDs + break schedule
   if(t.makes_samples){
     const n = +v.n_cylinders || +v.n_specimens || +v.n_prisms || 0;
@@ -11655,41 +11784,314 @@ async function cmtLoadLog(){
     }).join('')+'</table>' : '<div class="loading">No tests submitted yet.</div>';
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// PACK02 REPORT TEMPLATES — the firm-skinned standardized formats (CFS / RBAR /
+// SFRM Thickness x5 / SFRM Density / Soils freehand). Layout + field structure
+// recreated from the industry-standard forms; ALL identity renders from
+// firms.report_config. Computed cells are computed here, never typed.
+// ══════════════════════════════════════════════════════════════════════════════
+let currentFirmReportCfg = {};
+
+function cmtReportNo(t){
+  const prefix = (currentFirmReportCfg.form_prefix || currentFirmPrefix || 'FIRM');
+  const code = t.id==='cfs_inspection'?'CFS':t.id==='rebar_placement'?'RBAR':
+               t.id==='sfrm_thickness'?'SFRM-T':t.id==='sfrm_density'?'SFRM-D':
+               t.tab==='soils'?'SOIL':'RPT';
+  const d = new Date();
+  return `${prefix}-${code}-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(Math.floor(Math.random()*900)+100)}`;
+}
+
+// ── drawings register (Missing #2 foundation) ────────────────────────────────
+async function cmtFillDrawings(){
+  const pid = document.getElementById('cmt-project-select').value;
+  const box = document.getElementById('cmt-drawings-list');
+  if(!box || !pid) return;
+  const {data} = await sb.from('job_drawings').select('*').eq('project_id',pid).is('deleted_at',null).order('number');
+  if(!data || !data.length) return;
+  box.innerHTML = data.map(d=>
+    `<label style="display:block;padding:2px 0"><input type="checkbox" value="${d.id}"> ${d.dtype==='document'?'DOC':'DWG'} ${d.number} — ${d.name} (Rev ${d.rev_no||'—'} ${d.rev_date||''}) ${d.approved?'· Approved':''}${d.noted?'· Noted':''}</label>`).join('');
+}
+function cmtAddPinRow(){
+  const box = document.getElementById('cmt-pins-rows');
+  const div = document.createElement('div');
+  div.className='cmt-pin-row';
+  div.style.cssText='display:flex;gap:6px;margin-bottom:4px';
+  div.innerHTML = `<input data-p="type" placeholder="Element type (Column)" class="modal-input" style="flex:1">
+    <input data-p="loc" placeholder="Specific location (4th flr — C-12)" class="modal-input" style="flex:2">
+    <input data-p="rem" placeholder="Remarks" class="modal-input" style="flex:1">`;
+  box.appendChild(div);
+}
+function cmtOpenDrawingModal(){ document.getElementById('modal-cmt-drawing').classList.add('open'); }
+async function cmtSaveDrawing(){
+  const pid = document.getElementById('cmt-project-select').value;
+  if(!pid){ showToast('Pick a project on the Tests page first','error'); return; }
+  const {error} = await sb.from('job_drawings').insert({
+    firm_id: currentFirmId, project_id: pid,
+    dtype: document.getElementById('cmtdw-type').value,
+    number: document.getElementById('cmtdw-number').value.trim(),
+    name: document.getElementById('cmtdw-name').value.trim(),
+    rev_no: document.getElementById('cmtdw-rev').value.trim() || null,
+    rev_date: document.getElementById('cmtdw-revdate').value || null,
+    approved: document.getElementById('cmtdw-approved').checked,
+    noted: document.getElementById('cmtdw-noted').checked,
+    created_by: currentUser.id });
+  if(error){ showToast('Save failed: '+error.message,'error'); return; }
+  closeModal('modal-cmt-drawing'); showToast('Drawing registered','success');
+  cmtLoadDrawings(); cmtFillDrawings();
+}
+async function cmtLoadDrawings(){
+  const el = document.getElementById('cmt-drawings-register');
+  if(!el) return;
+  const {data} = await sb.from('job_drawings').select('*, projects(name)').is('deleted_at',null).order('created_at',{ascending:false}).limit(100);
+  el.innerHTML = (data&&data.length) ? data.map(d=>
+    `<div style="padding:6px 0;border-top:1px solid var(--border);font-size:13px">
+      <b style="color:var(--white)">${d.dtype==='document'?'DOC':'DWG'} ${d.number}</b> ${d.name}
+      <span style="color:var(--muted)">· Rev ${d.rev_no||'—'} ${d.rev_date||''} · ${d.projects?.name||''} ${d.approved?'· ✔Approved':''}${d.noted?'· ✎Noted':''}</span></div>`).join('')
+    : '<div class="loading">No drawings registered.</div>';
+}
+
+// ── SFRM computations (engine-computed, never hand-entered) ──────────────────
+// Variant reading maps = CONFIG (Jorge corrects against the originals if needed)
+const SFRM_VARIANTS = {
+  '01':{label:'Columns', n:12, tips:[1,12]}, '02':{label:'Beams', n:9, tips:[1,9]},
+  '03':{label:'Joists', n:9, tips:[1,9]}, '04':{label:'Roof, Deck or Wall Assemblies', n:12, tips:[]},
+  '05':{label:'Tube and Pipe Columns', n:12, tips:[]},
+};
+const r16 = x => Math.round(x*16)/16;   // NOTES: readings to the nearest 1/16"
+function sfrmThicknessCompute(v){
+  const g = v.readings || {};
+  const R = +v.required_thickness_in;
+  const varKey = (v.variant||'01').slice(0,2);
+  const cfg = SFRM_VARIANTS[varKey] || SFRM_VARIANTS['01'];
+  const rows = [];
+  for(let L=1; L<=6; L++){
+    const act = g[String(L)] || {}, corr = g[L+'A'] || {};
+    const eff = {};
+    for(let c=1; c<=cfg.n; c++){
+      const val = corr[c] != null ? corr[c] : act[c];
+      if(val != null) eff[c] = r16(val);
+    }
+    const vals = Object.values(eff);
+    if(!vals.length) continue;
+    const tipVals = cfg.tips.map(c=>eff[c]).filter(x=>x!=null);
+    const avg = r16(vals.reduce((a,b)=>a+b,0)/vals.length);
+    const tipAvg = tipVals.length ? r16(tipVals.reduce((a,b)=>a+b,0)/tipVals.length) : null;
+    let pass = null;
+    if(isFinite(R)){
+      const indMin = R < 1 ? 0.75*R : R - 0.25;      // NOTES rules, verbatim encoding
+      pass = vals.every(x=>x >= indMin - 1e-9) && avg >= R - 1e-9 &&
+             (tipAvg == null || tipAvg >= R - 1e-9);
+    }
+    rows.push({loc:L, eff, avg, tipAvg, status: pass==null?'—':pass?'PASS':'FAIL'});
+  }
+  return {rows, cfg, R};
+}
+function sfrmDensityCompute(v){
+  const rows = (v.samples||[]).map((sam,i)=>{
+    const vol_in3 = (+sam.len_in||0)*(+sam.wid_in||0)*(+sam.thk_in||0);
+    const dry = String(sam.dry_wts||'').split(',').map(x=>+x.trim()).filter(x=>isFinite(x)&&x>0);
+    const w = dry.length ? dry[dry.length-1] : (+sam.wet_wt_lb||0);
+    const vol_ft3 = vol_in3/1728;
+    const dens = vol_ft3>0 ? w/vol_ft3 : 0;
+    return {id: 'S'+(i+1), member: sam.member||'', position: sam.position||'',
+            len:+sam.len_in||0, wid:+sam.wid_in||0, thk:+sam.thk_in||0,
+            vol_in3: +vol_in3.toFixed(1), dry_series: dry, w, dens: +dens.toFixed(2)};
+  }).filter(r=>r.vol_in3>0 && r.w>0);
+  if(!rows.length) return {n:0};
+  const ds = rows.map(r=>r.dens);
+  const avg = +(ds.reduce((a,b)=>a+b,0)/ds.length).toFixed(2);
+  const req = +v.req_avg_density_pcf;
+  return {n:rows.length, rows, max:Math.max(...ds), min:Math.min(...ds), avg,
+          req, pass: isFinite(req) ? avg >= req : null};
+}
+
+// ── report chassis + legends ─────────────────────────────────────────────────
+function rcCfg(){ return currentFirmReportCfg || {}; }
+function rcChassis(title2, sub, info, body, formCode){
+  const c = rcCfg();
+  const firm = c.firm_display || 'FIRM';
+  const d = new Date();
+  return `<!doctype html><html><head><title>${title2}</title><style>
+    @page { size: letter portrait; margin: 0.55in; }
+    body{font:11.5px/1.45 'Times New Roman',Georgia,serif;color:#000;max-width:7.4in;margin:14px auto}
+    .hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2.5px solid #000;padding-bottom:6px}
+    .logo{font:700 20px Georgia;letter-spacing:1px} .logo img{max-height:52px}
+    .accr{font-size:10px;text-align:right;font-style:italic}
+    h1{font-size:14px;text-align:center;margin:10px 0 2px;text-transform:uppercase;letter-spacing:0.5px}
+    h2{font-size:13px;text-align:center;margin:0 0 12px;text-transform:uppercase}
+    .info{display:grid;grid-template-columns:1fr 1fr;gap:2px 30px;margin:10px 0}
+    .info div{display:flex;gap:6px} .info b{white-space:nowrap;min-width:120px;text-align:right;font-weight:700}
+    .info span{border-bottom:1px solid #000;flex:1;min-height:14px;padding-left:4px}
+    p.narr{margin:12px 0;text-align:justify}
+    table{border-collapse:collapse;width:100%;margin:8px 0} td,th{border:1px solid #000;padding:3px 5px;font-size:10.5px;vertical-align:top}
+    th{background:#eee;text-align:center;font-weight:700}
+    .chk{text-align:center;width:66px} .comments{min-height:70px}
+    .sig{margin-top:34px} .sig .line{display:inline-block;border-top:1px solid #000;min-width:230px;padding-top:2px;font-size:10.5px}
+    .foot{margin-top:26px;border-top:1.5px solid #000;padding-top:4px;font-size:9.5px;display:flex;justify-content:space-between}
+    .pass{color:#0a6b2d;font-weight:700}.fail{color:#a01810;font-weight:700}
+    .notes{font-size:9.5px;border:1px solid #000;padding:6px;margin-top:8px}
+    @media print {button{display:none}}
+  </style></head><body>
+  <button onclick="print()" style="float:right">Print / Save PDF</button>
+  <div class="hdr">
+    <div class="logo">${c.logo_url?`<img src="${c.logo_url}">`:firm}</div>
+    <div class="accr">${c.accreditation||''}</div>
+  </div>
+  <h1>${sub}</h1><h2>${title2}</h2>
+  <div class="info">${info}</div>
+  ${body}
+  <div class="sig">Respectfully Submitted,<br><br><br><span class="line">Special Inspector</span></div>
+  <div class="foot"><span>${formCode} Rv01 · ${d.toLocaleString('en-US',{month:'short',year:'numeric'})}</span>
+    <span>${c.address_line||''} ${c.website?'· '+c.website:''} ${c.phone?'· '+c.phone:''}</span>
+    <span>Page 1 of 1</span></div>
+  </body></html>`;
+}
+function rcInfo(pairsL, pairsR){
+  const cell = ([k,v])=>`<div><b>${k}:</b><span>${v??''}</span></div>`;
+  const L = pairsL.map(cell).join(''), R = pairsR.map(cell).join('');
+  return `<div style="display:flex;flex-direction:column;gap:2px">${L}</div><div style="display:flex;flex-direction:column;gap:2px">${R}</div>`;
+}
+function rcDrawingsTable(drawings, nRows){
+  const rows = [];
+  for(let i=0;i<nRows;i++){
+    const d = drawings[i] || {};
+    rows.push(`<tr><td>${d.dtype||''}</td><td>${d.number||''}</td><td>${d.name||''}</td>
+      <td>${d.rev_no||''}</td><td>${d.rev_date||''}</td>
+      <td class="chk">${d.approved?'☒':'☐'}</td><td class="chk">${d.noted?'☒':'☐'}</td></tr>`);
+  }
+  return `<p style="font-weight:700;margin:10px 0 0">PROVIDED DRAWINGS / DOCUMENTS USED ON THIS VISIT</p>
+    <table><tr><th>Type</th><th>Number</th><th>Name</th><th>Rev. No.</th><th>Rev. Date</th><th>Approved</th><th>Noted</th></tr>${rows.join('')}</table>`;
+}
+const SFRM_LEGENDS = {
+  '01': `<svg viewBox="0 0 220 120" width="200"><g stroke="#000" fill="none" stroke-width="2"><path d="M40 20 h140 M40 100 h140 M40 20 v12 h56 v56 h-56 v12 M180 20 v12 h-56 v56 h56 v12"/></g><g font-size="9" text-anchor="middle">${[[40,14,'1*'],[110,14,'2'],[180,14,'3'],[186,40,'4'],[186,60,'5'],[186,80,'6'],[180,112,'7'],[110,112,'8'],[40,112,'9*'],[34,80,'10'],[34,60,'11'],[34,40,'12']].map(([x,y,n])=>`<text x="${x}" y="${y}">${n}</text>`).join('')}</g></svg>`,
+  '02': `<svg viewBox="0 0 220 120" width="200"><g stroke="#000" fill="none" stroke-width="2"><path d="M50 25 h120 M50 95 h120 M50 25 v8 h52 v54 h-52 v8 M170 25 v8 h-52 v54 h52 v8"/></g><g font-size="9" text-anchor="middle">${[[50,18,'1*'],[110,18,'2'],[170,18,'3'],[176,60,'4'],[170,108,'5'],[110,108,'6'],[50,108,'7'],[44,60,'8'],[110,60,'9*']].map(([x,y,n])=>`<text x="${x}" y="${y}">${n}</text>`).join('')}</g></svg>`,
+  '03': `<svg viewBox="0 0 220 120" width="200"><g stroke="#000" fill="none" stroke-width="2"><path d="M40 30 h140 M60 90 h100 M60 30 l20 60 M120 30 l-20 60 M120 30 l20 60 M180 30 l-20 60"/></g><g font-size="9" text-anchor="middle">${[[40,22,'1*'],[110,22,'2'],[180,22,'3'],[60,102,'4'],[110,102,'5'],[160,102,'6'],[80,60,'7'],[110,60,'8'],[140,60,'9']].map(([x,y,n])=>`<text x="${x}" y="${y}">${n}</text>`).join('')}</g></svg>`,
+  '04': `<svg viewBox="0 0 220 120" width="200"><g stroke="#000" fill="none" stroke-width="2"><path d="M20 70 l20 -25 l20 25 l20 -25 l20 25 l20 -25 l20 25 l20 -25 l20 25 M20 95 h180"/></g><g font-size="9" text-anchor="middle">${Array.from({length:12},(_,i)=>`<text x="${25+i*15}" y="${i%2? 112 : 35}">${i+1}</text>`).join('')}</g></svg>`,
+  '05': `<svg viewBox="0 0 220 120" width="200"><g stroke="#000" fill="none" stroke-width="2"><circle cx="70" cy="60" r="34"/><rect x="130" y="26" width="68" height="68"/></g><g font-size="9" text-anchor="middle">${[[70,18,'1'],[110,60,'2'],[70,104,'3'],[30,60,'4'],[164,18,'5'],[204,60,'6'],[164,104,'7'],[122,60,'8'],[70,60,'9'],[164,60,'10'],[45,35,'11'],[140,40,'12']].map(([x,y,n])=>`<text x="${x}" y="${y}">${n}</text>`).join('')}</g></svg>`,
+};
+
+// ── the template family (dispatch replaces the Track 1 default) ──────────────
 async function cmtReport(id){
   const {data:s} = await sb.from('test_submissions')
-    .select('*, test_types(name,tab,field_schema), projects(name,client_name,location), firms(name)')
+    .select('*, test_types(id,tab,name,field_schema), projects(name,client_name,location,city,state), firms(name,report_config)')
     .eq('id',id).single();
   if(!s){ showToast('Could not load submission','error'); return; }
+  currentFirmReportCfg = Object.assign({}, s.firms?.report_config || {}, {firm_display: s.firms?.name});
+  const firm = s.firms?.name || 'FIRM';
+  const prefix = currentFirmReportCfg.form_prefix || 'FIRM';
+  const v = s.field_data || {};
+  const {data:dws} = s.drawings_used && s.drawings_used.length
+    ? await sb.from('job_drawings').select('*').in('id', s.drawings_used) : {data: []};
+  const {data:pins} = await sb.from('element_pins').select('*').eq('submission_id', id).is('deleted_at',null);
+  const infoL = [['CLIENT', s.projects?.client_name], ['PROJECT NAME', s.projects?.name],
+                 ['PROJECT ADDRESS', [s.projects?.location, s.projects?.city, s.projects?.state].filter(Boolean).join(', ')],
+                 ['AREA INSPECTED', v.area_inspected || v.area_sprayed || '']];
+  const infoR = [['DATE', new Date(s.submitted_at).toLocaleDateString()],
+                 ['REPORT NUMBER', s.report_no || s.id.slice(0,8)],
+                 ['SPECIAL INSPECTOR', currentUser?.user_metadata?.full_name || '']];
+  const tid = s.test_types?.id;
+  let html;
+  if(tid === 'cfs_inspection'){
+    const chk = v.chk || [];
+    const rows = chk.map(x=>`<tr><td>${x.item}</td>
+      <td class="chk">${x.state==='C'?'☒':'☐'}</td><td class="chk">${x.state==='D'?'☒':'☐'}</td><td class="chk">${x.state==='NA'?'☒':'☐'}</td></tr>`).join('');
+    html = rcChassis('FIELD INSPECTION REPORT','COLD-FORMED STEEL', rcInfo(infoL, infoR),
+      `<p class="narr">${firm} has conducted Cold-Formed Steel Inspection as requested by the Client at the location mentioned above for compliance according to Provided Documentation (listed below). Any deficiency, discrepancy or deviation from provided documents will be listed on Non-Conformance Report until corrected.</p>` +
+      rcDrawingsTable(dws||[], 6) +
+      `<table><tr><th style="text-align:left">Inspection Item</th><th>In Compliance</th><th>Discrepancies (See Comments)</th><th>Non-Applicable</th></tr>${rows}</table>` +
+      `<p style="font-weight:700;margin-bottom:2px">COMMENTS</p><table><tr><td class="comments">${(v.comments||'').replace(/\\n/g,'<br>')}</td></tr></table>` +
+      `<p>Compliance / Discrepancies were informed to Contractor / GC / Client Representative(s): <u>${v.informed_to||'&nbsp;&nbsp;&nbsp;&nbsp;'}</u></p>`,
+      `${prefix}-CFS-FR`);
+  } else if(tid === 'rebar_placement'){
+    const items = (s.test_types.field_schema.fields||[]).filter(f=>f.type==='checkitem');
+    const rows = items.map(f=>`<tr><td>${f.label}</td>
+      <td class="chk">${v[f.key]===true?'☒':'☐'}</td><td class="chk">${v[f.key]===false?'☒':'☐'}</td></tr>`).join('');
+    const pinRows = [];
+    for(let i=0;i<6;i++){ const p=(pins||[])[i]||{};
+      pinRows.push(`<tr><td>${p.element_type||''}</td><td>${p.location||''}</td><td>${p.remarks||''}</td></tr>`); }
+    html = rcChassis('FIELD INSPECTION REPORT','REINFORCING STEEL (REBAR)', rcInfo(infoL, infoR),
+      `<p class="narr">${firm} has conducted Reinforcing Steel Placement Inspection as requested by the Client at the location mentioned above for compliance according to Provided Documentation (listed below). Any deficiency, discrepancy or deviation from provided documents will be listed on Non-Conformance Report until corrected.</p>` +
+      `<p style="font-weight:700;margin:10px 0 0">ELEMENTS INSPECTED ON THIS VISIT</p>
+       <table><tr><th>Element Type</th><th>Specific Location</th><th>Remarks</th></tr>${pinRows.join('')}</table>` +
+      rcDrawingsTable(dws||[], 8) +
+      `<table><tr><th style="text-align:left">Placement Item</th><th>In Compliance</th><th>Discrepancies (See Comments)</th></tr>${rows}</table>` +
+      `<p style="font-weight:700;margin-bottom:2px">COMMENTS</p><table><tr><td class="comments">${(v.non_conformances||'').replace(/\\n/g,'<br>')}</td></tr></table>` +
+      `<p>ICC Certification Number: <u>${v.mill_cert_no ? '' : ''}${v.icc_cert||'&nbsp;&nbsp;&nbsp;'}</u></p>`,
+      `${prefix}-RBAR-FR`);
+  } else if(tid === 'sfrm_thickness'){
+    const comp = sfrmThicknessCompute(v);
+    const varKey = (v.variant||'01').slice(0,2);
+    const head = Array.from({length:comp.cfg.n},(_,c)=>`<th>#${c+1}${comp.cfg.tips.includes(c+1)?'*':''}</th>`).join('');
+    const rows = comp.rows.map(r=>{
+      const cells = Array.from({length:comp.cfg.n},(_,c)=>`<td class="chk">${r.eff[c+1]!=null?r.eff[c+1].toFixed(4).replace(/\\.?0+$/,''):''}</td>`).join('');
+      return `<tr><td>Loc ${r.loc}</td>${cells}<td class="chk">${r.tipAvg!=null?r.tipAvg:'—'}</td><td class="chk">${r.avg}</td>
+        <td class="chk ${r.status==='PASS'?'pass':r.status==='FAIL'?'fail':''}">${r.status}</td><td></td></tr>`;
+    }).join('');
+    html = rcChassis('FIELD INSPECTION THICKNESS REPORT', 'SPRAY-APPLIED FIRE RESISTIVE MATERIAL — ' + comp.cfg.label.toUpperCase(),
+      rcInfo(infoL.concat([['CONTRACTOR', v.contractor],['AREA SPRAYED', v.area_sprayed]]),
+             infoR.concat([['ICC CERT #', v.icc_cert],['WEATHER', v.weather],['MATERIAL APPLIED', v.material_applied],['DEVIATION / MODIFICATION', v.deviation]])),
+      `<p class="narr">${firm} has verified minimum applied thickness per the Approved UL-Design listed on the Contractor's Approved Submittals, and the overall quality of application. Any damage or deficiency observed will be listed on the Non-Conformance Report / punch list until corrected.</p>` +
+      `<div style="display:flex;gap:16px;align-items:center"><div>${SFRM_LEGENDS[varKey]||''}</div>
+        <div style="font-size:10px">LEGEND — numbered reading positions (* = flange tips)<br>
+        <b>Required Thickness: ${v.required_thickness_in||'—'} in.</b></div></div>` +
+      `<table><tr><th>Location</th>${head}<th>Tip Avg.*</th><th>Avg.</th><th>Status</th><th>Remarks</th></tr>${rows}</table>` +
+      `<div class="notes"><b>NOTES:</b> Readings rounded to the nearest 1/16 in. Where the minimum required thickness is less than 1 in., every individual reading shall be at least 75% of the minimum requirement. Where the minimum required thickness is 1 in. or greater, no individual reading shall be below the minimum less 1/4 in. Flange-tip readings are averaged separately where the UL design so requires. Status is computed from these rules — it is not hand-entered.</div>`,
+      `${prefix}-SFRM-FR-${varKey}`);
+  } else if(tid === 'sfrm_density'){
+    const comp = sfrmDensityCompute(v);
+    const secA = (comp.rows||[]).map(r=>`<tr><td>${r.id}</td><td>${r.member} ${r.position?'('+r.position+')':''}</td>
+      <td class="chk">${r.len}</td><td class="chk">${r.wid}</td><td class="chk">${r.thk}</td>
+      <td class="chk">${r.vol_in3}</td><td class="chk">${r.dens}</td></tr>`).join('');
+    const hrs = [0,8,16,24,32,40,48,56,64];
+    const secB1 = (comp.rows||[]).map(r=>`<tr><td>${r.id}</td>${hrs.map((h,i)=>`<td class="chk">${r.dry_series[i]!=null?r.dry_series[i]:''}</td>`).join('')}</tr>`).join('');
+    const isMeas = (v.method||'').startsWith('MEASUREMENT');
+    html = rcChassis('FIELD INSPECTION DENSITY REPORT', 'SPRAY-APPLIED FIRE RESISTIVE MATERIAL',
+      rcInfo(infoL.concat([['CONTRACTOR', v.contractor]]),
+             infoR.concat([['AMBIENT CONDITIONS', v.ambient],['MATERIAL APPLIED', v.material_applied],['DEVIATIONS / MODIFICATIONS', v.deviation]])),
+      `<p class="narr">${firm} has performed density sampling of Spray-Applied Fire Resistive Material in accordance with ASTM E605 and the Approved UL-Design listed on the Contractor's Approved Submittals and project specifications.</p>` +
+      `<p style="font-weight:700;margin-bottom:2px">SECTION A — ON-SITE SAMPLING</p>
+       <table><tr><th>Sample ID</th><th>Member (Location / Type / Position)</th><th>Length (in)</th><th>Width (in)</th><th>Thickness (in)</th><th>Volume (in³)</th><th>Ind. Density (pcf)</th></tr>${secA}</table>` +
+      `<p style="font-weight:700;margin-bottom:2px">SECTION B — LABORATORY CALCULATIONS</p>
+       <p style="font-size:10px;margin:2px 0">B1 — Drying to constant weight (lbs at hours):</p>
+       <table><tr><th></th>${hrs.map(h=>`<th>${h}h</th>`).join('')}</tr>${secB1}</table>
+       <p style="font-size:10px;margin:6px 0 2px">B2 — Volume &amp; Density: ${isMeas?'☒':'☐'} MEASUREMENT METHOD (ft³ = in³/1728) &nbsp; ${isMeas?'☐':'☒'} DISPLACEMENT METHOD (ft³ = cc/28317)</p>` +
+      `<p style="font-weight:700;margin-bottom:2px">SECTION 3 — AVERAGE DENSITY RESULTS</p>
+       <table><tr><th>Maximum</th><th>Minimum</th><th>Average</th><th>Req. Avg. Density</th><th>Results</th></tr>
+       <tr><td class="chk">${comp.max??''}</td><td class="chk">${comp.min??''}</td><td class="chk">${comp.avg??''}</td>
+       <td class="chk">${comp.req??''}</td><td class="chk ${comp.pass?'pass':'fail'}">${comp.pass==null?'—':comp.pass?'PASS':'FAIL'}</td></tr></table>
+       <p style="font-size:9.5px">All volumes, densities, averages and results are computed by the engine from raw sample dimensions and weights — computed cells cannot be hand-edited.</p>`,
+      `${prefix}-SFRM-FR-06`);
+  } else if(s.test_types?.tab === 'soils' && tid === 'soils_field_report'){
+    html = rcChassis('FIELD INSPECTION REPORT','SOILS',
+      rcInfo(infoL, infoR),
+      `<p style="font-weight:700;margin-bottom:2px">FIELD NARRATIVE</p>
+       <table><tr><td class="comments" style="min-height:340px">${(v.narrative||'').replace(/\\n/g,'<br>')}</td></tr></table>` +
+      `<p>Findings informed to: <u>${v.informed_to||'&nbsp;&nbsp;&nbsp;&nbsp;'}</u></p>`,
+      `${prefix}-SOIL-FR`);
+  } else {
+    return cmtReportDefault(id, s);   // every other test type keeps the Track 1 default
+  }
+  const w = window.open('','_blank');
+  w.document.write(html); w.document.close();
+}
+// Track 1 default preserved for registry tests without a standardized format
+async function cmtReportDefault(id, s){
   const fields = (s.test_types?.field_schema?.fields||[]);
-  const rows = fields.map(f=>{
+  const rows = fields.filter(f=>!['tristate_list','readings_grid','density_grid'].includes(f.type)).map(f=>{
     let val = s.field_data[f.key];
     if(val===true) val='YES'; if(val===false) val='NO'; if(val==null) val='—';
     return `<tr><td>${f.label||f.key}</td><td><b>${val}</b>${f.unit?' '+f.unit:''}</td></tr>`;
   }).join('');
   const pf = s.pass_flag===true?'<span class="pass">PASS</span>':s.pass_flag===false?'<span class="fail">FAIL — see note</span>':'<i>informational</i>';
+  const html = rcChassis('FIELD TEST REPORT', (s.test_types?.name||'').toUpperCase(),
+    rcInfo([['CLIENT', s.projects?.client_name],['PROJECT NAME', s.projects?.name],['STANDARD', s.astm_ref+' ('+s.astm_year+')']],
+           [['DATE', new Date(s.submitted_at).toLocaleString()],['REPORT NUMBER', s.report_no||s.id.slice(0,8)]]),
+    `<table>${rows}</table><p><b>Determination:</b> ${pf}${s.inspector_note?'<br><b>Inspector note:</b> '+s.inspector_note:''}</p>
+     <p style="font-size:9.5px">Pass/fail is computed from the governing specification — never manually entered. Submission ${s.id} · audit-chained.</p>`,
+    (rcCfg().form_prefix||'FIRM')+'-RPT-FR');
   const w = window.open('','_blank');
-  w.document.write(`<!doctype html><html><head><title>Test Report — ${s.test_types?.name}</title><style>
-    body{font:13px/1.5 Georgia,serif;color:#111;max-width:820px;margin:30px auto;padding:0 20px}
-    h1{font-size:20px;border-bottom:3px solid #111;padding-bottom:6px} h2{font-size:14px;margin-top:20px}
-    table{width:100%;border-collapse:collapse;margin-top:8px} td,th{border:1px solid #999;padding:6px 10px;text-align:left}
-    .meta td{border:none;padding:2px 8px 2px 0} .pass{color:#0a7d34;font-weight:bold} .fail{color:#b0201a;font-weight:bold}
-    .sig{margin-top:48px;display:flex;gap:60px} .sig div{flex:1;border-top:1px solid #111;padding-top:4px;font-size:11px}
-    .foot{margin-top:30px;font-size:10px;color:#555} @media print {button{display:none}}
-  </style></head><body>
-    <button onclick="print()" style="float:right">Print / Save PDF</button>
-    <h1>${s.firms?.name||'—'} — Field Test Report</h1>
-    <table class="meta"><tr><td><b>Test:</b> ${s.test_types?.name}</td><td><b>Standard:</b> ${s.astm_ref} (${s.astm_year})</td></tr>
-    <tr><td><b>Project:</b> ${s.projects?.name||''}</td><td><b>Client:</b> ${s.projects?.client_name||'—'}</td></tr>
-    <tr><td><b>Date:</b> ${new Date(s.submitted_at).toLocaleString()}</td><td><b>GPS:</b> ${s.gps_lat?(+s.gps_lat).toFixed(5)+', '+(+s.gps_lng).toFixed(5):'—'}</td></tr></table>
-    <h2>Results</h2><table>${rows}</table>
-    <h2>Determination</h2><p>${pf}${s.inspector_note?'<br><b>Inspector note:</b> '+s.inspector_note:''}</p>
-    <p style="font-size:11px;color:#555">Pass/fail is computed from the governing specification — never manually entered. Submission ${s.id} · audit-chained.</p>
-    <div class="sig"><div>Field Inspector</div><div>Engineer of Record${s.signed_at?' — signed '+new Date(s.signed_at).toLocaleDateString():' (pending)'}</div></div>
-    <div class="foot">Generated by MyInspector — multi-industry field inspection platform. Read-only record; edits require a new submission per the audit chain.</div>
-  </body></html>`);
-  w.document.close();
+  w.document.write(html); w.document.close();
 }
-
 
 // ── AUTO AUTH ─────────────────────────────────────────
 sb.auth.onAuthStateChange((event,session)=>{
