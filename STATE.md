@@ -4,8 +4,16 @@
 > **CLAUDE.md** holds locked principles. **STATE.md** holds live state.
 > Conflict with Claude memory: this file wins.
 
-**Last updated:** May 2, 2026 ~12:50pm EDT
-**Updated by:** Jorge + Buddy (MI-109 closed — PR #3 squash-merged to main as `e76fac2`; pivot to SG-001 Node 2)
+**Last updated:** July 21, 2026 evening
+**Updated by:** CC (PACK02 CMT vertical shipped — commit `005eb75`, live on prod)
+
+## ★ PACK02 — CMT VERTICAL LIVE (7/21, CC_ORDER_2026-07-21_MYINSPECTOR_PACK02_CMT)
+- Vertical config-pack architecture live: `vertical_packs` registry + `firms.active_pack` + `projects.vertical`; water = untouched default (live smoke green: parse clean, water DOM intact, CMT dormant unless toggled). Mode toggle in sidebar (supervisor+).
+- CMT backbone: `test_types` (21 types, five tabs: concrete/soils/rebar/masonry/welding, ASTM ref+rev stamped per submission) · `test_submissions` (spec-COMPUTED pass_flag — Luis firewall baked into schema comment+UI; out-of-tolerance requires inspector note) · `job_specs` (mix designs/proctors, from_spec prefill) · `samples` (auto IDs {prefix}-{proj}-{YYYYMMDD}-{seq}, 7/14/28(/56) break schedules, custody chain audit-logged, QR tokens) · `lab_results` · `certifications` (+ status view, security_invoker per principle 7). All under MI-202 RLS + audit-trigger pattern.
+- Proctor preload live (material_key → latest proctor baseline). Per-submission ASTM default report (print view) = Phase D Track 1; Track 2 re-skins when Abdool's real PDFs land (Jorge's one action: text him).
+- **Abdool tenant seeded: firm code `AMT-GRANITE-17`** (active_pack=cmt, prefix AMT, demo truck-day + 3 samples + certs incl. one expiring-30). He signs up with the code = his own real account (old shared-login sandbox retired).
+- Open: Jorge regression eyeball (gate) · Abdool report PDFs (Track 2) · pilot loop (Keep/Translate/Kill/Missing) · sieve spec-band chart + drawing-overlay + mill-cert Vision = v1.1 · legacy `inspections` table frozen, drop awaiting Jorge's word.
+
 
 ---
 
