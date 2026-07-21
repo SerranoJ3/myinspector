@@ -82,4 +82,55 @@ Bugs #1/#2/#4 from the column-fix queue were already fixed in MI-109 — verifie
 
 **Specific call needed:** A, B, C, or D. Phase 2c absorbs implementation once Jorge picks. Implementation cost difference between A/B/C/D is ~30 minutes — the call is purely about UX + audit posture, not engineering effort.
 
-**Status:** open
+**Status:** answered
+**Resolved:** 2026-05-03 ~17:35 EDT — Jorge locked **Option C (Explicit Save Draft sub-action)** per `decisions.md` Sunday evening entry. Phase 2c Restoration Card form ships with explicit Save Draft button when Lead picks up the form half (next session, gated only on this answer which is now live).
+
+---
+
+## Q-2d-a: Visual Tapcard Preview — font style for autopopulated values
+
+**Asked by:** Buddy (in `MI101_PHASE2D_VISUAL_TAPCARD_BRIEF.md`)
+**Awaiting:** Jorge
+**Context:** The Visual Tapcard Preview renders form values onto a rendered SVG that mimics the standard NJAW paper tapcard. Autopopulated text values can be rendered in either:
+- (a) **Monospace** (`'JetBrains Mono'` or system mono fallback) — reads as professional document; clean numeric measurements; matches "compliance-grade artifact" feel.
+- (b) **Handwriting-style** (e.g., `'Caveat'` from Google Fonts) — mimics actual inspector handwriting on paper tapcards.
+
+**Buddy recommendation:** (a) monospace. Reasoning: handwriting fonts always undermine the compliance feel ("Comic Sans cosplay"). Inspectors will take the visual tapcard more seriously when measurements render in clean mono. Future v2 paper-aging theme works with mono — handwriting + paper-aging is the wrong direction. Implementation cost is identical between (a) and (b) — pure CSS swap.
+
+**Specific call needed:** (a) or (b).
+
+**Status:** answered
+**Resolved:** 2026-05-05 ~19:00 EDT — Jorge locked **(a) monospace** per evening session ratification ("a, a, a"). Phase 2d build proceeds with `'JetBrains Mono'` primary, system mono fallback. CSS-level decision, zero engineering impact between options.
+
+---
+
+## Q-2d-b: Visual Tapcard Preview — print-to-PDF in v1 or defer to v2?
+
+**Asked by:** Buddy (in `MI101_PHASE2D_VISUAL_TAPCARD_BRIEF.md`)
+**Awaiting:** Jorge
+**Context:** SVG → PDF export would let compliance officers print the visual tapcard for the audit package. Adds ~1 session of build (jsPDF integration, pagination, page-break handling). Compliance package today is delivered via existing `audit_trail_export` and `cdm_smith_compliance_proof` RPCs — visual tapcard PDF would be additive, not blocking.
+
+**Buddy recommendation:** Defer to v2. Reasoning: no customer has asked for print-to-PDF yet. Building before someone asks = gold-plating. Existing compliance RPCs cover the audit-package surface. Trigger to un-defer: first compliance officer at a prospect engineering firm asks "can we get a printable copy of the tapcard?" during demo or pilot.
+
+**Specific call needed:** Defer to v2, or build in v1.
+
+**Status:** answered
+**Resolved:** 2026-05-05 ~19:00 EDT — Jorge locked **defer to v2** per evening session ratification ("a, a, a"). Phase 2d build does NOT include print-to-PDF. Future ticket opens when prompt-trigger fires (compliance officer asks during demo/pilot). Captured for un-defer trigger.
+
+---
+
+## Q-2d-c: Visual Tapcard Preview — empty-field visual treatment
+
+**Asked by:** Buddy (in `MI101_PHASE2D_VISUAL_TAPCARD_BRIEF.md`)
+**Awaiting:** Jorge
+**Context:** Fields with no value yet (form not filled) need a visual treatment on the SVG. Three options:
+- (a) **Thin gray underline** — paper-form mimic; matches the convention inspectors already know from the actual paper tapcard.
+- (b) **Light gray placeholder text** matching field name (e.g., "CS depth").
+- (c) **Truly blank** — only populated fields render.
+
+**Buddy recommendation:** (a) thin gray underline. Reasoning: mirrors the paper-tapcard convention inspectors are used to; empty visual cue tells inspector "this field is expected" (whereas truly blank tells them nothing); placeholder text competes with real values for visual weight when fields are partially populated.
+
+**Specific call needed:** (a), (b), or (c).
+
+**Status:** answered
+**Resolved:** 2026-05-05 ~19:00 EDT — Jorge locked **(a) thin gray underline** per evening session ratification ("a, a, a"). Phase 2d build renders empty fields as ~15-20px wide thin gray underline at the anchor position. Paper-form fidelity preserved.
