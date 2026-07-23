@@ -489,6 +489,26 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .ms-modal.vtc-disabled .ms-mobile-tabs{display:none !important}
 .ms-modal.vtc-disabled #visual-tapcard-preview-container{display:none !important}
 .ms-modal.vtc-disabled .ms-modal-body{flex:1 1 100% !important}
+/* PACK02 LIVE PAPER — the entry form fills the legal sheet in real time (VTC split clone) */
+.cmt-split{display:flex;flex-direction:column;gap:14px}
+.cmt-form-col{min-width:0}
+#cmt-paper-pane{display:none;background:#525659;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+#cmt-paper-pane.live{display:block}
+#cmt-paper-frame{width:100%;height:78vh;border:0;background:#fff;display:block}
+.cmt-mobile-tabs{display:none;gap:4px;margin-bottom:10px}
+.cmt-mobile-tab{flex:1;padding:7px 10px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);cursor:pointer;border:1px solid var(--border);background:transparent;text-align:center;transition:all .15s}
+.cmt-mobile-tab.active{background:rgba(27,58,107,0.4);color:var(--blue-light);border-color:rgba(74,124,196,0.3)}
+@media(min-width:768px){
+  .cmt-split{flex-direction:row}
+  .cmt-split > .cmt-form-col{flex:1 1 50%}
+  #cmt-paper-pane.live{flex:1 1 50%}
+}
+@media(max-width:767px){
+  .cmt-mobile-tabs{display:flex}
+  #cmt-form-wrap[data-mobile-view="form"] #cmt-paper-pane{display:none}
+  #cmt-form-wrap[data-mobile-view="preview"] .cmt-form-col{display:none}
+  #cmt-form-wrap[data-mobile-view="preview"] #cmt-paper-pane.live{display:block}
+}
 /* MI-101 Phase 2a — Materials Sheet UI */
 .ms-bar{background:rgba(74,124,196,0.06);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .ms-bar-left{display:flex;flex-direction:column;gap:2px}
@@ -1616,21 +1636,30 @@ html,body{overflow-x:hidden}
         </div>
         <div id="cmt-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
         <div id="cmt-test-tiles" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:16px"></div>
-        <div id="cmt-form-wrap" style="display:none">
-          <div class="table-wrap" style="padding:18px">
-            <div class="table-header" style="padding:0 0 10px 0">
-              <div class="table-title" id="cmt-form-title"></div>
-              <span id="cmt-form-astm" style="font-size:11px;color:var(--muted)"></span>
+        <div id="cmt-form-wrap" style="display:none" data-mobile-view="form">
+          <div class="cmt-mobile-tabs">
+            <div class="cmt-mobile-tab active" id="cmt-mtab-form" onclick="cmtMobileView('form')">Form</div>
+            <div class="cmt-mobile-tab" id="cmt-mtab-preview" onclick="cmtMobileView('preview')">Paper</div>
+          </div>
+          <div class="cmt-split">
+            <div class="cmt-form-col">
+              <div class="table-wrap" style="padding:18px">
+                <div class="table-header" style="padding:0 0 10px 0">
+                  <div class="table-title" id="cmt-form-title"></div>
+                  <span id="cmt-form-astm" style="font-size:11px;color:var(--muted)"></span>
+                </div>
+                <div id="cmt-form-fields"></div>
+                <div id="cmt-form-photos"></div>
+                <div id="cmt-passfail" style="margin:12px 0;font-weight:700"></div>
+                <div id="cmt-oot-wrap" style="display:none" class="modal-field">
+                  <label class="modal-label">Out-of-tolerance — inspector note (required)</label>
+                  <textarea class="modal-input" id="cmt-oot-note" rows="2" placeholder="What happened, who was notified"></textarea>
+                </div>
+                <button class="btn-sm btn-orange" id="cmt-submit-btn" onclick="cmtSubmitTest()">Submit Test</button>
+                <button class="btn-sm" onclick="cmtCloseForm()">Cancel</button>
+              </div>
             </div>
-            <div id="cmt-form-fields"></div>
-            <div id="cmt-form-photos"></div>
-            <div id="cmt-passfail" style="margin:12px 0;font-weight:700"></div>
-            <div id="cmt-oot-wrap" style="display:none" class="modal-field">
-              <label class="modal-label">Out-of-tolerance — inspector note (required)</label>
-              <textarea class="modal-input" id="cmt-oot-note" rows="2" placeholder="What happened, who was notified"></textarea>
-            </div>
-            <button class="btn-sm btn-orange" id="cmt-submit-btn" onclick="cmtSubmitTest()">Submit Test</button>
-            <button class="btn-sm" onclick="cmtCloseForm()">Cancel</button>
+            <div id="cmt-paper-pane"><iframe id="cmt-paper-frame" title="Live report preview"></iframe></div>
           </div>
         </div>
       </div>
@@ -11444,6 +11473,8 @@ function cmtOpenForm(typeId){
   document.getElementById('cmt-form-wrap').style.display='';
   document.getElementById('cmt-test-tiles').style.display='none';
   CMT.lastVariant = undefined;
+  CMT.liveReportNo = null;
+  cmtMobileView('form');
   document.querySelectorAll('#cmt-form-fields [data-rg-key]').forEach(w=>cmtRenderReadingsGrid(w.dataset.rgKey));
   cmtRecalc();
 }
@@ -11589,6 +11620,8 @@ function cmtRecalc(){
                       : '<span style="color:#ff8a7d">● FAIL — out of tolerance (spec-computed)</span>';
     document.getElementById('cmt-oot-wrap').style.display = pf ? 'none' : '';
   }
+  CMT.lastVals = v; CMT.lastPass = pf;
+  cmtPaperDebounced();
   return {vals:v, pass:pf};
 }
 function cmtPassFail(logic, v){
@@ -11634,6 +11667,45 @@ function cmtPassFail(logic, v){
 
 function cmtPhotoPicked(key, input){
   if(input.files && input.files[0]) CMT.photos[key] = input.files[0];
+}
+
+// ── LIVE PAPER PANE — same renderer as post-submit, mounted in an iframe ─────
+function cmtMobileView(view){
+  document.getElementById('cmt-form-wrap').setAttribute('data-mobile-view', view);
+  document.getElementById('cmt-mtab-form').classList.toggle('active', view==='form');
+  document.getElementById('cmt-mtab-preview').classList.toggle('active', view==='preview');
+  if(view==='preview') cmtPaperRender();
+}
+let _cmtPaperT = null;
+function cmtPaperDebounced(){ if(_cmtPaperT) clearTimeout(_cmtPaperT); _cmtPaperT = setTimeout(cmtPaperRender, 150); }
+function cmtLiveCtx(){
+  const pid = document.getElementById('cmt-project-select').value;
+  const p = (CMT.projects||[]).find(x=>x.id===pid) || {};
+  const checked = new Set([...document.querySelectorAll('#cmt-drawings-list input:checked')].map(x=>x.value));
+  const dws = (CMT.drawingsCache||[]).filter(d=>checked.has(d.id));
+  const pins = [...document.querySelectorAll('#cmt-pins-rows .cmt-pin-row')].map(r=>({
+    element_type: r.querySelector('[data-p="type"]').value.trim(),
+    location: r.querySelector('[data-p="loc"]').value.trim(),
+    remarks: r.querySelector('[data-p="rem"]').value.trim() || null,
+  })).filter(x=>x.element_type||x.location);
+  if(!CMT.liveReportNo) CMT.liveReportNo = cmtReportNo(CMT.activeType);
+  const t = CMT.activeType;
+  return { project: p, firmName: rcCfg().firm_display || firmName || 'FIRM',
+    dateStr: new Date().toLocaleDateString(), reportNo: CMT.liveReportNo,
+    inspectorName: currentUser?.user_metadata?.full_name || '',
+    drawings: dws, pins: pins, astmRef: t.astm_ref, astmYear: t.astm_year,
+    passFlag: CMT.lastPass==null?null:CMT.lastPass, inspectorNote: null,
+    submissionId: null, pane: true };
+}
+function cmtPaperRender(){
+  const fr = document.getElementById('cmt-paper-frame');
+  if(!fr || !CMT.activeType) return;
+  document.getElementById('cmt-paper-pane').classList.add('live');
+  try{
+    const html = cmtDocHtml(CMT.activeType, CMT.lastVals || {}, cmtLiveCtx());
+    const doc = fr.contentDocument;
+    doc.open(); doc.write(html); doc.close();
+  }catch(e){ console.warn('live paper render failed:', e); }
 }
 
 async function cmtSubmitTest(){
@@ -11850,16 +11922,16 @@ async function cmtFillDrawings(){
   CMT.drawingsCache = data||[];
   if(!data || !data.length) return;
   box.innerHTML = data.map(d=>
-    `<label style="display:block;padding:2px 0"><input type="checkbox" value="${d.id}"> ${d.dtype==='document'?'DOC':'DWG'} ${d.number} — ${d.name} (Rev ${d.rev_no||'—'} ${d.rev_date||''}) ${d.approved?'· Approved':''}${d.noted?'· Noted':''}</label>`).join('');
+    `<label style="display:block;padding:2px 0"><input type="checkbox" value="${d.id}" onchange="cmtRecalc()"> ${d.dtype==='document'?'DOC':'DWG'} ${d.number} — ${d.name} (Rev ${d.rev_no||'—'} ${d.rev_date||''}) ${d.approved?'· Approved':''}${d.noted?'· Noted':''}</label>`).join('');
 }
 function cmtAddPinRow(){
   const box = document.getElementById('cmt-pins-rows');
   const div = document.createElement('div');
   div.className='cmt-pin-row';
   div.style.cssText='display:flex;gap:6px;margin-bottom:4px';
-  div.innerHTML = `<input data-p="type" placeholder="Element type (Column)" class="modal-input" style="flex:1">
-    <input data-p="loc" placeholder="Specific location (4th flr — C-12)" class="modal-input" style="flex:2">
-    <input data-p="rem" placeholder="Remarks" class="modal-input" style="flex:1">`;
+  div.innerHTML = `<input data-p="type" placeholder="Element type (Column)" class="modal-input" style="flex:1" oninput="cmtRecalc()">
+    <input data-p="loc" placeholder="Specific location (4th flr — C-12)" class="modal-input" style="flex:2" oninput="cmtRecalc()">
+    <input data-p="rem" placeholder="Remarks" class="modal-input" style="flex:1" oninput="cmtRecalc()">`;
   box.appendChild(div);
 }
 function cmtOpenDrawingModal(){ document.getElementById('modal-cmt-drawing').classList.add('open'); }
