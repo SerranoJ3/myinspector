@@ -11400,16 +11400,11 @@ function cmtOpenForm(typeId){
         </div>`).join('') + `</div>`;
     }
     if(f.type==='readings_grid'){
-      // SFRM thickness: 6 locations x actual+corrected rows x 12 tests
-      let rows='';
-      for(let L=1;L<=6;L++) for(const sub of ['','A']){
-        rows += `<tr><td style="padding:2px 6px;color:var(--muted)">${L}${sub}${sub==='A'?' (corr.)':''}</td>` +
-          Array.from({length:12},(_,c)=>`<td><input data-rg="${f.key}" data-loc="${L}${sub}" data-col="${c+1}"
-            style="width:44px;background:var(--card2);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:2px" onchange="cmtRecalc()"></td>`).join('') + '</tr>';
-      }
+      // SFRM thickness — paper semantics: 12 locations (1,1A…6,6A), each with its
+      // own Actual + Corrected sub-rows + per-location Remarks. Columns follow the
+      // active variant; rebuilt on variant change (values preserved) — cmtRenderReadingsGrid.
       return `<div class="modal-field"><label class="modal-label">${f.label} — inches (leave blank = unused; starred cols per variant = flange tips)</label>
-        <div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:11px">
-        <tr><td></td>${Array.from({length:12},(_,c)=>`<td style="padding:2px 6px;color:var(--muted)">#${c+1}</td>`).join('')}</tr>${rows}</table></div></div>`;
+        <div style="overflow-x:auto" id="cmt-rg-wrap-${f.key}" data-rg-key="${f.key}"></div></div>`;
     }
     if(f.type==='density_grid'){
       let rows='';
@@ -11448,12 +11443,47 @@ function cmtOpenForm(typeId){
   if((t.field_schema.fields||[]).some(f=>f.type==='sample_ref')) cmtFillSampleRefs();
   document.getElementById('cmt-form-wrap').style.display='';
   document.getElementById('cmt-test-tiles').style.display='none';
+  CMT.lastVariant = undefined;
+  document.querySelectorAll('#cmt-form-fields [data-rg-key]').forEach(w=>cmtRenderReadingsGrid(w.dataset.rgKey));
   cmtRecalc();
 }
 function cmtCloseForm(){
   document.getElementById('cmt-form-wrap').style.display='none';
   document.getElementById('cmt-test-tiles').style.display='';
   CMT.activeType=null;
+}
+
+// SFRM readings grid — columns from the active variant, values preserved across rebuilds
+function cmtActiveSfrmCfg(){
+  const sel = document.getElementById('cmtf-variant');
+  const varKey = ((sel && sel.value) || '01').slice(0,2);
+  return SFRM_VARIANTS[varKey] || SFRM_VARIANTS['01'];
+}
+function cmtRenderReadingsGrid(key){
+  const wrap = document.getElementById('cmt-rg-wrap-'+key);
+  if(!wrap) return;
+  const prev = {}, prevR = {};
+  wrap.querySelectorAll('input[data-rg]').forEach(inp=>{
+    if(inp.value!=='') prev[inp.dataset.loc+'|'+(inp.dataset.row||'act')+'|'+inp.dataset.col] = inp.value; });
+  wrap.querySelectorAll('input[data-rgr]').forEach(inp=>{
+    if(inp.value!=='') prevR[inp.dataset.loc] = inp.value; });
+  const cfg = cmtActiveSfrmCfg();
+  const labels = sfrmColLabels(cfg);
+  const inpStyle = 'width:44px;background:var(--card2);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:2px';
+  let rows='';
+  SFRM_LOCS.forEach(L=>{
+    ['act','corr'].forEach(rw=>{
+      rows += `<tr>${rw==='act'?`<td rowspan="2" style="padding:2px 6px;color:var(--white);font-weight:700;vertical-align:middle">${L}</td>`:''}` +
+        `<td style="padding:2px 6px;color:var(--muted);font-size:10px">${rw==='act'?'Actual':'Corrected'}</td>` +
+        labels.map((_,c)=>`<td><input data-rg="${key}" data-loc="${L}" data-row="${rw}" data-col="${c+1}"
+          value="${prev[L+'|'+rw+'|'+(c+1)]||''}" style="${inpStyle}" onchange="cmtRecalc()"></td>`).join('') +
+        (rw==='act'?`<td rowspan="2" style="vertical-align:middle"><input data-rgr="${key}" data-loc="${L}" placeholder="Remarks"
+          value="${prevR[L]||''}" style="${inpStyle};width:110px" onchange="cmtRecalc()"></td>`:'') + '</tr>';
+    });
+  });
+  wrap.innerHTML = `<table style="border-collapse:collapse;font-size:11px">
+    <tr><td></td><td></td>${labels.map((lb,c)=>`<td style="padding:2px 6px;color:var(--muted)">${lb}${cfg.tips.includes(c+1)?'*':''}</td>`).join('')}
+    <td style="padding:2px 6px;color:var(--muted)">Remarks / Req. Thk.</td></tr>${rows}</table>`;
 }
 
 async function cmtFillSampleRefs(){
@@ -11507,7 +11537,13 @@ function cmtFieldVals(){
       const g = {};
       document.querySelectorAll('input[data-rg="'+f.key+'"]').forEach(inp=>{
         if(inp.value==='') return;
-        (g[inp.dataset.loc] = g[inp.dataset.loc] || {})[inp.dataset.col] = +inp.value;
+        const loc = inp.dataset.loc, row = inp.dataset.row || 'act';
+        const rec = (g[loc] = g[loc] || {});
+        (rec[row] = rec[row] || {})[inp.dataset.col] = +inp.value;
+      });
+      document.querySelectorAll('input[data-rgr="'+f.key+'"]').forEach(inp=>{
+        if(inp.value==='') return;
+        (g[inp.dataset.loc] = g[inp.dataset.loc] || {}).remarks = inp.value;
       });
       out[f.key] = g;
       return;
@@ -11532,6 +11568,10 @@ function cmtFieldVals(){
 function cmtRecalc(){
   if(!CMT.activeType) return;
   const t = CMT.activeType, v = cmtFieldVals();
+  if((t.field_schema.fields||[]).some(f=>f.type==='readings_grid') && v.variant !== CMT.lastVariant){
+    CMT.lastVariant = v.variant;
+    document.querySelectorAll('#cmt-form-fields [data-rg-key]').forEach(w=>cmtRenderReadingsGrid(w.dataset.rgKey));
+  }
   (t.field_schema.fields||[]).filter(f=>f.type==='computed').forEach(f=>{
     try{
       const keys = Object.keys(v);
@@ -11852,40 +11892,59 @@ async function cmtLoadDrawings(){
 }
 
 // ── SFRM computations (engine-computed, never hand-entered) ──────────────────
-// Variant reading maps = CONFIG (Jorge corrects against the originals if needed)
+// Per-variant column configs SHEET-VERIFIED 7/23 (Buddy cell-by-cell read):
+//   n = usable reading columns · tips = flange-tip columns (averaged separately)
+//   col_labels = named columns (FR-04) · totalHeader = the paper's summary col
 const SFRM_VARIANTS = {
-  '01':{label:'Columns', n:12, tips:[1,12]}, '02':{label:'Beams', n:9, tips:[1,9]},
-  '03':{label:'Joists', n:9, tips:[1,9]}, '04':{label:'Roof, Deck or Wall Assemblies', n:12, tips:[]},
-  '05':{label:'Tube and Pipe Columns', n:12, tips:[]},
+  '01':{label:'Columns', n:12, tips:[2,6,8,12], totalHeader:'Tip Avg.*'},
+  '02':{label:'Beams', n:9, tips:[4,6], totalHeader:'Tip Avg.*'},
+  '03':{label:'Joists', n:7, tips:[], totalHeader:'Total'},
+  '04':{label:'Roof, Deck or Wall Assemblies', n:8, tips:[],
+        col_labels:['VALLEY','SIDE 1','CREST','SIDE 2','FLAT 1','FLAT 2','FLAT 3','FLAT 4'], totalHeader:'Total'},
+  '05':{label:'Tube and Pipe Columns', n:4, tips:[], totalHeader:'Total'},
 };
+// The paper's grid semantics: 1 and 1A are TWO DIFFERENT locations (12 per page),
+// EACH with its own actual + corrected sub-rows. Corrected-else-actual feeds compute.
+const SFRM_LOCS = ['1','1A','2','2A','3','3A','4','4A','5','5A','6','6A'];
+const sfrmColLabels = cfg => cfg.col_labels || Array.from({length:cfg.n},(_,i)=>'#'+(i+1));
 const r16 = x => Math.round(x*16)/16;   // NOTES: readings to the nearest 1/16"
+// Legacy shape (pre-7/23 submissions): g['1'] = actual of loc 1, g['1A'] = corrected
+// of loc 1, col values directly on the loc object. New shape: g[loc] = {act, corr, remarks}.
+function sfrmNormalizeReadings(g){
+  const isNew = Object.values(g).every(o => o && Object.keys(o).every(k => k==='act'||k==='corr'||k==='remarks'));
+  if(isNew) return SFRM_LOCS.map(L => ({loc:L, act:(g[L]||{}).act||{}, corr:(g[L]||{}).corr||{}, remarks:(g[L]||{}).remarks||''}));
+  return [1,2,3,4,5,6].map(n => ({loc:String(n), act:g[String(n)]||{}, corr:g[n+'A']||{}, remarks:''}));
+}
 function sfrmThicknessCompute(v){
   const g = v.readings || {};
   const R = +v.required_thickness_in;
   const varKey = (v.variant||'01').slice(0,2);
   const cfg = SFRM_VARIANTS[varKey] || SFRM_VARIANTS['01'];
   const rows = [];
-  for(let L=1; L<=6; L++){
-    const act = g[String(L)] || {}, corr = g[L+'A'] || {};
-    const eff = {};
+  sfrmNormalizeReadings(g).forEach(rec=>{
+    const act = {}, corr = {}, eff = {};
     for(let c=1; c<=cfg.n; c++){
-      const val = corr[c] != null ? corr[c] : act[c];
+      if(rec.act[c] != null) act[c] = r16(rec.act[c]);
+      if(rec.corr[c] != null) corr[c] = r16(rec.corr[c]);
+      const val = rec.corr[c] != null ? rec.corr[c] : rec.act[c];
       if(val != null) eff[c] = r16(val);
     }
     const vals = Object.values(eff);
-    if(!vals.length) continue;
+    if(!vals.length) return;
     const tipVals = cfg.tips.map(c=>eff[c]).filter(x=>x!=null);
     const avg = r16(vals.reduce((a,b)=>a+b,0)/vals.length);
     const tipAvg = tipVals.length ? r16(tipVals.reduce((a,b)=>a+b,0)/tipVals.length) : null;
+    const total = r16(vals.reduce((a,b)=>a+b,0));   // no-tip sheets carry a Total column
     let pass = null;
     if(isFinite(R)){
       const indMin = R < 1 ? 0.75*R : R - 0.25;      // NOTES rules, verbatim encoding
       pass = vals.every(x=>x >= indMin - 1e-9) && avg >= R - 1e-9 &&
              (tipAvg == null || tipAvg >= R - 1e-9);
     }
-    rows.push({loc:L, eff, avg, tipAvg, status: pass==null?'—':pass?'PASS':'FAIL'});
-  }
-  return {rows, cfg, R};
+    rows.push({loc:rec.loc, act, corr, eff, avg, tipAvg, total, remarks:rec.remarks,
+               status: pass==null?'—':pass?'PASS':'FAIL'});
+  });
+  return {rows, cfg, R, varKey};
 }
 function sfrmDensityCompute(v){
   const rows = (v.samples||[]).map((sam,i)=>{
@@ -12019,21 +12078,30 @@ function cmtDocHtml(t, v, ctx){
       `${prefix}-RBAR-FR`, {pane});
   } else if(tid === 'sfrm_thickness'){
     const comp = sfrmThicknessCompute(v);
-    const varKey = (v.variant||'01').slice(0,2);
-    const head = Array.from({length:comp.cfg.n},(_,c)=>`<th>#${c+1}${comp.cfg.tips.includes(c+1)?'*':''}</th>`).join('');
+    const varKey = comp.varKey;
+    const labels = sfrmColLabels(comp.cfg);
+    const fmt = x => x!=null ? String(x.toFixed(4).replace(/\.?0+$/,'')||'0') : '';
+    const head = labels.map((lb,c)=>`<th>${lb}${comp.cfg.tips.includes(c+1)?'*':''}</th>`).join('');
     const rows = comp.rows.map(r=>{
-      const cells = Array.from({length:comp.cfg.n},(_,c)=>`<td class="chk">${r.eff[c+1]!=null?r.eff[c+1].toFixed(4).replace(/\\.?0+$/,''):''}</td>`).join('');
-      return `<tr><td>Loc ${r.loc}</td>${cells}<td class="chk">${r.tipAvg!=null?r.tipAvg:'—'}</td><td class="chk">${r.avg}</td>
-        <td class="chk ${r.status==='PASS'?'pass':r.status==='FAIL'?'fail':''}">${r.status}</td><td></td></tr>`;
+      const cells = sub => labels.map((_,c)=>`<td class="chk">${fmt(sub[c+1])}</td>`).join('');
+      const sumVal = comp.cfg.tips.length ? (r.tipAvg!=null?r.tipAvg:'—') : r.total;
+      const remarks = [`Req. Thk: ${v.required_thickness_in||'—'} in.`, r.remarks].filter(Boolean).join('<br>');
+      return `<tr><td rowspan="2">${r.loc}</td><td style="font-size:9px">Actual</td>${cells(r.act)}
+          <td class="chk" rowspan="2">${sumVal}</td><td class="chk" rowspan="2">${r.avg}</td>
+          <td class="chk ${r.status==='PASS'?'pass':r.status==='FAIL'?'fail':''}" rowspan="2">${r.status}</td>
+          <td rowspan="2" style="font-size:9px">${remarks}</td></tr>
+        <tr><td style="font-size:9px">Corrected</td>${cells(r.corr)}</tr>`;
     }).join('');
     html = rcChassis('FIELD INSPECTION THICKNESS REPORT', 'SPRAY-APPLIED FIRE RESISTIVE MATERIAL — ' + comp.cfg.label.toUpperCase(),
-      rcInfo(infoL.concat([['CONTRACTOR', v.contractor],['AREA SPRAYED', v.area_sprayed]]),
-             infoR.concat([['ICC CERT #', v.icc_cert],['WEATHER', v.weather],['MATERIAL APPLIED', v.material_applied],['DEVIATION / MODIFICATION', v.deviation]])),
+      rcInfo([['CLIENT', ctx.project?.client_name],['PROJECT NAME', ctx.project?.name],
+              ['PROJECT ADDRESS', [ctx.project?.location, ctx.project?.city, ctx.project?.state].filter(Boolean).join(', ')],
+              ['CONTRACTOR', v.contractor],['AREA SPRAYED', v.area_sprayed],['MATERIAL APPLIED', v.material_applied]],
+             [['DATE', ctx.dateStr],['REPORT No.', ctx.reportNo],['INSPECTOR', ctx.inspectorName],
+              ['ICC CERT #', v.icc_cert],['WEATHER', v.weather],['DEVIATION / MODIFICATION', v.deviation]]),
       `<p class="narr">${firm} has verified minimum applied thickness per the Approved UL-Design listed on the Contractor's Approved Submittals, and the overall quality of application. Any damage or deficiency observed will be listed on the Non-Conformance Report / punch list until corrected.</p>` +
       `<div style="display:flex;gap:16px;align-items:center"><div>${SFRM_LEGENDS[varKey]||''}</div>
-        <div style="font-size:10px">LEGEND — numbered reading positions (* = flange tips)<br>
-        <b>Required Thickness: ${v.required_thickness_in||'—'} in.</b></div></div>` +
-      `<table><tr><th>Location</th>${head}<th>Tip Avg.*</th><th>Avg.</th><th>Status</th><th>Remarks</th></tr>${rows}</table>` +
+        <div style="font-size:10px">LEGEND — numbered reading positions (* = flange tips)</div></div>` +
+      `<table><tr><th rowspan="1" colspan="2">Test Location</th>${head}<th>${comp.cfg.totalHeader}</th><th>Avg.</th><th>Status</th><th>Remarks</th></tr>${rows}</table>` +
       `<div class="notes"><b>NOTES:</b> Readings rounded to the nearest 1/16 in. Where the minimum required thickness is less than 1 in., every individual reading shall be at least 75% of the minimum requirement. Where the minimum required thickness is 1 in. or greater, no individual reading shall be below the minimum less 1/4 in. Flange-tip readings are averaged separately where the UL design so requires. Status is computed from these rules — it is not hand-entered.</div>`,
       `${prefix}-SFRM-FR-${varKey}`, {pane});
   } else if(tid === 'sfrm_density'){
