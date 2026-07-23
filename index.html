@@ -12129,7 +12129,7 @@ function cmtDocHtml(t, v, ctx){
       `<p class="narr">${firm} has conducted Cold-Formed Steel Inspection as requested by the Client at the location mentioned above for compliance according to Provided Documentation (listed below). Any deficiency, discrepancy or deviation from provided documents will be listed on Non-Conformance Report until corrected.</p>` +
       rcDrawingsTable(dws||[], 6) +
       `<table><tr><th style="text-align:left">Inspection Item</th><th>In Compliance</th><th>Discrepancies (See Comments)</th><th>Non-Applicable</th></tr>${rows}</table>` +
-      `<p style="font-weight:700;margin-bottom:2px">COMMENTS</p><table><tr><td class="comments">${(v.comments||'').replace(/\\n/g,'<br>')}</td></tr></table>` +
+      `<p style="font-weight:700;margin-bottom:2px">COMMENTS</p><table><tr><td class="comments">${(v.comments||'').replace(/\n/g,'<br>')}</td></tr></table>` +
       `<p>Compliance / Discrepancies were informed to Contractor / GC / Client Representative(s): <u>${v.informed_to||'&nbsp;&nbsp;&nbsp;&nbsp;'}</u></p>`,
       `${prefix}-CFS-FR`, {pane});
   } else if(tid === 'rebar_placement'){
@@ -12145,9 +12145,9 @@ function cmtDocHtml(t, v, ctx){
        <table><tr><th>Element Type</th><th>Specific Location</th><th>Remarks</th></tr>${pinRows.join('')}</table>` +
       rcDrawingsTable(dws||[], 8) +
       `<table><tr><th style="text-align:left">Placement Item</th><th>In Compliance</th><th>Discrepancies (See Comments)</th></tr>${rows}</table>` +
-      `<p style="font-weight:700;margin-bottom:2px">COMMENTS</p><table><tr><td class="comments">${(v.non_conformances||'').replace(/\\n/g,'<br>')}</td></tr></table>` +
-      `<p>ICC Certification Number: <u>${v.mill_cert_no ? '' : ''}${v.icc_cert||'&nbsp;&nbsp;&nbsp;'}</u></p>`,
-      `${prefix}-RBAR-FR`, {pane});
+      `<p style="font-weight:700;margin-bottom:2px">COMMENTS</p><table><tr><td class="comments">${(v.non_conformances||'').replace(/\n/g,'<br>')}</td></tr></table>`,
+      `${prefix}-RBAR-FR`, {pane,
+        sigExtra:`<span class="line" style="margin-left:40px">ICC Certification Number${v.icc_cert?': '+v.icc_cert:''}</span>`});
   } else if(tid === 'sfrm_thickness'){
     const comp = sfrmThicknessCompute(v);
     const varKey = comp.varKey;
@@ -12178,33 +12178,50 @@ function cmtDocHtml(t, v, ctx){
       `${prefix}-SFRM-FR-${varKey}`, {pane});
   } else if(tid === 'sfrm_density'){
     const comp = sfrmDensityCompute(v);
-    const secA = (comp.rows||[]).map(r=>`<tr><td>${r.id}</td><td>${r.member} ${r.position?'('+r.position+')':''}</td>
-      <td class="chk">${r.len}</td><td class="chk">${r.wid}</td><td class="chk">${r.thk}</td>
-      <td class="chk">${r.vol_in3}</td><td class="chk">${r.dens}</td></tr>`).join('');
+    const rowsArr = comp.rows||[];
+    const nRows = Math.max(rowsArr.length, 4);
+    const secA = Array.from({length:nRows},(_,i)=>{ const r = rowsArr[i];
+      return `<tr><td class="chk">${r?r.id:''}</td><td>${r?`${r.member} ${r.position?'('+r.position+')':''}`:''}</td>
+      <td class="chk">${r?r.len:''}</td><td class="chk">${r?r.wid:''}</td><td class="chk">${r?r.thk:''}</td>
+      <td class="chk">${r?r.vol_in3:''}</td><td class="chk">${r?r.dens:''}</td>
+      ${i===0?`<td class="chk" rowspan="${nRows}" style="vertical-align:middle;font-weight:700">${comp.avg??''}</td>`:''}</tr>`;
+    }).join('');
     const hrs = [0,8,16,24,32,40,48,56,64];
-    const secB1 = (comp.rows||[]).map(r=>`<tr><td>${r.id}</td>${hrs.map((h,i)=>`<td class="chk">${r.dry_series[i]!=null?r.dry_series[i]:''}</td>`).join('')}</tr>`).join('');
+    const secB1 = rowsArr.map(r=>`<tr><td>${r.id}</td>${hrs.map((h,i)=>`<td class="chk">${r.dry_series[i]!=null?r.dry_series[i]:''}</td>`).join('')}</tr>`).join('');
     const isMeas = (v.method||'').startsWith('MEASUREMENT');
+    const b2row = (r, active, volCell) => `<tr><td class="chk">${active&&r?r.id:''}</td><td class="chk">${active&&r?volCell(r):''}</td>
+      <td class="chk">${active&&r?(r.vol_in3/1728).toFixed(4):''}</td><td class="chk">${active&&r?r.dens:''}</td></tr>`;
+    const measTbl = `<table><tr><th colspan="4">${isMeas?'☒':'☐'} MEASUREMENT METHOD<br>(ft³ = in³ / 1728)</th></tr>
+      <tr><th>Sample</th><th>Vol (in³)</th><th>Vol (ft³)</th><th>Density (pcf)</th></tr>` +
+      Array.from({length:nRows},(_,i)=>b2row(rowsArr[i], isMeas, r=>r.vol_in3)).join('') + `</table>`;
+    const dispTbl = `<table><tr><th colspan="4">${isMeas?'☐':'☒'} DISPLACEMENT METHOD<br>(ft³ = cc / 28317)</th></tr>
+      <tr><th>Sample</th><th>Vol (cc)</th><th>Vol (ft³)</th><th>Density (pcf)</th></tr>` +
+      Array.from({length:nRows},(_,i)=>b2row(rowsArr[i], !isMeas, ()=>'' )).join('') + `</table>`;
     html = rcChassis('FIELD INSPECTION DENSITY REPORT', 'SPRAY-APPLIED FIRE RESISTIVE MATERIAL',
-      rcInfo(infoL.concat([['CONTRACTOR', v.contractor]]),
-             infoR.concat([['AMBIENT CONDITIONS', v.ambient],['MATERIAL APPLIED', v.material_applied],['DEVIATIONS / MODIFICATIONS', v.deviation]])),
+      rcInfo([['CLIENT', ctx.project?.client_name],['PROJECT NAME', ctx.project?.name],
+              ['PROJECT ADDRESS', [ctx.project?.location, ctx.project?.city, ctx.project?.state].filter(Boolean).join(', ')],
+              ['CONTRACTOR', v.contractor],['MATERIAL APPLIED', v.material_applied]],
+             [['DATE', ctx.dateStr],['REPORT No.', ctx.reportNo],['INSPECTOR', ctx.inspectorName],
+              ['AMBIENT CONDITIONS', v.ambient],['DEVIATIONS / MODIFICATIONS', v.deviation]]),
       `<p class="narr">${firm} has performed density sampling of Spray-Applied Fire Resistive Material in accordance with ASTM E605 and the Approved UL-Design listed on the Contractor's Approved Submittals and project specifications.</p>` +
       `<p style="font-weight:700;margin-bottom:2px">SECTION A — ON-SITE SAMPLING</p>
-       <table><tr><th>Sample ID</th><th>Member (Location / Type / Position)</th><th>Length (in)</th><th>Width (in)</th><th>Thickness (in)</th><th>Volume (in³)</th><th>Ind. Density (pcf)</th></tr>${secA}</table>` +
+       <table><tr><th>SAMPLE ${prefix} ID NUMBER</th><th>MEMBER (Specific Location / Type / Position WEB-FLGE)</th><th>Length (in)</th><th>Width (in)</th><th>Thickness (in)</th><th>Volume (in³)</th><th>INDIVIDUAL DENSITY</th><th>AVERAGE DENSITY</th></tr>${secA}</table>` +
       `<p style="font-weight:700;margin-bottom:2px">SECTION B — LABORATORY CALCULATIONS</p>
        <p style="font-size:10px;margin:2px 0">B1 — Drying to constant weight (lbs at hours):</p>
        <table><tr><th></th>${hrs.map(h=>`<th>${h}h</th>`).join('')}</tr>${secB1}</table>
-       <p style="font-size:10px;margin:6px 0 2px">B2 — Volume &amp; Density: ${isMeas?'☒':'☐'} MEASUREMENT METHOD (ft³ = in³/1728) &nbsp; ${isMeas?'☐':'☒'} DISPLACEMENT METHOD (ft³ = cc/28317)</p>` +
+       <p style="font-size:10px;margin:6px 0 2px">B2 — Volume &amp; Density:</p>
+       <div style="display:flex;gap:10px"><div style="flex:1">${measTbl}</div><div style="flex:1">${dispTbl}</div></div>` +
       `<p style="font-weight:700;margin-bottom:2px">SECTION 3 — AVERAGE DENSITY RESULTS</p>
        <table><tr><th>Maximum</th><th>Minimum</th><th>Average</th><th>Req. Avg. Density</th><th>Results</th></tr>
        <tr><td class="chk">${comp.max??''}</td><td class="chk">${comp.min??''}</td><td class="chk">${comp.avg??''}</td>
        <td class="chk">${comp.req??''}</td><td class="chk ${comp.pass?'pass':'fail'}">${comp.pass==null?'—':comp.pass?'PASS':'FAIL'}</td></tr></table>
        <p style="font-size:9.5px">All volumes, densities, averages and results are computed by the engine from raw sample dimensions and weights — computed cells cannot be hand-edited.</p>`,
-      `${prefix}-SFRM-FR-06`, {pane});
+      `${prefix}-SFRM-FR-06`, {pane, sigLabel:'Special Inspector / Laboratory Technician'});
   } else if(t?.tab === 'soils' && tid === 'soils_field_report'){
     html = rcChassis('FIELD INSPECTION REPORT','SOILS',
       rcInfo(infoL, infoR),
       `<p style="font-weight:700;margin-bottom:2px">FIELD NARRATIVE</p>
-       <table><tr><td class="comments" style="min-height:340px">${(v.narrative||'').replace(/\\n/g,'<br>')}</td></tr></table>` +
+       <table><tr><td class="comments" style="min-height:340px">${(v.narrative||'').replace(/\n/g,'<br>')}</td></tr></table>` +
       `<p>Findings informed to: <u>${v.informed_to||'&nbsp;&nbsp;&nbsp;&nbsp;'}</u></p>`,
       `${prefix}-SOIL-FR`, {pane});
   } else {
