@@ -1644,6 +1644,50 @@ html,body{overflow-x:hidden}
             <select class="modal-select" id="cmt-spec-select"></select></div>
         </div>
         <div id="cmt-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
+        <!-- B2 POUR LEDGER — the truck-day accretive report (concrete tab, ratified 7/23) -->
+        <div id="cmt-pour-bar" style="display:none;margin-bottom:14px">
+          <button class="btn-sm btn-orange" style="font-size:15px;padding:12px 20px" onclick="cmtOpenLedger()">📋 POUR LEDGER — open today's truck-day report</button>
+        </div>
+        <div id="cmt-ledger-wrap" style="display:none">
+          <div style="display:flex;gap:14px;flex-wrap:wrap">
+            <div style="flex:1 1 380px;min-width:0">
+              <div class="table-wrap" style="padding:18px">
+                <div class="table-header" style="padding:0 0 6px 0">
+                  <div class="table-title" id="cmt-ledger-title">Pour Ledger</div>
+                  <span id="cmt-ledger-status" style="font-size:11px;color:var(--muted)"></span>
+                </div>
+                <div id="cmt-ledger-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">
+                  <button class="btn-sm btn-orange" style="font-size:15px;padding:12px 18px" onclick="cmtTruckWizOpen()">🚚 TRUCK</button>
+                  <button class="btn-sm" style="font-size:15px;padding:12px 18px" onclick="cmtLedgerLogTest()">🧪 TEST</button>
+                  <button class="btn-sm" style="font-size:15px;padding:12px 18px" onclick="cmtLedgerLogSamples()">🧫 CYLINDERS</button>
+                  <button class="btn-sm" style="font-size:15px;padding:12px 18px" onclick="cmtNoteWizOpen()">📝 NOTE</button>
+                </div>
+                <div id="cmt-truck-wiz" style="display:none;border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px">
+                  <div class="modal-field"><label class="modal-label" style="font-size:14px">TRUCK / TICKET #</label>
+                    <input class="modal-input" id="cmt-tw-truck" style="font-size:22px;min-height:54px" placeholder="4417"></div>
+                  <div class="modal-field"><label class="modal-label" style="font-size:14px">YARDS THIS TRUCK</label>
+                    <input class="modal-input" type="number" inputmode="decimal" min="0" id="cmt-tw-yards" style="font-size:22px;min-height:54px" placeholder="10"></div>
+                  <button class="btn-sm btn-orange" style="font-size:17px;padding:14px 26px;width:100%" onclick="cmtTruckWizAdd()">✓ ADD TRUCK</button>
+                  <button class="btn-sm" style="width:100%;margin-top:6px" onclick="document.getElementById('cmt-truck-wiz').style.display='none'">Close</button>
+                </div>
+                <div id="cmt-note-wiz" style="display:none;border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px">
+                  <div class="modal-field"><label class="modal-label" style="font-size:14px">NOTE</label>
+                    <textarea class="modal-input" id="cmt-nw-text" rows="2" style="font-size:16px"></textarea></div>
+                  <button class="btn-sm btn-orange" style="font-size:15px;width:100%" onclick="cmtNoteWizAdd()">✓ ADD NOTE</button>
+                </div>
+                <div id="cmt-ledger-list"></div>
+                <div style="display:flex;gap:8px;margin-top:12px">
+                  <button class="btn-sm" onclick="cmtLedgerFinalize()" id="cmt-ledger-finalize">✍ Finalize report</button>
+                  <button class="btn-sm" onclick="cmtLedgerPrint()">🖨 Print / PDF</button>
+                  <button class="btn-sm" onclick="cmtCloseLedger()">Back to tests</button>
+                </div>
+              </div>
+            </div>
+            <div style="flex:1 1 380px;min-width:0;background:#525659;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+              <iframe id="cmt-ledger-frame" title="Pour report live paper" style="width:100%;height:78vh;border:0;background:#fff;display:block"></iframe>
+            </div>
+          </div>
+        </div>
         <div id="cmt-test-tiles" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:16px"></div>
         <div id="cmt-form-wrap" style="display:none" data-mobile-view="form">
           <div class="cmt-mobile-tabs">
@@ -1789,6 +1833,8 @@ html,body{overflow-x:hidden}
       <div class="modal-field" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="cmtdw-approved"><label class="modal-label" style="margin:0">Approved</label></div>
       <div class="modal-field" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="cmtdw-noted"><label class="modal-label" style="margin:0">Noted</label></div>
     </div>
+    <div class="modal-field"><label class="modal-label">📐 Drawing image (photo or scan — shows in the report's drawing slot)</label>
+      <input type="file" accept="image/*" id="cmtdw-image"></div>
     <button class="btn-sm btn-orange" onclick="cmtSaveDrawing()">Register</button>
   </div>
 </div>
@@ -11391,8 +11437,18 @@ function cmtRenderTabs(){
        <div style="font-weight:700;color:var(--white)">${t.name}</div>
        <div style="font-size:11px;color:var(--muted);margin-top:4px">${t.astm_ref} · ${t.astm_year}</div>
      </div>`).join('') || '<div class="loading">No test types in this tab.</div>';
+  const pourBar = document.getElementById('cmt-pour-bar');
+  const ledgerOpen = document.getElementById('cmt-ledger-wrap').style.display !== 'none';
+  if(pourBar) pourBar.style.display = (CMT.tab==='concrete' && !ledgerOpen) ? '' : 'none';
 }
-function cmtSetTab(k){ CMT.tab=k; cmtCloseForm(); cmtRenderTabs(); }
+function cmtSetTab(k){
+  CMT.tab=k; cmtCloseForm();
+  if(LEDGER.report && !LEDGER.pendingLink){
+    document.getElementById('cmt-ledger-wrap').style.display='none';
+    LEDGER.report=null; LEDGER.entries=[];
+  }
+  cmtRenderTabs();
+}
 
 async function cmtProjectChanged(){
   const pid = document.getElementById('cmt-project-select').value;
@@ -11752,6 +11808,233 @@ function cmtRestoreDraft(){
 }
 function cmtClearDraft(){ const key = cmtDraftKey(); if(key) try{ localStorage.removeItem(key); }catch(e){} }
 
+// ── B2 POUR LEDGER — container + append-only entries, pointer model (ratified 7/23) ──
+const LEDGER = { report:null, entries:[], pendingLink:null };
+function cmtLedgerReportNo(){
+  const prefix = (currentFirmReportCfg.form_prefix || currentFirmPrefix || 'FIRM');
+  const d = new Date();
+  return `${prefix}-POUR-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(Math.floor(Math.random()*900)+100)}`;
+}
+async function cmtOpenLedger(){
+  const pid = document.getElementById('cmt-project-select').value;
+  if(!pid){ showToast('Pick a project first — the ledger belongs to a pour on a project','error'); return; }
+  const today = new Date().toISOString().slice(0,10);
+  const {data:reps, error} = await sb.from('field_reports').select('*')
+    .eq('project_id',pid).eq('report_date',today).eq('family','concrete_pour')
+    .is('deleted_at',null).neq('status','finalized').limit(1);
+  if(error){ showToast('Ledger load failed: '+error.message,'error'); return; }
+  let rep = reps && reps[0];
+  if(!rep){
+    const ins = await sb.from('field_reports').insert({
+      firm_id: currentFirmId, project_id: pid, report_no: cmtLedgerReportNo(),
+      owner_id: currentUser.id, created_by: currentUser.id }).select('*').single();
+    if(ins.error){ showToast('Could not open the report: '+ins.error.message,'error'); return; }
+    rep = ins.data;
+    await sb.from('report_roles').insert({report_id: rep.id, firm_id: currentFirmId,
+      user_id: currentUser.id, role:'writer', assigned_by: currentUser.id});
+    showToast('New pour report opened — '+rep.report_no,'success');
+  }
+  LEDGER.report = rep;
+  document.getElementById('cmt-ledger-wrap').style.display='';
+  document.getElementById('cmt-test-tiles').style.display='none';
+  document.getElementById('cmt-form-wrap').style.display='none';
+  document.getElementById('cmt-pour-bar').style.display='none';
+  await cmtLedgerRefresh();
+}
+function cmtCloseLedger(){
+  document.getElementById('cmt-ledger-wrap').style.display='none';
+  document.getElementById('cmt-test-tiles').style.display='';
+  LEDGER.report=null; LEDGER.entries=[]; LEDGER.pendingLink=null;
+  cmtRenderTabs();
+}
+async function cmtLedgerRefresh(){
+  if(!LEDGER.report) return;
+  const {data, error} = await sb.from('report_entries').select('*')
+    .eq('report_id', LEDGER.report.id).order('seq');
+  if(error){ showToast('Entries load failed: '+error.message,'error'); return; }
+  LEDGER.entries = data||[];
+  cmtLedgerRenderList();
+  cmtLedgerPaper();
+}
+function cmtEntrySummary(e){
+  const p = e.payload||{};
+  if(e.entry_kind==='ticket') return `🚚 Truck ${p.truck_no||'—'} — ${p.yards!=null?p.yards+' yd³':'—'}`;
+  if(e.entry_kind==='test')   return `🧪 ${p.test_name||'Test'}${p.pass===true?' · PASS':p.pass===false?' · FAIL':''}`;
+  if(e.entry_kind==='sample') return `🧫 ${p.count!=null?p.count+' cylinders':'Samples'}${p.sample_nos&&p.sample_nos.length?' ('+p.sample_nos.join(', ')+')':''}`;
+  return `📝 ${p.text||''}`;
+}
+function cmtLedgerRenderList(){
+  const rep = LEDGER.report;
+  document.getElementById('cmt-ledger-title').textContent = 'Pour Ledger — '+rep.report_no;
+  document.getElementById('cmt-ledger-status').textContent =
+    rep.report_date+' · '+rep.status.toUpperCase()+' · '+LEDGER.entries.length+' entries';
+  const superseded = new Set(LEDGER.entries.filter(e=>e.corrects_entry_id).map(e=>e.corrects_entry_id));
+  const finalized = rep.status==='finalized';
+  document.getElementById('cmt-ledger-actions').style.display = finalized?'none':'flex';
+  document.getElementById('cmt-ledger-finalize').style.display = finalized?'none':'';
+  document.getElementById('cmt-ledger-list').innerHTML = LEDGER.entries.length
+    ? LEDGER.entries.map(e=>{
+        const dead = superseded.has(e.id);
+        return `<div style="padding:7px 4px;border-top:1px solid var(--border);font-size:13px;display:flex;justify-content:space-between;gap:8px;${dead?'text-decoration:line-through;opacity:.55':''}">
+          <span><b style="color:var(--muted)">E${e.seq}</b> ${cmtEntrySummary(e)}${e.corrects_entry_id?` <i style="color:var(--orange);font-size:11px">corrects E${(LEDGER.entries.find(x=>x.id===e.corrects_entry_id)||{}).seq||'?'}</i>`:''}</span>
+          <span style="white-space:nowrap;color:var(--muted);font-size:11px">${new Date(e.entered_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}
+            ${(!finalized && !dead && (e.entry_kind==='ticket'||e.entry_kind==='note'))?`<button class="btn-sm" style="padding:2px 8px;font-size:11px" onclick="cmtLedgerCorrect('${e.id}')">✎</button>`:''}</span>
+        </div>`;
+      }).join('')
+    : '<div class="loading">No entries yet — the first truck starts the ledger.</div>';
+}
+async function cmtLedgerAddEntry(kind, payload, submissionId, correctsId){
+  for(let attempt=0; attempt<3; attempt++){
+    const {data:seq} = await sb.rpc('next_entry_seq', {p_report: LEDGER.report.id});
+    const {error} = await sb.from('report_entries').insert({
+      report_id: LEDGER.report.id, firm_id: currentFirmId, seq: seq||1,
+      entry_kind: kind, payload: payload||{}, submission_id: submissionId||null,
+      corrects_entry_id: correctsId||null, entered_by: currentUser.id });
+    if(!error){ await cmtLedgerRefresh(); return true; }
+    if(!/duplicate|unique/i.test(error.message)){ showToast('Entry failed: '+error.message+' — tap ADD again','error'); return false; }
+  }
+  showToast('Busy moment — tap ADD once more','error'); return false;
+}
+// 3-tap truck flow (B3: one screen, giant targets, ends ready for the next truck)
+let _cmtCorrectTarget = null;
+function cmtTruckWizOpen(correctEntry){
+  _cmtCorrectTarget = correctEntry||null;
+  document.getElementById('cmt-note-wiz').style.display='none';
+  document.getElementById('cmt-truck-wiz').style.display='';
+  if(correctEntry){ const p=correctEntry.payload||{};
+    document.getElementById('cmt-tw-truck').value = p.truck_no||'';
+    document.getElementById('cmt-tw-yards').value = p.yards!=null?p.yards:'';
+  } else { document.getElementById('cmt-tw-truck').value=''; document.getElementById('cmt-tw-yards').value=''; }
+  document.getElementById('cmt-tw-truck').focus();
+}
+async function cmtTruckWizAdd(){
+  const truck = document.getElementById('cmt-tw-truck').value.trim();
+  const yards = +document.getElementById('cmt-tw-yards').value;
+  if(!truck){ showToast('Type the truck number, then tap ADD','error'); return; }
+  if(!(yards>0)){ showToast('Type the yards, then tap ADD','error'); return; }
+  const spec = CMT.specs.find(s=>s.id===document.getElementById('cmt-spec-select').value);
+  const ok = await cmtLedgerAddEntry('ticket',
+    {truck_no:truck, yards:yards, mix: spec?spec.name:null, at:new Date().toISOString()},
+    null, _cmtCorrectTarget ? _cmtCorrectTarget.id : null);
+  if(ok){
+    showToast(_cmtCorrectTarget?'✓ Corrected — old row struck through':'✓ Truck added — next truck','success');
+    _cmtCorrectTarget = null;
+    document.getElementById('cmt-tw-truck').value=''; document.getElementById('cmt-tw-yards').value='';
+    document.getElementById('cmt-tw-truck').focus();
+  }
+}
+function cmtNoteWizOpen(correctEntry){
+  _cmtCorrectTarget = correctEntry||null;
+  document.getElementById('cmt-truck-wiz').style.display='none';
+  document.getElementById('cmt-note-wiz').style.display='';
+  document.getElementById('cmt-nw-text').value = correctEntry ? ((correctEntry.payload||{}).text||'') : '';
+  document.getElementById('cmt-nw-text').focus();
+}
+async function cmtNoteWizAdd(){
+  const text = document.getElementById('cmt-nw-text').value.trim();
+  if(!text){ showToast('Type the note, then tap ADD','error'); return; }
+  if(await cmtLedgerAddEntry('note',{text}, null, _cmtCorrectTarget ? _cmtCorrectTarget.id : null)){
+    showToast(_cmtCorrectTarget?'✓ Corrected — old note struck through':'✓ Note added','success');
+    _cmtCorrectTarget = null;
+    document.getElementById('cmt-nw-text').value=''; document.getElementById('cmt-note-wiz').style.display='none';
+  }
+}
+function cmtLedgerCorrect(entryId){
+  const e = LEDGER.entries.find(x=>x.id===entryId);
+  if(!e) return;
+  if(e.entry_kind==='ticket') cmtTruckWizOpen(e);
+  else cmtNoteWizOpen(e);
+}
+// test/sample entries ride the EXISTING forms — pointer model
+function cmtLedgerLogTest(){
+  LEDGER.pendingLink = {reportId: LEDGER.report.id, kind:'test'};
+  document.getElementById('cmt-ledger-wrap').style.display='none';
+  document.getElementById('cmt-test-tiles').style.display='';
+  cmtSetTab('concrete');
+  showToast('Pick the test — it will file into '+LEDGER.report.report_no,'success');
+}
+function cmtLedgerLogSamples(){
+  LEDGER.pendingLink = {reportId: LEDGER.report.id, kind:'sample'};
+  const cyl = CMT.types.find(t=>t.id==='concrete_cylinder_cast' || (t.makes_samples && t.tab==='concrete'));
+  if(cyl){ document.getElementById('cmt-ledger-wrap').style.display='none';
+    document.getElementById('cmt-test-tiles').style.display=''; cmtOpenForm(cyl.id); }
+  else cmtLedgerLogTest();
+}
+async function cmtLedgerFinalize(){
+  if(!LEDGER.report) return;
+  if(!confirm('Finalize '+LEDGER.report.report_no+'? Entries lock; the paper becomes the record.')) return;
+  const {error} = await sb.from('field_reports')
+    .update({status:'finalized', finalized_at:new Date().toISOString()}).eq('id', LEDGER.report.id);
+  if(error){ showToast('Finalize failed: '+error.message,'error'); return; }
+  LEDGER.report.status='finalized';
+  showToast('Report finalized — '+LEDGER.report.report_no,'success');
+  cmtLedgerRenderList(); cmtLedgerPaper();
+}
+// the pour paper — same chassis, entries as an accreting ledger table
+function cmtPourDocHtml(rep, entries, ctx, pane){
+  if(pane===undefined) pane=true;
+  const superseded = new Set(entries.filter(e=>e.corrects_entry_id).map(e=>e.corrects_entry_id));
+  const live = entries.filter(e=>!superseded.has(e.id));
+  const yards = live.filter(e=>e.entry_kind==='ticket').reduce((a,e)=>a+(+(e.payload||{}).yards||0),0);
+  const trucks = live.filter(e=>e.entry_kind==='ticket').length;
+  const tests = live.filter(e=>e.entry_kind==='test');
+  const cylinders = live.filter(e=>e.entry_kind==='sample').reduce((a,e)=>a+(+(e.payload||{}).count||0),0);
+  const PER_PAGE = 28;
+  const pages = [];
+  for(let i=0;i<Math.max(entries.length,1);i+=PER_PAGE) pages.push(entries.slice(i,i+PER_PAGE));
+  const seqOf = id => (entries.find(x=>x.id===id)||{}).seq||'?';
+  const rows = pg => pg.map(e=>{
+    const dead = superseded.has(e.id);
+    return `<tr${dead?' style="text-decoration:line-through;color:#777"':''}>
+      <td class="chk">E${e.seq}</td><td class="chk">${new Date(e.entered_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</td>
+      <td class="chk">${e.entry_kind.toUpperCase()}</td>
+      <td>${cmtEntrySummary(e).replace(/^[^ ]+ /,'')}${e.corrects_entry_id?` <i>(corrects E${seqOf(e.corrects_entry_id)})</i>`:''}${dead?` <i>(superseded by E${(entries.find(x=>x.corrects_entry_id===e.id)||{}).seq||'?'})</i>`:''}</td>
+      <td class="chk" style="font-size:9px">${(e.entered_by||'').slice(0,8)}</td></tr>`;
+  }).join('');
+  const entryTable = pg => pg.length
+    ? `<table><tr><th>Entry</th><th>Time</th><th>Kind</th><th>Detail</th><th>By</th></tr>${rows(pg)}</table>`
+    : `<table><tr><th>Entry</th><th>Time</th><th>Kind</th><th>Detail</th><th>By</th></tr>
+       <tr><td colspan="5" style="text-align:center;color:#999;font-style:italic;padding:14px">No entries yet — the first truck starts the ledger.</td></tr></table>`;
+  const body = pages.map((pg,i)=>`${i>0?'<div class="pgbrk"></div>':''}${entryTable(pg)}`).join('') +
+    `<p style="font-weight:700;margin:10px 0 2px">RUNNING TOTALS</p>
+     <table><tr><th>Trucks</th><th>Total Yards</th><th>Tests</th><th>Tests Passing</th><th>Cylinders Cast</th></tr>
+     <tr><td class="chk">${trucks}</td><td class="chk">${yards}</td><td class="chk">${tests.length}</td>
+     <td class="chk">${tests.filter(e=>(e.payload||{}).pass===true).length}</td><td class="chk">${cylinders}</td></tr></table>` +
+    `<p style="font-size:9.5px">Append-only ledger — corrections are new entries; struck-through rows remain part of the legal record. Every entry is audit-chained (who/when).</p>`;
+  return rcChassis('FIELD POUR REPORT — CONCRETE TRUCK DAY', (rep.status==='finalized'?'FINALIZED — ':'')+'ACCRETIVE LEDGER',
+    rcInfo([['CLIENT', ctx.project?.client_name],['PROJECT NAME', ctx.project?.name],
+            ['PROJECT ADDRESS', [ctx.project?.location, ctx.project?.city, ctx.project?.state].filter(Boolean).join(', ')],
+            ['SHIFT', rep.shift||'—']],
+           [['DATE', rep.report_date],['REPORT No.', rep.report_no],
+            ['REPORT WRITER', ctx.inspectorName],['STATUS', rep.status.toUpperCase()]]),
+    body, (rcCfg().form_prefix||'FIRM')+'-POUR-FR',
+    {pane:pane, pageN:1, pageM:pages.length, sigLabel:'Report Writer / Special Inspector'});
+}
+function cmtLedgerPrint(){
+  if(!LEDGER.report) return;
+  const p = (CMT.projects||[]).find(x=>x.id===LEDGER.report.project_id) || {};
+  const ctx = {project:p, inspectorName: currentUser?.user_metadata?.full_name || ''};
+  const w = window.open('','_blank');
+  w.document.write(cmtPourDocHtml(LEDGER.report, LEDGER.entries, ctx, false));
+  w.document.close();
+}
+function cmtLedgerPaper(){
+  const fr = document.getElementById('cmt-ledger-frame');
+  if(!fr || !LEDGER.report) return;
+  try{
+    const pid = LEDGER.report.project_id;
+    const p = (CMT.projects||[]).find(x=>x.id===pid) || {};
+    const ctx = {project:p, inspectorName: currentUser?.user_metadata?.full_name || ''};
+    const html = cmtPourDocHtml(LEDGER.report, LEDGER.entries, ctx);
+    const doc = fr.contentDocument; doc.open(); doc.write(html); doc.close();
+  }catch(e){
+    console.warn('pour paper render failed:', e);
+    try{ const doc = fr.contentDocument; doc.open();
+      doc.write('<body style="font:13px monospace;color:#a01810;background:#fff;padding:24px"><div style="border:3px solid #a01810;padding:16px"><b>&#9888; LEDGER PREVIEW ERROR</b><p>'+String(e&&e.message||e).replace(/</g,'&lt;')+'</p><p style="color:#333">Entries are safe in the database. Screenshot this card.</p></div></body>');
+      doc.close(); }catch(_){}
+  }
+}
+
 // ── LIVE PAPER PANE — same renderer as post-submit, mounted in an iframe ─────
 function cmtMobileView(view){
   document.getElementById('cmt-form-wrap').setAttribute('data-mobile-view', view);
@@ -11776,7 +12059,7 @@ function cmtLiveCtx(){
   return { project: p, firmName: rcCfg().firm_display || 'FIRM',
     dateStr: new Date().toLocaleDateString(), reportNo: CMT.liveReportNo,
     inspectorName: currentUser?.user_metadata?.full_name || '',
-    drawings: dws, pins: pins, astmRef: t.astm_ref, astmYear: t.astm_year,
+    drawings: dws, pins: pins, drawingImgs: cmtDrawingImgs(dws), astmRef: t.astm_ref, astmYear: t.astm_year,
     passFlag: CMT.lastPass==null?null:CMT.lastPass, inspectorNote: null,
     submissionId: null, pane: true };
 }
@@ -11862,8 +12145,10 @@ async function cmtSubmitTest(){
       ...p, firm_id: currentFirmId, project_id: pid, submission_id: ins.id })));
   }
   // sample-making tests: auto-register with generated IDs + break schedule
+  let madeCount = 0; const sampleNos = [];
   if(t.makes_samples){
     const n = +v.n_cylinders || +v.n_specimens || +v.n_prisms || 0;
+    madeCount = n;
     const paving = v.paving === true;
     const today = new Date().toISOString().slice(0,10);
     for(let i=0;i<n;i++){
@@ -11877,6 +12162,7 @@ async function cmtSubmitTest(){
         cast_date: today, break_schedule: sched,
         custody_log: [{event:'cast', at:new Date().toISOString(), by: currentUser.id}],
       });
+      sampleNos.push(no);
     }
     showToast(`Test submitted — ${n} sample(s) registered with break schedules`,'success');
   } else {
@@ -11884,6 +12170,17 @@ async function cmtSubmitTest(){
   }
   cmtClearDraft();   // the ONLY draft-clearing path — submit succeeded, entries are safe in the DB
   cmtCloseForm();
+  // B2 pointer model: a pour-linked submission ALSO writes a ledger entry pointing at it
+  if(LEDGER.pendingLink && LEDGER.report){
+    const kind = t.makes_samples ? 'sample' : 'test';
+    await cmtLedgerAddEntry(kind, Object.assign(
+      {test_name: t.name, report_no: row.report_no, pass: pass},
+      kind==='sample' ? {count: madeCount, sample_nos: sampleNos} : {}), ins.id, null);
+    LEDGER.pendingLink = null;
+    document.getElementById('cmt-ledger-wrap').style.display='';
+    document.getElementById('cmt-test-tiles').style.display='none';
+    showToast('Filed into '+LEDGER.report.report_no,'success');
+  }
 }
 
 // ── samples register ─────────────────────────────────────────────────────────
@@ -12035,7 +12332,15 @@ function cmtOpenDrawingModal(){ document.getElementById('modal-cmt-drawing').cla
 async function cmtSaveDrawing(){
   const pid = document.getElementById('cmt-project-select').value;
   if(!pid){ showToast('Pick a project on the Tests page first','error'); return; }
+  let imagePath = null;
+  const imgInput = document.getElementById('cmtdw-image');
+  if(imgInput && imgInput.files && imgInput.files[0]){
+    imagePath = `drawings/${currentFirmId}/${crypto.randomUUID()}.jpg`;
+    const {error:upErr} = await sb.storage.from('inspection-photos').upload(imagePath, imgInput.files[0]);
+    if(upErr){ showToast('Drawing image upload failed: '+upErr.message,'error'); return; }
+  }
   const {error} = await sb.from('job_drawings').insert({
+    image_path: imagePath,
     firm_id: currentFirmId, project_id: pid,
     dtype: document.getElementById('cmtdw-type').value,
     number: document.getElementById('cmtdw-number').value.trim(),
@@ -12173,9 +12478,11 @@ function rcChassis(title2, sub, info, body, formCode, opts){
   ${body}
   ${opts.noDrawingSlot ? '' : `<div style="margin-top:14px">
     <div style="font-weight:700;font-size:10.5px">INSPECTED ELEMENT / LOCATION — DRAWING</div>
-    <div style="border:1.5px solid #000;min-height:${opts.pane?'110px':'180px'};position:relative;display:flex;align-items:center;justify-content:center">
+    <div style="border:1.5px solid #000;min-height:${opts.pane?'110px':'180px'};position:relative;${(opts.drawingImgs&&opts.drawingImgs.length)?'padding:16px 6px 4px':'display:flex;align-items:center;justify-content:center'}">
       ${opts.drawingRefs?`<div style="position:absolute;top:3px;left:6px;font-size:9px">${opts.drawingRefs}</div>`:''}
-      <span style="color:#aaa;font:italic 12px Georgia,serif">DRAWING — element highlight pending</span>
+      ${(opts.drawingImgs&&opts.drawingImgs.length)
+        ? opts.drawingImgs.map(im=>`<div style="text-align:center;padding:4px"><img src="${im.url}" style="max-width:100%;max-height:${opts.pane?'200px':'380px'}"><div style="font-size:9px">${im.label}</div></div>`).join('')
+        : `<span style="color:#aaa;font:italic 12px Georgia,serif">DRAWING — element highlight pending</span>`}
     </div>
   </div>`}
   <div class="sig">Respectfully Submitted,<br><br><br><span class="line">${opts.sigLabel||'Special Inspector'}</span>${opts.sigExtra||''}</div>
@@ -12238,7 +12545,7 @@ function cmtDocHtml(t, v, ctx){
       `<table><tr><th style="text-align:left">Inspection Item</th><th>In Compliance</th><th>Discrepancies (See Comments)</th><th>Non-Applicable</th></tr>${rows}</table>` +
       `<p style="font-weight:700;margin-bottom:2px">COMMENTS</p><table><tr><td class="comments">${(v.comments||'').replace(/\n/g,'<br>')}</td></tr></table>` +
       `<p>Compliance / Discrepancies were informed to Contractor / GC / Client Representative(s): <u>${v.informed_to||'&nbsp;&nbsp;&nbsp;&nbsp;'}</u></p>`,
-      `${prefix}-CFS-FR`, {pane, drawingRefs: dwRefs});
+      `${prefix}-CFS-FR`, {pane, drawingRefs: dwRefs, drawingImgs: ctx.drawingImgs||[]});
   } else if(tid === 'rebar_placement'){
     const items = (t.field_schema.fields||[]).filter(f=>f.type==='checkitem');
     const rows = items.map(f=>`<tr><td>${f.label}</td>
@@ -12253,7 +12560,7 @@ function cmtDocHtml(t, v, ctx){
       rcDrawingsTable(dws||[], 8) +
       `<table><tr><th style="text-align:left">Placement Item</th><th>In Compliance</th><th>Discrepancies (See Comments)</th></tr>${rows}</table>` +
       `<p style="font-weight:700;margin-bottom:2px">COMMENTS</p><table><tr><td class="comments">${(v.non_conformances||'').replace(/\n/g,'<br>')}</td></tr></table>`,
-      `${prefix}-RBAR-FR`, {pane, drawingRefs: dwRefs,
+      `${prefix}-RBAR-FR`, {pane, drawingRefs: dwRefs, drawingImgs: ctx.drawingImgs||[],
         sigExtra:`<span class="line" style="margin-left:40px">ICC Certification Number${v.icc_cert?': '+v.icc_cert:''}</span>`});
   } else if(tid === 'sfrm_thickness'){
     const comp = sfrmThicknessCompute(v);
@@ -12282,7 +12589,7 @@ function cmtDocHtml(t, v, ctx){
         <div style="font-size:10px">LEGEND — numbered reading positions (* = flange tips)</div></div>` +
       `<table><tr><th rowspan="1" colspan="2">Test Location</th>${head}<th>${comp.cfg.totalHeader}</th><th>Avg.</th><th>Status</th><th>Remarks</th></tr>${rows}</table>` +
       `<div class="notes"><b>NOTES:</b> Readings rounded to the nearest 1/16 in. Where the minimum required thickness is less than 1 in., every individual reading shall be at least 75% of the minimum requirement. Where the minimum required thickness is 1 in. or greater, no individual reading shall be below the minimum less 1/4 in. Flange-tip readings are averaged separately where the UL design so requires. Status is computed from these rules — it is not hand-entered.</div>`,
-      `${prefix}-SFRM-FR-${varKey}`, {pane, drawingRefs: dwRefs});
+      `${prefix}-SFRM-FR-${varKey}`, {pane, drawingRefs: dwRefs, drawingImgs: ctx.drawingImgs||[]});
   } else if(tid === 'sfrm_density'){
     const comp = sfrmDensityCompute(v);
     const rowsArr = comp.rows||[];
@@ -12323,14 +12630,14 @@ function cmtDocHtml(t, v, ctx){
        <tr><td class="chk">${comp.max??''}</td><td class="chk">${comp.min??''}</td><td class="chk">${comp.avg??''}</td>
        <td class="chk">${comp.req??''}</td><td class="chk ${comp.pass?'pass':'fail'}">${comp.pass==null?'—':comp.pass?'PASS':'FAIL'}</td></tr></table>
        <p style="font-size:9.5px">All volumes, densities, averages and results are computed by the engine from raw sample dimensions and weights — computed cells cannot be hand-edited.</p>`,
-      `${prefix}-SFRM-FR-06`, {pane, drawingRefs: dwRefs, sigLabel:'Special Inspector / Laboratory Technician'});
+      `${prefix}-SFRM-FR-06`, {pane, drawingRefs: dwRefs, drawingImgs: ctx.drawingImgs||[], sigLabel:'Special Inspector / Laboratory Technician'});
   } else if(t?.tab === 'soils' && tid === 'soils_field_report'){
     html = rcChassis('FIELD INSPECTION REPORT','SOILS',
       rcInfo(infoL, infoR),
       `<p style="font-weight:700;margin-bottom:2px">FIELD NARRATIVE</p>
        <table><tr><td class="comments" style="min-height:340px">${(v.narrative||'').replace(/\n/g,'<br>')}</td></tr></table>` +
       `<p>Findings informed to: <u>${v.informed_to||'&nbsp;&nbsp;&nbsp;&nbsp;'}</u></p>`,
-      `${prefix}-SOIL-FR`, {pane, drawingRefs: dwRefs});
+      `${prefix}-SOIL-FR`, {pane, drawingRefs: dwRefs, drawingImgs: ctx.drawingImgs||[]});
   } else {
     html = cmtDocDefaultHtml(t, v, ctx);   // every other test type keeps the Track 1 default
   }
@@ -12353,7 +12660,14 @@ function cmtDocDefaultHtml(t, v, ctx){
     `<table>${rows}</table><p><b>Determination:</b> ${pf}${ctx.inspectorNote?'<br><b>Inspector note:</b> '+ctx.inspectorNote:''}</p>
      <p style="font-size:9.5px">Pass/fail is computed from the governing specification — never manually entered. ${ctx.submissionId?'Submission '+ctx.submissionId+' · audit-chained.':'LIVE PREVIEW — not yet submitted.'}</p>`,
     (rcCfg().form_prefix||'FIRM')+'-RPT-FR', {pane: !!ctx.pane,
-     drawingRefs: (ctx.drawings||[]).map(d=>`${d.dtype==='document'?'DOC':'DWG'} ${d.number}${d.rev_no?' Rev '+d.rev_no:''}`).join(' · ')});
+     drawingRefs: (ctx.drawings||[]).map(d=>`${d.dtype==='document'?'DOC':'DWG'} ${d.number}${d.rev_no?' Rev '+d.rev_no:''}`).join(' · '),
+     drawingImgs: ctx.drawingImgs||[]});
+}
+
+function cmtDrawingImgs(dws){
+  return (dws||[]).filter(d=>d.image_path).map(d=>({
+    url: sb.storage.from('inspection-photos').getPublicUrl(d.image_path).data.publicUrl,
+    label: (d.dtype==='document'?'DOC ':'DWG ')+d.number }));
 }
 
 // post-submit mount: fetch the submission, build ctx, same renderer, popup
@@ -12372,7 +12686,7 @@ async function cmtReport(id){
     dateStr: new Date(s.submitted_at).toLocaleDateString(),
     reportNo: s.report_no || s.id.slice(0,8),
     inspectorName: currentUser?.user_metadata?.full_name || '',
-    drawings: dws||[], pins: pins||[],
+    drawings: dws||[], pins: pins||[], drawingImgs: cmtDrawingImgs(dws),
     astmRef: s.astm_ref, astmYear: s.astm_year,
     passFlag: s.pass_flag, inspectorNote: s.inspector_note,
     submissionId: s.id, pane: false,
