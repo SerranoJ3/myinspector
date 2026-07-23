@@ -3547,6 +3547,10 @@ async function initApp(user){
       if (isSuperAdmin && localStorage.getItem('mi_pack_override')) ACTIVE_PACK = localStorage.getItem('mi_pack_override');
       currentFirmPrefix = profile.firms?.sample_prefix || null;
       currentFirmReportCfg = profile.firms?.report_config || {};
+      // live paper needs the firm display name OUTSIDE this function's scope —
+      // firmName above is initApp-local (the 7/23 blank-pane ReferenceError)
+      if(profile.firms?.name && !currentFirmReportCfg.firm_display)
+        currentFirmReportCfg.firm_display = profile.firms.name;
     }
   } catch(e) {
     console.warn('Profile load failed, continuing:', e);
@@ -11384,12 +11388,15 @@ function cmtSetTab(k){ CMT.tab=k; cmtCloseForm(); cmtRenderTabs(); }
 async function cmtProjectChanged(){
   const pid = document.getElementById('cmt-project-select').value;
   const sel = document.getElementById('cmt-spec-select');
-  if(!pid){ sel.innerHTML=''; CMT.specs=[]; return; }
+  if(!pid){ sel.innerHTML=''; CMT.specs=[]; if(CMT.activeType) cmtRecalc(); return; }
   const {data} = await sb.from('job_specs').select('*')
     .eq('project_id',pid).eq('active',true).is('deleted_at',null);
   CMT.specs = data||[];
   sel.innerHTML = '<option value="">No governing spec</option>' +
     CMT.specs.map(s=>`<option value="${s.id}">${s.name} (${s.kind})</option>`).join('');
+  // auto-populate: with a form open, picking a project inks the paper header live
+  cmtFillDrawings();
+  if(CMT.activeType) cmtRecalc();
 }
 
 // ── registry-driven form renderer ────────────────────────────────────────────
@@ -11690,7 +11697,7 @@ function cmtLiveCtx(){
   })).filter(x=>x.element_type||x.location);
   if(!CMT.liveReportNo) CMT.liveReportNo = cmtReportNo(CMT.activeType);
   const t = CMT.activeType;
-  return { project: p, firmName: rcCfg().firm_display || firmName || 'FIRM',
+  return { project: p, firmName: rcCfg().firm_display || 'FIRM',
     dateStr: new Date().toLocaleDateString(), reportNo: CMT.liveReportNo,
     inspectorName: currentUser?.user_metadata?.full_name || '',
     drawings: dws, pins: pins, astmRef: t.astm_ref, astmYear: t.astm_year,
@@ -11705,7 +11712,20 @@ function cmtPaperRender(){
     const html = cmtDocHtml(CMT.activeType, CMT.lastVals || {}, cmtLiveCtx());
     const doc = fr.contentDocument;
     doc.open(); doc.write(html); doc.close();
-  }catch(e){ console.warn('live paper render failed:', e); }
+  }catch(e){
+    // NEVER-BLANK GUARANTEE: a white rectangle is a forbidden state. Any render
+    // failure paints a loud in-pane error card instead of silence.
+    console.warn('live paper render failed:', e);
+    try{
+      const doc = fr.contentDocument;
+      doc.open();
+      doc.write('<body style="font:13px/1.5 ui-monospace,monospace;color:#a01810;background:#fff;padding:24px">' +
+        '<div style="border:3px solid #a01810;padding:16px"><b style="font-size:15px">&#9888; LIVE PREVIEW ERROR</b>' +
+        '<p>' + String(e && e.message || e).replace(/</g,'&lt;') + '</p>' +
+        '<p style="color:#333">Submitted reports are unaffected. Screenshot this card.</p></div></body>');
+      doc.close();
+    }catch(_){}
+  }
 }
 
 async function cmtSubmitTest(){
@@ -12239,8 +12259,10 @@ function cmtDocDefaultHtml(t, v, ctx){
   }).join('');
   const pf = ctx.passFlag===true?'<span class="pass">PASS</span>':ctx.passFlag===false?'<span class="fail">FAIL — see note</span>':'<i>informational</i>';
   return rcChassis('FIELD TEST REPORT', (t?.name||'').toUpperCase(),
-    rcInfo([['CLIENT', ctx.project?.client_name],['PROJECT NAME', ctx.project?.name],['STANDARD', (ctx.astmRef||'')+' ('+(ctx.astmYear||'')+')']],
-           [['DATE', ctx.dateStr],['REPORT NUMBER', ctx.reportNo]]),
+    rcInfo([['CLIENT', ctx.project?.client_name],['PROJECT NAME', ctx.project?.name],
+            ['PROJECT ADDRESS', [ctx.project?.location, ctx.project?.city, ctx.project?.state].filter(Boolean).join(', ')],
+            ['STANDARD', (ctx.astmRef||'')+' ('+(ctx.astmYear||'')+')']],
+           [['DATE', ctx.dateStr],['REPORT NUMBER', ctx.reportNo],['INSPECTOR', ctx.inspectorName]]),
     `<table>${rows}</table><p><b>Determination:</b> ${pf}${ctx.inspectorNote?'<br><b>Inspector note:</b> '+ctx.inspectorNote:''}</p>
      <p style="font-size:9.5px">Pass/fail is computed from the governing specification — never manually entered. ${ctx.submissionId?'Submission '+ctx.submissionId+' · audit-chained.':'LIVE PREVIEW — not yet submitted.'}</p>`,
     (rcCfg().form_prefix||'FIRM')+'-RPT-FR', {pane: !!ctx.pane});
