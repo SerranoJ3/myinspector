@@ -3444,24 +3444,19 @@ async function signup(){
     email, password:pass,
     options:{data:{full_name:name, firm_code:code}}
   });
-  if(error){ showAuthError(error.message); return; }
-
-  // Create profile row attached to the firm
-  // Sign in first so auth.uid() is set for RLS policy, then insert profile
-  if(data.user){
-    await sb.auth.signInWithPassword({email, password:pass});
-    const {error:profileError} = await sb.from('profiles').insert({
-      id: data.user.id,
-      full_name: name,
-      firm_id: firm.firm_id,
-      role: 'inspector'
-    });
-    if(profileError){
-      showAuthError('Account created but profile setup failed. Contact support. Error: '+profileError.message);
-      return;
-    }
-    await sb.auth.signOut();
+  if(error){
+    // B3 doctrine: no dead ends — every failure names the next tap
+    if(/already registered|already been registered|already exists/i.test(error.message))
+      showAuthError('This email already has an account. Tap Sign In below — or use your email\'s password reset if you\'ve forgotten it.');
+    else
+      showAuthError(error.message + ' — check the field and try again.');
+    return;
   }
+  // SIGNUP P0 (7/23): the profile is created SERVER-SIDE the instant the account
+  // exists (handle_new_user trigger on auth.users — first user of a firm = owner,
+  // then inspectors). No client sign-in, no client insert, no RLS race. The old
+  // flow (unchecked signInWithPassword → sessionless insert) orphaned every new
+  // user on this email-confirmation-required project.
 
   // MI-DEMO-UI v3.1: conditional toast at signup using firm_safe_to_display from RPC return shape.
   // Demo / opted-in firms (firm_safe_to_display=true) show firm name in toast for friendly onboarding;
