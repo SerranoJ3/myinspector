@@ -11533,7 +11533,8 @@ function cmtOpenForm(typeId){
   }).join('');
   document.getElementById('cmt-form-fields').innerHTML = fields +
     `<div class="modal-field" id="cmt-drawings-box"><label class="modal-label">Drawings / Documents used on this visit (from the job register)</label>
-       <div id="cmt-drawings-list" style="font-size:12px;color:var(--muted)">no register entries for this project — add them under Job Specs → Drawings</div></div>` +
+       <div id="cmt-drawings-list" style="font-size:12px;color:var(--muted)">no register entries for this project — add them under Job Specs → Drawings</div></div>
+     <div class="modal-field" id="cmt-planmk" style="display:none"></div>` +
     ((t.id==='rebar_placement'||t.id==='cfs_inspection') ?
     `<div class="modal-field"><label class="modal-label">Elements inspected on this visit (floor + element ID — the which-of-50 answer)</label>
        <div id="cmt-pins-rows"></div>
@@ -11548,6 +11549,7 @@ function cmtOpenForm(typeId){
   document.getElementById('cmt-test-tiles').style.display='none';
   CMT.lastVariant = undefined;
   CMT.liveReportNo = null;
+  PLANMK.byDrawing = {}; PLANMK.undo = []; PLANMK.view = null; PLANMK.textArm = false; PLANMK.activeId = null;
   cmtMobileView('form');
   document.querySelectorAll('#cmt-form-fields [data-rg-key]').forEach(w=>cmtRenderReadingsGrid(w.dataset.rgKey));
   if(cmtRestoreDraft()){
@@ -11700,6 +11702,7 @@ function cmtRecalc(){
     document.getElementById('cmt-oot-wrap').style.display = pf ? 'none' : '';
   }
   CMT.lastVals = v; CMT.lastPass = pf;
+  cmtPlanMkSync();
   cmtSaveDraft();
   cmtPaperDebounced();
   return {vals:v, pass:pf};
@@ -11749,6 +11752,153 @@ function cmtPhotoPicked(key, input){
   if(input.files && input.files[0]) CMT.photos[key] = input.files[0];
 }
 
+// ── ADDENDUM C PLAN MARKUP — highlighter + text over the auto-populated sheet ─
+// Extends the MI-110 diagram engine mechanics (normalized 0-1 coords, undo cap
+// 30, zoom clamp 0.5-3) with an <image> base layer. NO capture step: the sheet
+// auto-populates from drawings_used. Highlighter is the default tool — touch
+// the sheet and swipe, no mode select (B3: no instruction needed).
+const PLANMK = { byDrawing:{}, activeId:null, undo:[], textArm:false, stroke:null, view:null };
+const PLANMK_UNDO_CAP = 30;                      // MI-110 convention
+const PLANMK_ZOOM_MIN = 0.5, PLANMK_ZOOM_MAX = 3; // MI-110 clamps
+function cmtPlanMkRec(id){ return PLANMK.byDrawing[id] = PLANMK.byDrawing[id] || {strokes:[], notes:[]}; }
+function cmtPlanMkSelected(){
+  const checked = new Set([...document.querySelectorAll('#cmt-drawings-list input:checked')].map(x=>x.value));
+  return (CMT.drawingsCache||[]).filter(d=>checked.has(d.id) && d.image_path);
+}
+function cmtPlanMkSync(){
+  const box = document.getElementById('cmt-planmk');
+  if(!box) return;
+  const dws = cmtPlanMkSelected();
+  if(!dws.length){ box.style.display='none'; box.dataset.ids=''; return; }
+  const ids = dws.map(d=>d.id).join(',');
+  if(box.dataset.ids === ids && box.style.display!=='none') return;   // no churn
+  box.dataset.ids = ids;
+  box.style.display='';
+  if(!dws.find(d=>d.id===PLANMK.activeId)) PLANMK.activeId = dws[0].id;
+  box.innerHTML = `<label class="modal-label">🖍 Highlight the inspected area (swipe the sheet — it prints on the report)</label>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0">
+      ${dws.map(d=>`<button type="button" class="btn-sm ${d.id===PLANMK.activeId?'btn-orange':''}"
+        onclick="PLANMK.activeId='${d.id}';document.getElementById('cmt-planmk').dataset.ids='';cmtPlanMkSync()">${d.dtype==='document'?'DOC':'DWG'} ${d.number}</button>`).join('')}
+      <button type="button" class="btn-sm" id="cmt-planmk-text" onclick="cmtPlanMkArmText()">T text</button>
+      <button type="button" class="btn-sm" onclick="cmtPlanMkUndo()">↶ undo</button>
+    </div>
+    <div id="cmt-planmk-stage" style="position:relative;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:#fff"></div>`;
+  cmtPlanMkRenderSvg();
+}
+function cmtPlanMkRenderSvg(){
+  const stage = document.getElementById('cmt-planmk-stage');
+  const d = (CMT.drawingsCache||[]).find(x=>x.id===PLANMK.activeId);
+  if(!stage || !d) return;
+  const url = sb.storage.from('inspection-photos').getPublicUrl(d.image_path).data.publicUrl;
+  const v = PLANMK.view || {x:0, y:0, w:PLANMK_VB_W, h:PLANMK_VB_H};
+  const mk = cmtPlanMkRec(d.id);
+  stage.innerHTML = `<svg id="cmt-planmk-svg" viewBox="${v.x} ${v.y} ${v.w} ${v.h}"
+      style="width:100%;display:block;touch-action:none;cursor:crosshair" xmlns="http://www.w3.org/2000/svg">
+    <image href="${url}" x="0" y="0" width="${PLANMK_VB_W}" height="${PLANMK_VB_H}" preserveAspectRatio="xMidYMid meet"/>
+    <g id="cmt-planmk-overlay">${planMarkupOverlaySvg(mk)}</g>
+    <polyline id="cmt-planmk-livestroke" points="" fill="none" stroke="#ffd400" stroke-opacity="0.45"
+      stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+  const svg = document.getElementById('cmt-planmk-svg');
+  svg.addEventListener('pointerdown', cmtPlanMkDown);
+  svg.addEventListener('pointermove', cmtPlanMkMove);
+  svg.addEventListener('pointerup', cmtPlanMkUp);
+  svg.addEventListener('pointercancel', cmtPlanMkUp);
+  svg.addEventListener('wheel', cmtPlanMkWheel, {passive:false});
+  svg.addEventListener('touchstart', cmtPlanMkPinch, {passive:false});
+  svg.addEventListener('touchmove', cmtPlanMkPinch, {passive:false});
+}
+function cmtPlanMkPt(ev){
+  const svg = document.getElementById('cmt-planmk-svg');
+  const pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
+  const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+  return [Math.min(Math.max(p.x/PLANMK_VB_W,0),1), Math.min(Math.max(p.y/PLANMK_VB_H,0),1)];
+}
+function cmtPlanMkDown(ev){
+  if(ev.pointerType==='touch' && ev.isPrimary===false) return;   // 2nd finger = pinch, not paint
+  ev.preventDefault();
+  const p = cmtPlanMkPt(ev);
+  if(PLANMK.textArm){ cmtPlanMkPlaceText(p); return; }
+  PLANMK.stroke = {pts:[p]};
+  try{ ev.target.closest('svg').setPointerCapture(ev.pointerId); }catch(_){}
+}
+function cmtPlanMkMove(ev){
+  if(!PLANMK.stroke) return;
+  const p = cmtPlanMkPt(ev);
+  const last = PLANMK.stroke.pts[PLANMK.stroke.pts.length-1];
+  if(Math.hypot(p[0]-last[0], p[1]-last[1]) < 0.004) return;     // decimate
+  PLANMK.stroke.pts.push(p);
+  const live = document.getElementById('cmt-planmk-livestroke');
+  if(live) live.setAttribute('points', PLANMK.stroke.pts.map(q=>`${(q[0]*PLANMK_VB_W).toFixed(1)},${(q[1]*PLANMK_VB_H).toFixed(1)}`).join(' '));
+}
+function cmtPlanMkUp(){
+  if(!PLANMK.stroke) return;
+  if(PLANMK.stroke.pts.length >= 3){
+    cmtPlanMkRec(PLANMK.activeId).strokes.push(PLANMK.stroke);
+    PLANMK.undo.push({id:PLANMK.activeId, kind:'stroke'});
+    if(PLANMK.undo.length > PLANMK_UNDO_CAP) PLANMK.undo.shift();
+    cmtSaveDraft(); cmtPaperDebounced();
+  }
+  PLANMK.stroke = null;
+  cmtPlanMkRenderSvg();
+}
+function cmtPlanMkArmText(){
+  PLANMK.textArm = !PLANMK.textArm;
+  const b = document.getElementById('cmt-planmk-text');
+  if(b) b.classList.toggle('btn-orange', PLANMK.textArm);
+  showToast(PLANMK.textArm ? 'Tap the sheet where the note goes' : 'Text off','success');
+}
+function cmtPlanMkPlaceText(p){
+  const stage = document.getElementById('cmt-planmk-stage');
+  const inp = document.createElement('div');
+  inp.style.cssText='position:absolute;left:8px;right:8px;bottom:8px;display:flex;gap:6px;background:var(--surface);padding:8px;border-radius:8px;border:1px solid var(--border)';
+  inp.innerHTML = `<input class="modal-input" id="cmt-planmk-notetext" placeholder="Short note (e.g. Col C-12 this pour)" style="flex:1;font-size:16px">
+    <button type="button" class="btn-sm btn-orange" id="cmt-planmk-noteok">ADD</button>`;
+  stage.appendChild(inp);
+  const commit = () => {
+    const text = document.getElementById('cmt-planmk-notetext').value.trim();
+    if(text){
+      cmtPlanMkRec(PLANMK.activeId).notes.push({x:p[0], y:p[1], text});
+      PLANMK.undo.push({id:PLANMK.activeId, kind:'note'});
+      if(PLANMK.undo.length > PLANMK_UNDO_CAP) PLANMK.undo.shift();
+      cmtSaveDraft(); cmtPaperDebounced();
+    }
+    PLANMK.textArm = false; inp.remove(); cmtPlanMkRenderSvg();
+  };
+  document.getElementById('cmt-planmk-noteok').onclick = commit;
+  document.getElementById('cmt-planmk-notetext').onkeydown = e => { if(e.key==='Enter') commit(); };
+  document.getElementById('cmt-planmk-notetext').focus();
+}
+function cmtPlanMkUndo(){
+  const last = PLANMK.undo.pop();
+  if(!last){ showToast('Nothing to undo','success'); return; }
+  const rec = cmtPlanMkRec(last.id);
+  if(last.kind==='stroke') rec.strokes.pop(); else rec.notes.pop();
+  cmtSaveDraft(); cmtPaperDebounced(); cmtPlanMkRenderSvg();
+}
+function cmtPlanMkWheel(ev){
+  if(!ev.ctrlKey) return;
+  ev.preventDefault();
+  cmtPlanMkZoom(ev.deltaY < 0 ? 0.85 : 1.18);
+}
+let _planmkPinch = null;
+function cmtPlanMkPinch(ev){
+  if(ev.touches.length !== 2){ _planmkPinch = null; return; }
+  ev.preventDefault();
+  const d = Math.hypot(ev.touches[0].clientX-ev.touches[1].clientX, ev.touches[0].clientY-ev.touches[1].clientY);
+  if(ev.type==='touchstart' || !_planmkPinch){ _planmkPinch = d; return; }
+  cmtPlanMkZoom(_planmkPinch/d); _planmkPinch = d;
+}
+function cmtPlanMkZoom(factor){
+  const v = PLANMK.view || {x:0, y:0, w:PLANMK_VB_W, h:PLANMK_VB_H};
+  let w = Math.min(Math.max(v.w*factor, PLANMK_VB_W/PLANMK_ZOOM_MAX), PLANMK_VB_W/PLANMK_ZOOM_MIN);
+  const h = w * PLANMK_VB_H/PLANMK_VB_W;
+  const cx = v.x + v.w/2, cy = v.y + v.h/2;
+  PLANMK.view = {x: cx-w/2, y: cy-h/2, w, h};
+  const svg = document.getElementById('cmt-planmk-svg');
+  if(svg) svg.setAttribute('viewBox', `${PLANMK.view.x} ${PLANMK.view.y} ${PLANMK.view.w} ${PLANMK.view.h}`);
+}
+
 // ── B3 DRAFT AUTOSAVE — every keystroke persists; dropped phone loses nothing ─
 // Saved per test type on every recalc; restored on form open; cleared ONLY on
 // successful submit (Cancel keeps the draft — nothing destructible).
@@ -11770,8 +11920,10 @@ function cmtSaveDraft(){
       if(el.value!=='') raw.grids.push(['dg:'+el.dataset.dg, el.dataset.row, el.dataset.k, '', el.value]); });
     document.querySelectorAll('#cmt-pins-rows .cmt-pin-row').forEach(r=>{
       raw.pins.push([r.querySelector('[data-p="type"]').value, r.querySelector('[data-p="loc"]').value, r.querySelector('[data-p="rem"]').value]); });
+    raw.planmk = PLANMK.byDrawing;
+    const mkAny = Object.values(PLANMK.byDrawing).some(m=>(m.strokes||[]).length||(m.notes||[]).length);
     const hasAny = Object.values(raw.fields).some(v=>v!=='' && v!==false) || raw.grids.length ||
-      raw.remarks.length || Object.keys(raw.radios).length || raw.pins.some(p=>p.some(Boolean));
+      raw.remarks.length || Object.keys(raw.radios).length || raw.pins.some(p=>p.some(Boolean)) || mkAny;
     if(hasAny) localStorage.setItem(key, JSON.stringify(raw));
     else localStorage.removeItem(key);
   }catch(e){}
@@ -11797,6 +11949,7 @@ function cmtRestoreDraft(){
     (raw.remarks||[]).forEach(([g,loc,val])=>{
       const el = document.querySelector(`input[data-rgr="${g}"][data-loc="${loc}"]`); if(el) el.value = val;
     });
+    if(raw.planmk && Object.keys(raw.planmk).length){ PLANMK.byDrawing = raw.planmk; }
     const pinBox = document.getElementById('cmt-pins-rows');
     if(pinBox && (raw.pins||[]).some(p=>p.some(Boolean))){
       pinBox.innerHTML='';
@@ -12059,7 +12212,7 @@ function cmtLiveCtx(){
   return { project: p, firmName: rcCfg().firm_display || 'FIRM',
     dateStr: new Date().toLocaleDateString(), reportNo: CMT.liveReportNo,
     inspectorName: currentUser?.user_metadata?.full_name || '',
-    drawings: dws, pins: pins, drawingImgs: cmtDrawingImgs(dws), astmRef: t.astm_ref, astmYear: t.astm_year,
+    drawings: dws, pins: pins, drawingImgs: cmtDrawingImgs(dws, PLANMK.byDrawing), astmRef: t.astm_ref, astmYear: t.astm_year,
     passFlag: CMT.lastPass==null?null:CMT.lastPass, inspectorNote: null,
     submissionId: null, pane: true };
 }
@@ -12121,10 +12274,13 @@ async function cmtSubmitTest(){
       p=>res({lat:p.coords.latitude,lng:p.coords.longitude}), ()=>res({}), {timeout:4000});
   });
   const specId = document.getElementById('cmt-spec-select').value || null;
+  // Addendum C: markup rides field_data — per-report overlay, base image untouched
+  const mkAny = Object.values(PLANMK.byDrawing).some(m=>(m.strokes||[]).length||(m.notes||[]).length);
+  const fieldData = mkAny ? Object.assign({}, v, {plan_markup: PLANMK.byDrawing}) : v;
   const row = {
     firm_id: currentFirmId, project_id: pid, test_type_id: t.id,
     astm_ref: t.astm_ref, astm_year: t.astm_year, spec_id: specId,
-    field_data: v, photos: photoRecs,
+    field_data: fieldData, photos: photoRecs,
     computed: {pass_inputs: v, engine:'pack02-v1'},
     pass_flag: pass, out_of_tolerance: pass===false,
     inspector_note: ootNote, gps_lat: gps.lat, gps_lng: gps.lng,
@@ -12439,6 +12595,30 @@ function sfrmDensityCompute(v){
           req, pass: isFinite(req) ? avg >= req : null};
 }
 
+// ── plan markup read-only embed (Addendum C) — MI-110 conventions: normalized
+// 0-1 coords into the 800x600 viewBox. ONE renderer for editor preview, live
+// pane and post-submit doc. Pure: (img rec w/ url+markup) → SVG string.
+const PLANMK_VB_W = 800, PLANMK_VB_H = 600;
+function planMarkupOverlaySvg(mk){
+  mk = mk || {};
+  const strokes = (mk.strokes||[]).map(s=>
+    `<polyline points="${(s.pts||[]).map(p=>`${(p[0]*PLANMK_VB_W).toFixed(1)},${(p[1]*PLANMK_VB_H).toFixed(1)}`).join(' ')}"
+      fill="none" stroke="#ffd400" stroke-opacity="0.45" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
+  const notes = (mk.notes||[]).map(n=>{
+    const x = n.x*PLANMK_VB_W, y = n.y*PLANMK_VB_H;
+    const w = Math.min(Math.max(String(n.text||'').length*11+16, 60), 360);
+    return `<g><rect x="${x}" y="${y-24}" width="${w}" height="30" rx="4" fill="#fff8c4" stroke="#8a7a00" stroke-width="1.5"/>
+      <text x="${x+8}" y="${y-3}" font-family="Georgia,serif" font-size="19" fill="#000">${String(n.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</text></g>`;
+  }).join('');
+  return strokes + notes;
+}
+function planMarkupReadOnlyEmbed(im, maxH){
+  return `<svg viewBox="0 0 ${PLANMK_VB_W} ${PLANMK_VB_H}" xmlns="http://www.w3.org/2000/svg"
+    style="max-width:100%;${maxH?`max-height:${maxH};`:''}display:block;margin:0 auto;background:#fff">
+    <image href="${im.url}" x="0" y="0" width="${PLANMK_VB_W}" height="${PLANMK_VB_H}" preserveAspectRatio="xMidYMid meet"/>
+    ${planMarkupOverlaySvg(im.markup)}</svg>`;
+}
+
 // ── report chassis + legends ─────────────────────────────────────────────────
 function rcCfg(){ return currentFirmReportCfg || {}; }
 function rcChassis(title2, sub, info, body, formCode, opts){
@@ -12481,8 +12661,8 @@ function rcChassis(title2, sub, info, body, formCode, opts){
     <div style="border:1.5px solid #000;min-height:${opts.pane?'110px':'180px'};position:relative;${(opts.drawingImgs&&opts.drawingImgs.length)?'padding:16px 6px 4px':'display:flex;align-items:center;justify-content:center'}">
       ${opts.drawingRefs?`<div style="position:absolute;top:3px;left:6px;font-size:9px">${opts.drawingRefs}</div>`:''}
       ${(opts.drawingImgs&&opts.drawingImgs.length)
-        ? opts.drawingImgs.map(im=>`<div style="text-align:center;padding:4px"><img src="${im.url}" style="max-width:100%;max-height:${opts.pane?'200px':'380px'}"><div style="font-size:9px">${im.label}</div></div>`).join('')
-        : `<span style="color:#aaa;font:italic 12px Georgia,serif">DRAWING — element highlight pending</span>`}
+        ? opts.drawingImgs.map(im=>`<div style="text-align:center;padding:4px">${planMarkupReadOnlyEmbed(im, opts.pane?'220px':'400px')}<div style="font-size:9px">${im.label}${(im.markup&&((im.markup.strokes||[]).length||(im.markup.notes||[]).length))?' — inspector markup shown':''}</div></div>`).join('')
+        : `<span style="color:#aaa;font:italic 12px Georgia,serif">DRAWING — highlight the inspected area on the form to show it here</span>`}
     </div>
   </div>`}
   <div class="sig">Respectfully Submitted,<br><br><br><span class="line">${opts.sigLabel||'Special Inspector'}</span>${opts.sigExtra||''}</div>
@@ -12664,10 +12844,11 @@ function cmtDocDefaultHtml(t, v, ctx){
      drawingImgs: ctx.drawingImgs||[]});
 }
 
-function cmtDrawingImgs(dws){
+function cmtDrawingImgs(dws, markupById){
   return (dws||[]).filter(d=>d.image_path).map(d=>({
     url: sb.storage.from('inspection-photos').getPublicUrl(d.image_path).data.publicUrl,
-    label: (d.dtype==='document'?'DOC ':'DWG ')+d.number }));
+    label: (d.dtype==='document'?'DOC ':'DWG ')+d.number,
+    markup: (markupById||{})[d.id] || null }));
 }
 
 // post-submit mount: fetch the submission, build ctx, same renderer, popup
@@ -12686,7 +12867,7 @@ async function cmtReport(id){
     dateStr: new Date(s.submitted_at).toLocaleDateString(),
     reportNo: s.report_no || s.id.slice(0,8),
     inspectorName: currentUser?.user_metadata?.full_name || '',
-    drawings: dws||[], pins: pins||[], drawingImgs: cmtDrawingImgs(dws),
+    drawings: dws||[], pins: pins||[], drawingImgs: cmtDrawingImgs(dws, (s.field_data||{}).plan_markup),
     astmRef: s.astm_ref, astmYear: s.astm_year,
     passFlag: s.pass_flag, inspectorNote: s.inspector_note,
     submissionId: s.id, pane: false,
