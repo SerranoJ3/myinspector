@@ -1667,6 +1667,8 @@ html,body{overflow-x:hidden}
                     <input class="modal-input" id="cmt-tw-truck" style="font-size:22px;min-height:54px" placeholder="4417"></div>
                   <div class="modal-field"><label class="modal-label" style="font-size:14px">YARDS THIS TRUCK</label>
                     <input class="modal-input" type="number" inputmode="decimal" min="0" id="cmt-tw-yards" style="font-size:22px;min-height:54px" placeholder="10"></div>
+                  <div class="modal-field"><label class="modal-label" style="font-size:12px">Time dispatched — optional, from the ticket</label>
+                    <input class="modal-input" type="time" id="cmt-tw-dispatched" style="min-height:44px"></div>
                   <button class="btn-sm btn-orange" style="font-size:17px;padding:14px 26px;width:100%" onclick="cmtTruckWizAdd()">✓ ADD TRUCK</button>
                   <button class="btn-sm" style="width:100%;margin-top:6px" onclick="document.getElementById('cmt-truck-wiz').style.display='none'">Close</button>
                 </div>
@@ -11407,9 +11409,9 @@ async function switchPack(pack){
 // ── CMT state ────────────────────────────────────────────────────────────────
 const CMT = { types: [], tab: 'concrete', specs: [], projects: [], activeType: null,
               photos: {}, samplesCache: [] };
-const CMT_TABS = [['concrete','Concrete'],['soils','Soils'],['rebar','Rebar'],
+const CMT_TABS = [['concrete','Concrete'],['soils','Soils'],['asphalt','Asphalt'],['rebar','Rebar'],
                   ['masonry','Masonry'],['welding','Welding'],
-                  ['steel','CFS / Steel'],['fireproofing','Fireproofing']];
+                  ['steel','CFS / Steel'],['fireproofing','Fireproofing'],['general','General']];
 
 async function cmtInit(){
   const [{data:types},{data:projects}] = await Promise.all([
@@ -11502,6 +11504,26 @@ function cmtOpenForm(typeId){
       return `<div class="modal-field"><label class="modal-label">${f.label} — inches (leave blank = unused; starred cols per variant = flange tips)</label>
         <div style="overflow-x:auto" id="cmt-rg-wrap-${f.key}" data-rg-key="${f.key}"></div></div>`;
     }
+    if(f.type==='rowgrid'){
+      // WS-family engine: generic multi-row shift table driven by f.cols
+      // kinds: auto (row #) · text · num · time · sample (register dropdown) · computed (per-row calc)
+      const nRows = f.rows || 10;
+      const inp = 'background:var(--card2);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:2px';
+      let gbody='';
+      for(let i=0;i<nRows;i++){
+        gbody += '<tr>' + (f.cols||[]).map(c=>{
+          if(c.kind==='auto') return `<td style="padding:2px 6px;color:var(--muted)">${i+1}</td>`;
+          if(c.kind==='computed') return `<td><input readonly data-rgx="${f.key}" data-row="${i}" data-k="${c.k}" style="${inp};opacity:.75;width:${c.w||64}px"></td>`;
+          if(c.kind==='sample') return `<td><select data-rgx="${f.key}" data-row="${i}" data-k="${c.k}" class="cmt-rgx-sample" style="${inp};width:${c.w||110}px" onchange="cmtRecalc()"><option value=""></option></select></td>`;
+          const typ = c.kind==='num' ? ' type="number" inputmode="decimal" min="0"' : c.kind==='time' ? ' type="time"' : ' type="text"';
+          return `<td><input${typ} data-rgx="${f.key}" data-row="${i}" data-k="${c.k}" style="${inp};width:${c.w||84}px" oninput="cmtRecalc()"></td>`;
+        }).join('') + '</tr>';
+      }
+      return `<div class="modal-field"><label class="modal-label">${f.label}</label>
+        <div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:11px">
+        <tr>${(f.cols||[]).map(c=>`<td style="padding:2px 6px;color:var(--muted);font-size:10px">${c.label}</td>`).join('')}</tr>${gbody}</table></div>
+        ${f.hint?`<div style="font-size:10px;color:var(--muted)">${f.hint}</div>`:''}</div>`;
+    }
     if(f.type==='density_grid'){
       let rows='';
       for(let i=1;i<=4;i++){
@@ -11539,7 +11561,8 @@ function cmtOpenForm(typeId){
   document.getElementById('cmt-form-photos').innerHTML = (t.photo_reqs||[]).map(p=>
     `<div class="modal-field"><label class="modal-label">📷 ${p.label}${p.required?' *':''}</label>
       <input type="file" accept="image/*" capture="environment" id="cmtp-${p.key}" onchange="cmtPhotoPicked('${p.key}',this)"></div>`).join('');
-  if((t.field_schema.fields||[]).some(f=>f.type==='sample_ref')) cmtFillSampleRefs();
+  if((t.field_schema.fields||[]).some(f=>f.type==='sample_ref' ||
+      (f.type==='rowgrid' && (f.cols||[]).some(c=>c.kind==='sample')))) cmtFillSampleRefs();
   document.getElementById('cmt-form-wrap').style.display='';
   document.getElementById('cmt-test-tiles').style.display='none';
   CMT.lastVariant = undefined;
@@ -11602,6 +11625,13 @@ async function cmtFillSampleRefs(){
   const sel = document.querySelector('[id^="cmtf-"][id$="sample_no"]') || document.getElementById('cmtf-sample_no');
   if(sel) sel.innerHTML = '<option value="">Select sample…</option>' +
     CMT.samplesCache.map(s=>`<option value="${s.sample_no}">${s.sample_no} (cast ${s.cast_date}, ${s.status})</option>`).join('');
+  // rowgrid sample columns share the register (keep any typed/restored value selected)
+  document.querySelectorAll('.cmt-rgx-sample').forEach(rs=>{
+    const keep = rs.value;
+    rs.innerHTML = '<option value=""></option>' +
+      CMT.samplesCache.map(s=>`<option value="${s.sample_no}">${s.sample_no}</option>`).join('');
+    if(keep) rs.value = keep;
+  });
 }
 function cmtSampleRefChanged(no){
   const s = CMT.samplesCache.find(x=>x.sample_no===no);
@@ -11655,6 +11685,17 @@ function cmtFieldVals(){
       out[f.key] = g;
       return;
     }
+    if(f.type==='rowgrid'){
+      const rows = {};
+      document.querySelectorAll('[data-rgx="'+f.key+'"]').forEach(el=>{
+        if(el.value==='') return;
+        const r = (rows[el.dataset.row] = rows[el.dataset.row] || {_i:+el.dataset.row});
+        const col = (f.cols||[]).find(c=>c.k===el.dataset.k) || {};
+        r[el.dataset.k] = (col.kind==='num'||col.kind==='computed') ? +el.value : el.value;
+      });
+      out[f.key] = Object.values(rows).sort((a,b)=>a._i-b._i);
+      return;
+    }
     if(f.type==='density_grid'){
       const rows = {};
       document.querySelectorAll('input[data-dg="'+f.key+'"]').forEach(inp=>{
@@ -11687,6 +11728,18 @@ function cmtRecalc(){
       const el = document.getElementById('cmtf-'+f.key);
       if(el && isFinite(res)){ el.value = Math.round(res*100)/100; v[f.key] = res; }
     }catch(e){}
+  });
+  // rowgrid computed columns — engine-computed per row, never typed (SFRM law)
+  (t.field_schema.fields||[]).filter(f=>f.type==='rowgrid').forEach(f=>{
+    (f.cols||[]).filter(c=>c.kind==='computed'&&c.calc).forEach(c=>{
+      let fn; try{ fn = new Function('row','v','return ('+c.calc+')'); }catch(e){ return; }
+      (v[f.key]||[]).forEach(row=>{
+        let res = null; try{ res = fn(row, v); }catch(e){}
+        const cell = document.querySelector(`[data-rgx="${f.key}"][data-row="${row._i}"][data-k="${c.k}"]`);
+        if(res!=null && isFinite(res)){ res = Math.round(res*10)/10; row[c.k] = res; if(cell) cell.value = res; }
+        else { delete row[c.k]; if(cell) cell.value = ''; }
+      });
+    });
   });
   const pf = cmtPassFail(t.pass_logic, v);
   const el = document.getElementById('cmt-passfail');
@@ -11737,6 +11790,13 @@ function cmtPassFail(logic, v){
     case 'sfrm_density': {
       const comp = sfrmDensityCompute(v);
       return comp && comp.n ? comp.pass : null;
+    }
+    case 'rowgrid_min_pct': {
+      // WS family: every filled row's computed % must clear the required minimum
+      const min = n(logic.min_key);
+      const vals = (v[logic.grid]||[]).map(r=>r[logic.col]).filter(x=>x!=null);
+      if(min==null || !vals.length) return null;
+      return vals.every(x=>x >= min - 1e-9);
     }
     case 'gradation_in_band': return null;   // spec-band overlay charts land with real sieve bands (v1.1)
     default: return null;
@@ -11913,6 +11973,8 @@ function cmtSaveDraft(){
       if(el.value!=='') raw.remarks.push([el.dataset.rgr, el.dataset.loc, el.value]); });
     document.querySelectorAll('#cmt-form-fields input[data-dg]').forEach(el=>{
       if(el.value!=='') raw.grids.push(['dg:'+el.dataset.dg, el.dataset.row, el.dataset.k, '', el.value]); });
+    document.querySelectorAll('#cmt-form-fields [data-rgx]').forEach(el=>{
+      if(el.value!=='' && !el.readOnly) raw.grids.push(['rgx:'+el.dataset.rgx, el.dataset.row, el.dataset.k, '', el.value]); });
     document.querySelectorAll('#cmt-pins-rows .cmt-pin-row').forEach(r=>{
       raw.pins.push([r.querySelector('[data-p="type"]').value, r.querySelector('[data-p="loc"]').value, r.querySelector('[data-p="rem"]').value]); });
     raw.planmk = PLANMK.byDrawing;
@@ -11938,6 +12000,8 @@ function cmtRestoreDraft(){
     (raw.grids||[]).forEach(([g,a,b,c,val])=>{
       const el = g.startsWith('dg:')
         ? document.querySelector(`input[data-dg="${g.slice(3)}"][data-row="${a}"][data-k="${b}"]`)
+        : g.startsWith('rgx:')
+        ? document.querySelector(`[data-rgx="${g.slice(4)}"][data-row="${a}"][data-k="${b}"]`)
         : document.querySelector(`input[data-rg="${g}"][data-loc="${a}"][data-row="${b}"][data-col="${c}"]`);
       if(el) el.value = val;
     });
@@ -12061,8 +12125,9 @@ async function cmtTruckWizAdd(){
   if(!truck){ showToast('Type the truck number, then tap ADD','error'); return; }
   if(!(yards>0)){ showToast('Type the yards, then tap ADD','error'); return; }
   const spec = CMT.specs.find(s=>s.id===document.getElementById('cmt-spec-select').value);
+  const dispatched = document.getElementById('cmt-tw-dispatched').value || null;
   const ok = await cmtLedgerAddEntry('ticket',
-    {truck_no:truck, yards:yards, mix: spec?spec.name:null, at:new Date().toISOString()},
+    {truck_no:truck, yards:yards, dispatched: dispatched, mix: spec?spec.name:null, at:new Date().toISOString()},
     null, _cmtCorrectTarget ? _cmtCorrectTarget.id : null);
   if(ok){
     showToast(_cmtCorrectTarget?'✓ Corrected — old row struck through':'✓ Truck added — next truck','success');
@@ -12120,42 +12185,59 @@ async function cmtLedgerFinalize(){
 }
 // the pour paper — same chassis, entries as an accreting ledger table
 function cmtPourDocHtml(rep, entries, ctx, pane){
+  // WS Part 2: the pour ledger's PAPER is the industry placement-inspection
+  // format — one row per truck, engine-attributed test data. Entry→column map:
+  // ticket = the row (ticket no / dispatched / unload / yards) · sample entries
+  // in the ticket's seq window = cylinders col · test entries in the window =
+  // slump / air / temp / unit-weight cols (metrics plucked at submit time).
   if(pane===undefined) pane=true;
   const superseded = new Set(entries.filter(e=>e.corrects_entry_id).map(e=>e.corrects_entry_id));
   const live = entries.filter(e=>!superseded.has(e.id));
-  const yards = live.filter(e=>e.entry_kind==='ticket').reduce((a,e)=>a+(+(e.payload||{}).yards||0),0);
-  const trucks = live.filter(e=>e.entry_kind==='ticket').length;
-  const tests = live.filter(e=>e.entry_kind==='test');
-  const cylinders = live.filter(e=>e.entry_kind==='sample').reduce((a,e)=>a+(+(e.payload||{}).count||0),0);
-  const PER_PAGE = 28;
-  const pages = [];
-  for(let i=0;i<Math.max(entries.length,1);i+=PER_PAGE) pages.push(entries.slice(i,i+PER_PAGE));
-  const seqOf = id => (entries.find(x=>x.id===id)||{}).seq||'?';
-  const rows = pg => pg.map(e=>{
-    const dead = superseded.has(e.id);
+  const tickets = entries.filter(e=>e.entry_kind==='ticket');
+  const tTime = e => new Date(e.entered_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  const windowOf = tk => {
+    const later = tickets.filter(x=>x.seq>tk.seq).map(x=>x.seq);
+    const end = later.length ? Math.min(...later) : Infinity;
+    return e => e.seq > tk.seq && e.seq < end;
+  };
+  const rows = tickets.map((tk,i)=>{
+    const dead = superseded.has(tk.id);
+    const inWin = windowOf(tk);
+    const cyl = live.filter(e=>e.entry_kind==='sample' && inWin(e)).reduce((a,e)=>a+(+(e.payload||{}).count||0),0);
+    const m = Object.assign({}, ...live.filter(e=>e.entry_kind==='test' && inWin(e)).map(e=>(e.payload||{}).metrics||{}));
+    const p = tk.payload||{};
     return `<tr${dead?' style="text-decoration:line-through;color:#777"':''}>
-      <td class="chk">E${e.seq}</td><td class="chk">${new Date(e.entered_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</td>
-      <td class="chk">${e.entry_kind.toUpperCase()}</td>
-      <td>${cmtEntrySummary(e).replace(/^[^ ]+ /,'')}${e.corrects_entry_id?` <i>(corrects E${seqOf(e.corrects_entry_id)})</i>`:''}${dead?` <i>(superseded by E${(entries.find(x=>x.corrects_entry_id===e.id)||{}).seq||'?'})</i>`:''}</td>
-      <td class="chk" style="font-size:9px">${(e.entered_by||'').slice(0,8)}</td></tr>`;
+      <td class="chk">${i+1}</td><td class="chk">${cyl||''}</td><td class="chk">${p.truck_no||''}${tk.corrects_entry_id?' <i>(corr.)</i>':''}</td>
+      <td class="chk">${p.dispatched||''}</td><td class="chk">${tTime(tk)}</td><td class="chk">${p.yards??''}</td>
+      <td class="chk">${m.slump??''}</td><td class="chk">${m.air??''}</td><td class="chk">${m.temp??''}</td><td class="chk">${m.unit_wt??''}</td></tr>`;
+  });
+  const PER_PAGE = 18;
+  const pages = [];
+  for(let i=0;i<Math.max(rows.length,1);i+=PER_PAGE) pages.push(rows.slice(i,i+PER_PAGE));
+  const head = `<tr><th>SET<br>NO.</th><th>NO. OF<br>CYLINDERS<br>MADE</th><th>SUPPLIER<br>TICKET<br>NUMBER</th><th>TIME<br>TRUCK<br>DISPATCHED</th><th>TIME TRUCK<br>UNLOAD</th><th>YARDS OF<br>CONCRETE</th><th>SLUMP<br>(IN)</th><th>AIR<br>CONTENT<br>(%)</th><th>CONCRETE<br>TEMPERATURE<br>(ºF)</th><th>UNIT<br>WEIGHT<br>(PCF)</th></tr>`;
+  const tbl = pg => `<p style="font-weight:700;margin-bottom:2px">FIELD DATA:</p><table>${head}${pg.length?pg.join(''):
+    `<tr><td colspan="10" style="text-align:center;color:#999;font-style:italic;padding:14px">No trucks logged yet — the first ticket starts the report.</td></tr>`}</table>`;
+  const notes = entries.filter(e=>e.entry_kind==='note');
+  const remarks = notes.map(n=>{
+    const dead = superseded.has(n.id);
+    return `<div${dead?' style="text-decoration:line-through;color:#777"':''}>${tTime(n)} — ${((n.payload||{}).text||'').replace(/</g,'&lt;')}</div>`;
   }).join('');
-  const entryTable = pg => pg.length
-    ? `<table><tr><th>Entry</th><th>Time</th><th>Kind</th><th>Detail</th><th>By</th></tr>${rows(pg)}</table>`
-    : `<table><tr><th>Entry</th><th>Time</th><th>Kind</th><th>Detail</th><th>By</th></tr>
-       <tr><td colspan="5" style="text-align:center;color:#999;font-style:italic;padding:14px">No entries yet — the first truck starts the ledger.</td></tr></table>`;
-  const body = pages.map((pg,i)=>`${i>0?'<div class="pgbrk"></div>':''}${entryTable(pg)}`).join('') +
-    `<p style="font-weight:700;margin:10px 0 2px">RUNNING TOTALS</p>
-     <table><tr><th>Trucks</th><th>Total Yards</th><th>Tests</th><th>Tests Passing</th><th>Cylinders Cast</th></tr>
-     <tr><td class="chk">${trucks}</td><td class="chk">${yards}</td><td class="chk">${tests.length}</td>
-     <td class="chk">${tests.filter(e=>(e.payload||{}).pass===true).length}</td><td class="chk">${cylinders}</td></tr></table>` +
-    `<p style="font-size:9.5px">Append-only ledger — corrections are new entries; struck-through rows remain part of the legal record. Every entry is audit-chained (who/when).</p>`;
-  return rcChassis('FIELD POUR REPORT — CONCRETE TRUCK DAY', (rep.status==='finalized'?'FINALIZED — ':'')+'ACCRETIVE LEDGER',
-    rcInfo([['CLIENT', ctx.project?.client_name],['PROJECT NAME', ctx.project?.name],
-            ['PROJECT ADDRESS', [ctx.project?.location, ctx.project?.city, ctx.project?.state].filter(Boolean).join(', ')],
+  const yards = live.filter(e=>e.entry_kind==='ticket').reduce((a,e)=>a+(+(e.payload||{}).yards||0),0);
+  const cylTotal = live.filter(e=>e.entry_kind==='sample').reduce((a,e)=>a+(+(e.payload||{}).count||0),0);
+  const liveTrucks = live.filter(e=>e.entry_kind==='ticket').length;
+  const body = pages.map((pg,i)=>`${i>0?'<div class="pgbrk"></div>':''}${tbl(pg)}`).join('') +
+    `<p style="font-weight:700;margin:8px 0 2px">LOCATION:</p>
+     <table><tr><td class="comments" style="min-height:40px">${[ctx.project?.location, ctx.project?.city, ctx.project?.state].filter(Boolean).join(', ')}</td></tr></table>
+     <p style="font-weight:700;margin:8px 0 2px">REMARKS:</p>
+     <table><tr><td class="comments" style="min-height:56px">${remarks}</td></tr></table>
+     <p style="font-size:10px;margin:6px 0 0"><b>Shift totals:</b> ${liveTrucks} trucks · ${yards} yd³ · ${cylTotal} cylinders cast</p>
+     <p style="font-size:9.5px">Append-only ledger — corrections are new entries; struck-through rows remain part of the legal record. Every entry is audit-chained (who/when).</p>`;
+  return rcChassis((rep.status==='finalized'?'FINALIZED':''), 'REPORT OF CONCRETE PLACEMENT INSPECTION',
+    rcInfo([['CLIENT', ctx.project?.client_name],['PROJECT', ctx.project?.name],
             ['SHIFT', rep.shift||'—']],
-           [['DATE', rep.report_date],['REPORT No.', rep.report_no],
-            ['REPORT WRITER', ctx.inspectorName],['STATUS', rep.status.toUpperCase()]]),
-    body, (rcCfg().form_prefix||'FIRM')+'-POUR-FR',
+           [['INSPECTION DATE', rep.report_date],['PROJECT No.', ctx.project?.contract_number],
+            ['REPORT No.', rep.report_no],['REPORT WRITER', ctx.inspectorName]]),
+    body, (rcCfg().form_prefix||'FIRM')+'-CPI-FR',
     {pane:pane, pageN:1, pageM:pages.length, sigLabel:'Report Writer / Special Inspector'});
 }
 function cmtLedgerPrint(){
@@ -12324,8 +12406,16 @@ async function cmtSubmitTest(){
   // B2 pointer model: a pour-linked submission ALSO writes a ledger entry pointing at it
   if(LEDGER.pendingLink && LEDGER.report){
     const kind = t.makes_samples ? 'sample' : 'test';
+    // placement-report columns: pluck the standard concrete metrics from whatever
+    // registry keys this test type uses (undefined keys simply don't ship)
+    const metrics = {};
+    [['slump', v.slump_in ?? v.measured_slump_in],
+     ['air', v.air_content_pct ?? v.air_pct],
+     ['temp', v.concrete_temp_f ?? v.temp_f ?? v.temperature_f],
+     ['unit_wt', v.unit_weight_pcf ?? v.unit_wt_pcf ?? v.density_pcf]].forEach(([k,val])=>{ if(val!=null) metrics[k]=val; });
     await cmtLedgerAddEntry(kind, Object.assign(
       {test_name: t.name, report_no: row.report_no, pass: pass},
+      Object.keys(metrics).length ? {metrics} : {},
       kind==='sample' ? {count: madeCount, sample_nos: sampleNos} : {}), ins.id, null);
     LEDGER.pendingLink = null;
     document.getElementById('cmt-ledger-wrap').style.display='';
@@ -12466,8 +12556,16 @@ async function cmtFillDrawings(){
   const {data} = await sb.from('job_drawings').select('*').eq('project_id',pid).is('deleted_at',null).order('number');
   CMT.drawingsCache = data||[];
   if(!data || !data.length) return;
-  box.innerHTML = data.map(d=>
-    `<label style="display:block;padding:2px 0"><input type="checkbox" value="${d.id}" onchange="cmtRecalc()"> ${d.dtype==='document'?'DOC':'DWG'} ${d.number} — ${d.name} (Rev ${d.rev_no||'—'} ${d.rev_date||''}) ${d.approved?'· Approved':''}${d.noted?'· Noted':''}</label>`).join('');
+  // Part-1 discoverability (B3): when the project HAS sheets, the section announces
+  // itself and the markup path; exactly ONE registered sheet auto-selects — that IS
+  // "no extra work" (Jorge's suggestion, order 7/23).
+  const hasImages = data.some(d=>d.image_path);
+  box.innerHTML =
+    `<div style="padding:6px 8px;margin-bottom:4px;border:1px solid rgba(244,168,32,0.5);border-radius:6px;background:rgba(244,168,32,0.07);font-size:12px;color:var(--orange-light)">
+      📐 ${data.length===1?'1 sheet is':data.length+' sheets are'} registered for this project${hasImages?' — check one and a markup pane opens right below (highlighter + notes print on the report)':''}</div>` +
+    data.map(d=>
+    `<label style="display:block;padding:4px 0"><input type="checkbox" value="${d.id}" onchange="cmtRecalc()"${data.length===1?' checked':''}> ${d.dtype==='document'?'DOC':'DWG'} ${d.number} — ${d.name} (Rev ${d.rev_no||'—'} ${d.rev_date||''}) ${d.approved?'· Approved':''}${d.noted?'· Noted':''}${d.image_path?' · 🖍 markable':''}</label>`).join('');
+  if(data.length===1) cmtRecalc();
 }
 function cmtAddPinRow(){
   const box = document.getElementById('cmt-pins-rows');
@@ -12657,7 +12755,7 @@ function rcChassis(title2, sub, info, body, formCode, opts){
       ${opts.drawingRefs?`<div style="position:absolute;top:3px;left:6px;font-size:9px">${opts.drawingRefs}</div>`:''}
       ${(opts.drawingImgs&&opts.drawingImgs.length)
         ? opts.drawingImgs.map(im=>`<div style="text-align:center;padding:4px">${planMarkupReadOnlyEmbed(im, opts.pane?'220px':'400px')}<div style="font-size:9px">${im.label}${(im.markup&&((im.markup.strokes||[]).length||(im.markup.notes||[]).length))?' — inspector markup shown':''}</div></div>`).join('')
-        : `<span style="color:#aaa;font:italic 12px Georgia,serif">DRAWING — highlight the inspected area on the form to show it here</span>`}
+        : `<span style="color:#aaa;font:italic 12px Georgia,serif">DRAWING — check a sheet under &ldquo;DRAWINGS / DOCUMENTS USED ON THIS VISIT&rdquo; on the form; it appears here with your highlighter marks</span>`}
     </div>
   </div>`}
   <div class="sig">Respectfully Submitted,<br><br><br><span class="line">${opts.sigLabel||'Special Inspector'}</span>${opts.sigExtra||''}</div>
@@ -12806,6 +12904,59 @@ function cmtDocHtml(t, v, ctx){
        <td class="chk">${comp.req??''}</td><td class="chk ${comp.pass?'pass':'fail'}">${comp.pass==null?'—':comp.pass?'PASS':'FAIL'}</td></tr></table>
        <p style="font-size:9.5px">All volumes, densities, averages and results are computed by the engine from raw sample dimensions and weights — computed cells cannot be hand-edited.</p>`,
       `${prefix}-SFRM-FR-06`, {pane, drawingRefs: dwRefs, drawingImgs: ctx.drawingImgs||[], sigLabel:'Special Inspector / Laboratory Technician'});
+  } else if(tid === 'asphalt_compaction'){
+    // WS-structure, firm-neutral: identity 100% from report_config (IP discipline)
+    const rows = v.tests||[];
+    const pad = Math.max(rows.length, 12);
+    const tr = Array.from({length:pad},(_,i)=>{ const r = rows[i]||{};
+      const any = Object.keys(r).length>1;
+      return `<tr><td class="chk">${any?i+1:''}</td><td>${r.location||''}${r.retest?' <b>R</b>':''}</td>
+        <td class="chk">${r.lift_in??''}</td><td>${r.material||''}</td><td class="chk">${r.density_pcf??''}</td>
+        <td class="chk">${r.pct_compaction??''}</td><td class="chk">${r.air_voids??''}</td></tr>`;}).join('');
+    html = rcChassis('', 'REPORT OF ASPHALT COMPACTION',
+      rcInfo([['CLIENT', ctx.project?.client_name],['PROJECT', ctx.project?.name],
+              ['LOCATION', [ctx.project?.location, ctx.project?.city, ctx.project?.state].filter(Boolean).join(', ')],
+              ['ENGINEER', ctx.inspectorName]],
+             [['DATE', ctx.dateStr],['WEATHER', v.weather],
+              ['PROJECT No.', ctx.project?.contract_number],['REPORT No.', ctx.reportNo]]),
+      `<table><tr><th>Test<br>No.</th><th>Location<br>(See Attached Sketch)</th><th>Lift<br>Thickness<br>(inches)</th><th>Material</th><th>Density<br>(pcf)</th><th>Percent<br>Compaction</th><th>Air<br>Voids<br>(%)</th></tr>${tr}</table>
+       <p style="font-size:9px;margin:2px 0">R: Retest</p>
+       <p style="font-weight:700;margin:10px 0 0">Laboratory Data:</p>
+       <table><tr><th>Material</th><th>Marshall Value (pcf)</th><th>Rice Value (pcf)</th></tr>
+       <tr><td>${v.material_lab||''}</td><td class="chk">${v.marshall_pcf??''}</td><td class="chk">${v.rice_pcf??''}</td></tr></table>
+       <p style="font-size:9.5px">Percent compaction (density / Marshall) and air voids (1 − density / Rice) are engine-computed from the laboratory values — never typed.${v.required_compaction_pct?' Required compaction: '+v.required_compaction_pct+'%.':''}</p>`,
+      `${prefix}-AC-FR`, {pane, drawingRefs: dwRefs, drawingImgs: ctx.drawingImgs||[]});
+  } else if(tid === 'soil_compaction_depth'){
+    const rows = v.tests||[];
+    const pad = Math.max(rows.length, 14);
+    const tr = Array.from({length:pad},(_,i)=>{ const r = rows[i]||{};
+      const any = Object.keys(r).length>1;
+      return `<tr><td class="chk">${any?i+1:''}</td><td>${r.location||''}</td><td class="chk">${r.depth_bsg??''}</td>
+        <td class="chk">${r.sample_id||''}</td><td class="chk">${r.moisture_pct??''}</td><td class="chk">${r.wet_pcf??''}</td>
+        <td class="chk">${r.dry_pcf??''}</td><td class="chk">${r.pct_compaction??''}</td></tr>`;}).join('');
+    const lab = (v.proctors||[]).map(p=>
+      `<tr><td>${p.sample_id||''}</td><td class="chk">${p.max_dry_pcf??''}</td><td class="chk">${p.opt_moisture_pct??''}</td></tr>`).join('')
+      || '<tr><td></td><td></td><td></td></tr>';
+    html = rcChassis('', 'REPORT OF SOIL COMPACTION',
+      rcInfo([['CLIENT', ctx.project?.client_name],['PROJECT', ctx.project?.name],
+              ['LOCATION', [ctx.project?.location, ctx.project?.city, ctx.project?.state].filter(Boolean).join(', ')]],
+             [['DATE', ctx.dateStr],['WEATHER', v.weather],
+              ['PROJECT No.', ctx.project?.contract_number],['REPORT No.', ctx.reportNo]]),
+      `<table><tr><th>Test<br>No.</th><th>Location<br>(See Attached<br>Location)</th><th>Depth<br>BSG* (ft)</th><th>Sample<br>ID</th><th>Moisture<br>(%)</th><th>Wet<br>Density<br>(pcf)</th><th>Dry<br>Density<br>(pcf)</th><th>Percent<br>Compaction</th></tr>${tr}</table>
+       <p style="font-size:9px;margin:2px 0">*BSG: Below Subgrade</p>
+       <p style="font-weight:700;margin:10px 0 0">Laboratory Data:</p>
+       <table><tr><th>Sample ID</th><th>Maximum Dry Density (pcf)</th><th>Optimum Moisture (%)</th></tr>${lab}</table>
+       <p style="font-size:9.5px">Dry density (wet / (1 + moisture)) and percent compaction (dry / maximum dry density per the row's sample) are engine-computed — never typed.${v.required_compaction_pct?' Required compaction: '+v.required_compaction_pct+'%.':''}</p>`,
+      `${prefix}-SC-FR`, {pane, drawingRefs: dwRefs, drawingImgs: ctx.drawingImgs||[]});
+  } else if(tid === 'site_inspection'){
+    html = rcChassis('', 'REPORT OF SITE INSPECTION',
+      rcInfo([['CLIENT', ctx.project?.client_name],['PROJECT', ctx.project?.name],
+              ['WEATHER', v.weather],['PRESENT AT SITE', v.present_at_site]],
+             [['INSP. DATE', ctx.dateStr],['PROJECT No.', ctx.project?.contract_number],
+              ['TEMP. RANGE', v.temp_range],['INSPECTOR', ctx.inspectorName]]),
+      `<p class="narr">As requested, ${firm} conducted the following testing and inspection services at the above-referenced site:</p>
+       <table><tr><td class="comments" style="min-height:300px">${(v.narrative||'').replace(/\n/g,'<br>')}</td></tr></table>`,
+      `${prefix}-SI-FR`, {pane, drawingRefs: dwRefs, drawingImgs: ctx.drawingImgs||[]});
   } else if(t?.tab === 'soils' && tid === 'soils_field_report'){
     html = rcChassis('FIELD INSPECTION REPORT','SOILS',
       rcInfo(infoL, infoR),
