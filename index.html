@@ -509,6 +509,15 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
   #cmt-form-wrap[data-mobile-view="preview"] .cmt-form-col{display:none}
   #cmt-form-wrap[data-mobile-view="preview"] #cmt-paper-pane.live{display:block}
 }
+/* B3 idiot-proof field UX — glove-sized targets, 16px+ kills iOS zoom-on-focus; CMT panel only */
+@media(pointer:coarse){
+  #panel-cmt-tests .modal-input,#panel-cmt-tests .modal-select{min-height:48px;font-size:16px}
+  #panel-cmt-tests input[data-rg],#panel-cmt-tests input[data-rgr]{min-height:44px;width:58px !important;font-size:16px}
+  #panel-cmt-tests input[data-rgr]{width:120px !important}
+  #panel-cmt-tests input[data-dg]{min-height:44px;font-size:16px}
+  #panel-cmt-tests .btn-sm{min-height:48px;padding:10px 18px}
+  #panel-cmt-tests input[type="radio"],#panel-cmt-tests input[type="checkbox"]{width:22px;height:22px}
+}
 /* MI-101 Phase 2a — Materials Sheet UI */
 .ms-bar{background:rgba(74,124,196,0.06);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .ms-bar-left{display:flex;flex-direction:column;gap:2px}
@@ -11448,7 +11457,8 @@ function cmtOpenForm(typeId){
         rows += `<tr><td style="padding:2px 4px;color:var(--muted)">S${i}</td>` +
           ['member','position','len_in','wid_in','thk_in','wet_wt_lb'].map(k=>
             `<td><input data-dg="${f.key}" data-row="${i}" data-k="${k}" placeholder="${k}"
-             style="width:${k==='member'?'150':'64'}px;background:var(--card2);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:2px" onchange="cmtRecalc()"></td>`).join('') +
+             ${['len_in','wid_in','thk_in','wet_wt_lb'].includes(k)?'type="number" inputmode="decimal" min="0"':''}
+             style="width:${k==='member'?'150':'64'}px;background:var(--card2);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:2px" oninput="cmtRecalc()"></td>`).join('') +
           `<td><input data-dg="${f.key}" data-row="${i}" data-k="dry_wts" placeholder="dry wts 0/8/16…hrs comma-sep"
              style="width:200px;background:var(--card2);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:2px" onchange="cmtRecalc()"></td></tr>`;
       }
@@ -11459,7 +11469,8 @@ function cmtOpenForm(typeId){
       return `<div class="modal-field"><label class="modal-label">${f.label} *</label>
         <select class="modal-select" id="cmtf-${f.key}" onchange="cmtSampleRefChanged(this.value)"></select>${hint}</div>`;
     const step = f.step ? ` step="${f.step}"` : '';
-    const numAttrs = f.type==='number' ? ` type="number"${step}` : ' type="text"';
+    const bounds = f.type==='number' ? `${f.min!=null?` min="${f.min}"`:(/temp/i.test(f.key)?'':' min="0"')}${f.max!=null?` max="${f.max}"`:''}` : '';
+    const numAttrs = f.type==='number' ? ` type="number" inputmode="decimal"${step}${bounds}` : ' type="text"';
     const matHook = f.key==='material_key' ? ` onblur="cmtProctorPreload(this.value)"` : '';
     return `<div class="modal-field"><label class="modal-label">${f.label}${f.unit?' ('+f.unit+')':''}${f.required?' *':''}</label>
       <input class="modal-input" id="cmtf-${f.key}"${numAttrs} value="${val}" oninput="cmtRecalc()"${matHook}>${hint}</div>`;
@@ -11483,6 +11494,11 @@ function cmtOpenForm(typeId){
   CMT.liveReportNo = null;
   cmtMobileView('form');
   document.querySelectorAll('#cmt-form-fields [data-rg-key]').forEach(w=>cmtRenderReadingsGrid(w.dataset.rgKey));
+  if(cmtRestoreDraft()){
+    // variant may differ from default — rebuild grids around restored values
+    document.querySelectorAll('#cmt-form-fields [data-rg-key]').forEach(w=>cmtRenderReadingsGrid(w.dataset.rgKey));
+    showToast('Draft restored — nothing was lost','success');
+  }
   cmtRecalc();
 }
 function cmtCloseForm(){
@@ -11513,8 +11529,8 @@ function cmtRenderReadingsGrid(key){
     ['act','corr'].forEach(rw=>{
       rows += `<tr>${rw==='act'?`<td rowspan="2" style="padding:2px 6px;color:var(--white);font-weight:700;vertical-align:middle">${L}</td>`:''}` +
         `<td style="padding:2px 6px;color:var(--muted);font-size:10px">${rw==='act'?'Actual':'Corrected'}</td>` +
-        labels.map((_,c)=>`<td><input data-rg="${key}" data-loc="${L}" data-row="${rw}" data-col="${c+1}"
-          value="${prev[L+'|'+rw+'|'+(c+1)]||''}" style="${inpStyle}" onchange="cmtRecalc()"></td>`).join('') +
+        labels.map((_,c)=>`<td><input type="number" inputmode="decimal" min="0" step="0.0625" data-rg="${key}" data-loc="${L}" data-row="${rw}" data-col="${c+1}"
+          value="${prev[L+'|'+rw+'|'+(c+1)]||''}" style="${inpStyle}" oninput="cmtRecalc()"></td>`).join('') +
         (rw==='act'?`<td rowspan="2" style="vertical-align:middle"><input data-rgr="${key}" data-loc="${L}" placeholder="Remarks"
           value="${prevR[L]||''}" style="${inpStyle};width:110px" onchange="cmtRecalc()"></td>`:'') + '</tr>';
     });
@@ -11628,6 +11644,7 @@ function cmtRecalc(){
     document.getElementById('cmt-oot-wrap').style.display = pf ? 'none' : '';
   }
   CMT.lastVals = v; CMT.lastPass = pf;
+  cmtSaveDraft();
   cmtPaperDebounced();
   return {vals:v, pass:pf};
 }
@@ -11675,6 +11692,65 @@ function cmtPassFail(logic, v){
 function cmtPhotoPicked(key, input){
   if(input.files && input.files[0]) CMT.photos[key] = input.files[0];
 }
+
+// ── B3 DRAFT AUTOSAVE — every keystroke persists; dropped phone loses nothing ─
+// Saved per test type on every recalc; restored on form open; cleared ONLY on
+// successful submit (Cancel keeps the draft — nothing destructible).
+function cmtDraftKey(){ return CMT.activeType ? 'mi_cmt_draft_'+CMT.activeType.id : null; }
+function cmtSaveDraft(){
+  const key = cmtDraftKey(); if(!key) return;
+  try{
+    const raw = {fields:{}, grids:[], remarks:[], radios:{}, pins:[]};
+    document.querySelectorAll('#cmt-form-fields [id^="cmtf-"]').forEach(el=>{
+      if(el.type==='file' || el.readOnly) return;
+      raw.fields[el.id] = el.type==='checkbox' ? el.checked : el.value;
+    });
+    document.querySelectorAll('#cmt-form-fields input[type="radio"]:checked').forEach(el=>{ raw.radios[el.name] = el.value; });
+    document.querySelectorAll('#cmt-form-fields input[data-rg]').forEach(el=>{
+      if(el.value!=='') raw.grids.push([el.dataset.rg, el.dataset.loc, el.dataset.row||'act', el.dataset.col, el.value]); });
+    document.querySelectorAll('#cmt-form-fields input[data-rgr]').forEach(el=>{
+      if(el.value!=='') raw.remarks.push([el.dataset.rgr, el.dataset.loc, el.value]); });
+    document.querySelectorAll('#cmt-form-fields input[data-dg]').forEach(el=>{
+      if(el.value!=='') raw.grids.push(['dg:'+el.dataset.dg, el.dataset.row, el.dataset.k, '', el.value]); });
+    document.querySelectorAll('#cmt-pins-rows .cmt-pin-row').forEach(r=>{
+      raw.pins.push([r.querySelector('[data-p="type"]').value, r.querySelector('[data-p="loc"]').value, r.querySelector('[data-p="rem"]').value]); });
+    const hasAny = Object.values(raw.fields).some(v=>v!=='' && v!==false) || raw.grids.length ||
+      raw.remarks.length || Object.keys(raw.radios).length || raw.pins.some(p=>p.some(Boolean));
+    if(hasAny) localStorage.setItem(key, JSON.stringify(raw));
+    else localStorage.removeItem(key);
+  }catch(e){}
+}
+function cmtRestoreDraft(){
+  const key = cmtDraftKey(); if(!key) return false;
+  let raw; try{ raw = JSON.parse(localStorage.getItem(key)||'null'); }catch(e){ return false; }
+  if(!raw) return false;
+  try{
+    Object.entries(raw.fields||{}).forEach(([id,val])=>{
+      const el = document.getElementById(id); if(!el) return;
+      if(el.type==='checkbox') el.checked = !!val; else el.value = val;
+    });
+    Object.entries(raw.radios||{}).forEach(([name,val])=>{
+      const el = document.querySelector(`input[name="${name}"][value="${val}"]`); if(el) el.checked = true;
+    });
+    (raw.grids||[]).forEach(([g,a,b,c,val])=>{
+      const el = g.startsWith('dg:')
+        ? document.querySelector(`input[data-dg="${g.slice(3)}"][data-row="${a}"][data-k="${b}"]`)
+        : document.querySelector(`input[data-rg="${g}"][data-loc="${a}"][data-row="${b}"][data-col="${c}"]`);
+      if(el) el.value = val;
+    });
+    (raw.remarks||[]).forEach(([g,loc,val])=>{
+      const el = document.querySelector(`input[data-rgr="${g}"][data-loc="${loc}"]`); if(el) el.value = val;
+    });
+    const pinBox = document.getElementById('cmt-pins-rows');
+    if(pinBox && (raw.pins||[]).some(p=>p.some(Boolean))){
+      pinBox.innerHTML='';
+      raw.pins.forEach(p=>{ cmtAddPinRow(); const r = pinBox.lastElementChild;
+        r.querySelector('[data-p="type"]').value=p[0]; r.querySelector('[data-p="loc"]').value=p[1]; r.querySelector('[data-p="rem"]').value=p[2]; });
+    }
+    return true;
+  }catch(e){ return false; }
+}
+function cmtClearDraft(){ const key = cmtDraftKey(); if(key) try{ localStorage.removeItem(key); }catch(e){} }
 
 // ── LIVE PAPER PANE — same renderer as post-submit, mounted in an iframe ─────
 function cmtMobileView(view){
@@ -11806,6 +11882,7 @@ async function cmtSubmitTest(){
   } else {
     showToast(pass===false ? 'Submitted — FLAGGED out-of-tolerance for supervisor review' : 'Test submitted','success');
   }
+  cmtClearDraft();   // the ONLY draft-clearing path — submit succeeded, entries are safe in the DB
   cmtCloseForm();
 }
 
@@ -12094,6 +12171,13 @@ function rcChassis(title2, sub, info, body, formCode, opts){
   <h1>${sub}</h1><h2>${title2}</h2>
   <div class="info">${info}</div>
   ${body}
+  ${opts.noDrawingSlot ? '' : `<div style="margin-top:14px">
+    <div style="font-weight:700;font-size:10.5px">INSPECTED ELEMENT / LOCATION — DRAWING</div>
+    <div style="border:1.5px solid #000;min-height:${opts.pane?'110px':'180px'};position:relative;display:flex;align-items:center;justify-content:center">
+      ${opts.drawingRefs?`<div style="position:absolute;top:3px;left:6px;font-size:9px">${opts.drawingRefs}</div>`:''}
+      <span style="color:#aaa;font:italic 12px Georgia,serif">DRAWING — element highlight pending</span>
+    </div>
+  </div>`}
   <div class="sig">Respectfully Submitted,<br><br><br><span class="line">${opts.sigLabel||'Special Inspector'}</span>${opts.sigExtra||''}</div>
   <div class="foot"><span>${formCode} ${c.form_rev||'Rv01'} · ${d.toLocaleString('en-US',{month:'short',year:'numeric'})}</span>
     <span>${c.address_line||''} ${c.website?'· '+c.website:''} ${c.phone?'· '+c.phone:''}</span>
@@ -12139,6 +12223,9 @@ function cmtDocHtml(t, v, ctx){
                  ['REPORT NUMBER', ctx.reportNo],
                  ['SPECIAL INSPECTOR', ctx.inspectorName || '']];
   const dws = ctx.drawings || [], pins = ctx.pins || [];
+  // B1: the bottom-of-sheet drawing slot carries the selected register refs;
+  // the highlighted-image wiring lands when job_drawings grows a file column
+  const dwRefs = dws.length ? dws.map(d=>`${d.dtype==='document'?'DOC':'DWG'} ${d.number}${d.rev_no?' Rev '+d.rev_no:''}`).join(' · ') : '';
   const tid = t?.id;
   let html;
   if(tid === 'cfs_inspection'){
@@ -12151,7 +12238,7 @@ function cmtDocHtml(t, v, ctx){
       `<table><tr><th style="text-align:left">Inspection Item</th><th>In Compliance</th><th>Discrepancies (See Comments)</th><th>Non-Applicable</th></tr>${rows}</table>` +
       `<p style="font-weight:700;margin-bottom:2px">COMMENTS</p><table><tr><td class="comments">${(v.comments||'').replace(/\n/g,'<br>')}</td></tr></table>` +
       `<p>Compliance / Discrepancies were informed to Contractor / GC / Client Representative(s): <u>${v.informed_to||'&nbsp;&nbsp;&nbsp;&nbsp;'}</u></p>`,
-      `${prefix}-CFS-FR`, {pane});
+      `${prefix}-CFS-FR`, {pane, drawingRefs: dwRefs});
   } else if(tid === 'rebar_placement'){
     const items = (t.field_schema.fields||[]).filter(f=>f.type==='checkitem');
     const rows = items.map(f=>`<tr><td>${f.label}</td>
@@ -12166,7 +12253,7 @@ function cmtDocHtml(t, v, ctx){
       rcDrawingsTable(dws||[], 8) +
       `<table><tr><th style="text-align:left">Placement Item</th><th>In Compliance</th><th>Discrepancies (See Comments)</th></tr>${rows}</table>` +
       `<p style="font-weight:700;margin-bottom:2px">COMMENTS</p><table><tr><td class="comments">${(v.non_conformances||'').replace(/\n/g,'<br>')}</td></tr></table>`,
-      `${prefix}-RBAR-FR`, {pane,
+      `${prefix}-RBAR-FR`, {pane, drawingRefs: dwRefs,
         sigExtra:`<span class="line" style="margin-left:40px">ICC Certification Number${v.icc_cert?': '+v.icc_cert:''}</span>`});
   } else if(tid === 'sfrm_thickness'){
     const comp = sfrmThicknessCompute(v);
@@ -12195,7 +12282,7 @@ function cmtDocHtml(t, v, ctx){
         <div style="font-size:10px">LEGEND — numbered reading positions (* = flange tips)</div></div>` +
       `<table><tr><th rowspan="1" colspan="2">Test Location</th>${head}<th>${comp.cfg.totalHeader}</th><th>Avg.</th><th>Status</th><th>Remarks</th></tr>${rows}</table>` +
       `<div class="notes"><b>NOTES:</b> Readings rounded to the nearest 1/16 in. Where the minimum required thickness is less than 1 in., every individual reading shall be at least 75% of the minimum requirement. Where the minimum required thickness is 1 in. or greater, no individual reading shall be below the minimum less 1/4 in. Flange-tip readings are averaged separately where the UL design so requires. Status is computed from these rules — it is not hand-entered.</div>`,
-      `${prefix}-SFRM-FR-${varKey}`, {pane});
+      `${prefix}-SFRM-FR-${varKey}`, {pane, drawingRefs: dwRefs});
   } else if(tid === 'sfrm_density'){
     const comp = sfrmDensityCompute(v);
     const rowsArr = comp.rows||[];
@@ -12236,14 +12323,14 @@ function cmtDocHtml(t, v, ctx){
        <tr><td class="chk">${comp.max??''}</td><td class="chk">${comp.min??''}</td><td class="chk">${comp.avg??''}</td>
        <td class="chk">${comp.req??''}</td><td class="chk ${comp.pass?'pass':'fail'}">${comp.pass==null?'—':comp.pass?'PASS':'FAIL'}</td></tr></table>
        <p style="font-size:9.5px">All volumes, densities, averages and results are computed by the engine from raw sample dimensions and weights — computed cells cannot be hand-edited.</p>`,
-      `${prefix}-SFRM-FR-06`, {pane, sigLabel:'Special Inspector / Laboratory Technician'});
+      `${prefix}-SFRM-FR-06`, {pane, drawingRefs: dwRefs, sigLabel:'Special Inspector / Laboratory Technician'});
   } else if(t?.tab === 'soils' && tid === 'soils_field_report'){
     html = rcChassis('FIELD INSPECTION REPORT','SOILS',
       rcInfo(infoL, infoR),
       `<p style="font-weight:700;margin-bottom:2px">FIELD NARRATIVE</p>
        <table><tr><td class="comments" style="min-height:340px">${(v.narrative||'').replace(/\n/g,'<br>')}</td></tr></table>` +
       `<p>Findings informed to: <u>${v.informed_to||'&nbsp;&nbsp;&nbsp;&nbsp;'}</u></p>`,
-      `${prefix}-SOIL-FR`, {pane});
+      `${prefix}-SOIL-FR`, {pane, drawingRefs: dwRefs});
   } else {
     html = cmtDocDefaultHtml(t, v, ctx);   // every other test type keeps the Track 1 default
   }
@@ -12265,7 +12352,8 @@ function cmtDocDefaultHtml(t, v, ctx){
            [['DATE', ctx.dateStr],['REPORT NUMBER', ctx.reportNo],['INSPECTOR', ctx.inspectorName]]),
     `<table>${rows}</table><p><b>Determination:</b> ${pf}${ctx.inspectorNote?'<br><b>Inspector note:</b> '+ctx.inspectorNote:''}</p>
      <p style="font-size:9.5px">Pass/fail is computed from the governing specification — never manually entered. ${ctx.submissionId?'Submission '+ctx.submissionId+' · audit-chained.':'LIVE PREVIEW — not yet submitted.'}</p>`,
-    (rcCfg().form_prefix||'FIRM')+'-RPT-FR', {pane: !!ctx.pane});
+    (rcCfg().form_prefix||'FIRM')+'-RPT-FR', {pane: !!ctx.pane,
+     drawingRefs: (ctx.drawings||[]).map(d=>`${d.dtype==='document'?'DOC':'DWG'} ${d.number}${d.rev_no?' Rev '+d.rev_no:''}`).join(' · ')});
 }
 
 // post-submit mount: fetch the submission, build ctx, same renderer, popup
