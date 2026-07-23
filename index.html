@@ -11331,7 +11331,7 @@ const CMT_TABS = [['concrete','Concrete'],['soils','Soils'],['rebar','Rebar'],
 async function cmtInit(){
   const [{data:types},{data:projects}] = await Promise.all([
     sb.from('test_types').select('*').eq('enabled',true).order('sort'),
-    sb.from('projects').select('id,name,contract_number').is('deleted_at',null).order('name'),
+    sb.from('projects').select('id,name,contract_number,client_name,location,city,state').is('deleted_at',null).order('name'),
   ]);
   CMT.types = types||[]; CMT.projects = projects||[];
   const ps = document.getElementById('cmt-project-select');
@@ -11807,6 +11807,7 @@ async function cmtFillDrawings(){
   const box = document.getElementById('cmt-drawings-list');
   if(!box || !pid) return;
   const {data} = await sb.from('job_drawings').select('*').eq('project_id',pid).is('deleted_at',null).order('number');
+  CMT.drawingsCache = data||[];
   if(!data || !data.length) return;
   box.innerHTML = data.map(d=>
     `<label style="display:block;padding:2px 0"><input type="checkbox" value="${d.id}"> ${d.dtype==='document'?'DOC':'DWG'} ${d.number} — ${d.name} (Rev ${d.rev_no||'—'} ${d.rev_date||''}) ${d.approved?'· Approved':''}${d.noted?'· Noted':''}</label>`).join('');
@@ -11907,7 +11908,8 @@ function sfrmDensityCompute(v){
 
 // ── report chassis + legends ─────────────────────────────────────────────────
 function rcCfg(){ return currentFirmReportCfg || {}; }
-function rcChassis(title2, sub, info, body, formCode){
+function rcChassis(title2, sub, info, body, formCode, opts){
+  opts = opts || {};
   const c = rcCfg();
   const firm = c.firm_display || 'FIRM';
   const d = new Date();
@@ -11930,9 +11932,10 @@ function rcChassis(title2, sub, info, body, formCode){
     .foot{margin-top:26px;border-top:1.5px solid #000;padding-top:4px;font-size:9.5px;display:flex;justify-content:space-between}
     .pass{color:#0a6b2d;font-weight:700}.fail{color:#a01810;font-weight:700}
     .notes{font-size:9.5px;border:1px solid #000;padding:6px;margin-top:8px}
+    .pgbrk{page-break-after:always}
     @media print {button{display:none}}
-  </style></head><body>
-  <button onclick="print()" style="float:right">Print / Save PDF</button>
+  </style>${opts.pane?'<style>body{zoom:.65;margin:10px 12px}</style>':''}</head><body>
+  ${opts.pane?'':'<button onclick="print()" style="float:right">Print / Save PDF</button>'}
   <div class="hdr">
     <div class="logo">${c.logo_url?`<img src="${c.logo_url}">`:firm}</div>
     <div class="accr">${c.accreditation||''}</div>
@@ -11940,10 +11943,10 @@ function rcChassis(title2, sub, info, body, formCode){
   <h1>${sub}</h1><h2>${title2}</h2>
   <div class="info">${info}</div>
   ${body}
-  <div class="sig">Respectfully Submitted,<br><br><br><span class="line">Special Inspector</span></div>
-  <div class="foot"><span>${formCode} Rv01 · ${d.toLocaleString('en-US',{month:'short',year:'numeric'})}</span>
+  <div class="sig">Respectfully Submitted,<br><br><br><span class="line">${opts.sigLabel||'Special Inspector'}</span>${opts.sigExtra||''}</div>
+  <div class="foot"><span>${formCode} ${c.form_rev||'Rv01'} · ${d.toLocaleString('en-US',{month:'short',year:'numeric'})}</span>
     <span>${c.address_line||''} ${c.website?'· '+c.website:''} ${c.phone?'· '+c.phone:''}</span>
-    <span>Page 1 of 1</span></div>
+    <span>Page ${opts.pageN||1} of ${opts.pageM||1}</span></div>
   </body></html>`;
 }
 function rcInfo(pairsL, pairsR){
@@ -11970,26 +11973,22 @@ const SFRM_LEGENDS = {
   '05': `<svg viewBox="0 0 220 120" width="200"><g stroke="#000" fill="none" stroke-width="2"><circle cx="70" cy="60" r="34"/><rect x="130" y="26" width="68" height="68"/></g><g font-size="9" text-anchor="middle">${[[70,18,'1'],[110,60,'2'],[70,104,'3'],[30,60,'4'],[164,18,'5'],[204,60,'6'],[164,104,'7'],[122,60,'8'],[70,60,'9'],[164,60,'10'],[45,35,'11'],[140,40,'12']].map(([x,y,n])=>`<text x="${x}" y="${y}">${n}</text>`).join('')}</g></svg>`,
 };
 
-// ── the template family (dispatch replaces the Track 1 default) ──────────────
-async function cmtReport(id){
-  const {data:s} = await sb.from('test_submissions')
-    .select('*, test_types(id,tab,name,field_schema), projects(name,client_name,location,city,state), firms(name,report_config)')
-    .eq('id',id).single();
-  if(!s){ showToast('Could not load submission','error'); return; }
-  currentFirmReportCfg = Object.assign({}, s.firms?.report_config || {}, {firm_display: s.firms?.name});
-  const firm = s.firms?.name || 'FIRM';
-  const prefix = currentFirmReportCfg.form_prefix || 'FIRM';
-  const v = s.field_data || {};
-  const {data:dws} = s.drawings_used && s.drawings_used.length
-    ? await sb.from('job_drawings').select('*').in('id', s.drawings_used) : {data: []};
-  const {data:pins} = await sb.from('element_pins').select('*').eq('submission_id', id).is('deleted_at',null);
-  const infoL = [['CLIENT', s.projects?.client_name], ['PROJECT NAME', s.projects?.name],
-                 ['PROJECT ADDRESS', [s.projects?.location, s.projects?.city, s.projects?.state].filter(Boolean).join(', ')],
+// ── the template family — ONE renderer, two mounts (live pane + post-submit) ──
+// cmtDocHtml is PURE: (test type, field values, ctx) → full report HTML string.
+// ctx: {project, firmName, dateStr, reportNo, inspectorName, drawings, pins,
+//       astmRef, astmYear, passFlag, inspectorNote, submissionId, pane}
+function cmtDocHtml(t, v, ctx){
+  const firm = ctx.firmName || 'FIRM';
+  const prefix = rcCfg().form_prefix || 'FIRM';
+  const pane = !!ctx.pane;
+  const infoL = [['CLIENT', ctx.project?.client_name], ['PROJECT NAME', ctx.project?.name],
+                 ['PROJECT ADDRESS', [ctx.project?.location, ctx.project?.city, ctx.project?.state].filter(Boolean).join(', ')],
                  ['AREA INSPECTED', v.area_inspected || v.area_sprayed || '']];
-  const infoR = [['DATE', new Date(s.submitted_at).toLocaleDateString()],
-                 ['REPORT NUMBER', s.report_no || s.id.slice(0,8)],
-                 ['SPECIAL INSPECTOR', currentUser?.user_metadata?.full_name || '']];
-  const tid = s.test_types?.id;
+  const infoR = [['DATE', ctx.dateStr],
+                 ['REPORT NUMBER', ctx.reportNo],
+                 ['SPECIAL INSPECTOR', ctx.inspectorName || '']];
+  const dws = ctx.drawings || [], pins = ctx.pins || [];
+  const tid = t?.id;
   let html;
   if(tid === 'cfs_inspection'){
     const chk = v.chk || [];
@@ -12001,9 +12000,9 @@ async function cmtReport(id){
       `<table><tr><th style="text-align:left">Inspection Item</th><th>In Compliance</th><th>Discrepancies (See Comments)</th><th>Non-Applicable</th></tr>${rows}</table>` +
       `<p style="font-weight:700;margin-bottom:2px">COMMENTS</p><table><tr><td class="comments">${(v.comments||'').replace(/\\n/g,'<br>')}</td></tr></table>` +
       `<p>Compliance / Discrepancies were informed to Contractor / GC / Client Representative(s): <u>${v.informed_to||'&nbsp;&nbsp;&nbsp;&nbsp;'}</u></p>`,
-      `${prefix}-CFS-FR`);
+      `${prefix}-CFS-FR`, {pane});
   } else if(tid === 'rebar_placement'){
-    const items = (s.test_types.field_schema.fields||[]).filter(f=>f.type==='checkitem');
+    const items = (t.field_schema.fields||[]).filter(f=>f.type==='checkitem');
     const rows = items.map(f=>`<tr><td>${f.label}</td>
       <td class="chk">${v[f.key]===true?'☒':'☐'}</td><td class="chk">${v[f.key]===false?'☒':'☐'}</td></tr>`).join('');
     const pinRows = [];
@@ -12017,7 +12016,7 @@ async function cmtReport(id){
       `<table><tr><th style="text-align:left">Placement Item</th><th>In Compliance</th><th>Discrepancies (See Comments)</th></tr>${rows}</table>` +
       `<p style="font-weight:700;margin-bottom:2px">COMMENTS</p><table><tr><td class="comments">${(v.non_conformances||'').replace(/\\n/g,'<br>')}</td></tr></table>` +
       `<p>ICC Certification Number: <u>${v.mill_cert_no ? '' : ''}${v.icc_cert||'&nbsp;&nbsp;&nbsp;'}</u></p>`,
-      `${prefix}-RBAR-FR`);
+      `${prefix}-RBAR-FR`, {pane});
   } else if(tid === 'sfrm_thickness'){
     const comp = sfrmThicknessCompute(v);
     const varKey = (v.variant||'01').slice(0,2);
@@ -12036,7 +12035,7 @@ async function cmtReport(id){
         <b>Required Thickness: ${v.required_thickness_in||'—'} in.</b></div></div>` +
       `<table><tr><th>Location</th>${head}<th>Tip Avg.*</th><th>Avg.</th><th>Status</th><th>Remarks</th></tr>${rows}</table>` +
       `<div class="notes"><b>NOTES:</b> Readings rounded to the nearest 1/16 in. Where the minimum required thickness is less than 1 in., every individual reading shall be at least 75% of the minimum requirement. Where the minimum required thickness is 1 in. or greater, no individual reading shall be below the minimum less 1/4 in. Flange-tip readings are averaged separately where the UL design so requires. Status is computed from these rules — it is not hand-entered.</div>`,
-      `${prefix}-SFRM-FR-${varKey}`);
+      `${prefix}-SFRM-FR-${varKey}`, {pane});
   } else if(tid === 'sfrm_density'){
     const comp = sfrmDensityCompute(v);
     const secA = (comp.rows||[]).map(r=>`<tr><td>${r.id}</td><td>${r.member} ${r.position?'('+r.position+')':''}</td>
@@ -12060,35 +12059,58 @@ async function cmtReport(id){
        <tr><td class="chk">${comp.max??''}</td><td class="chk">${comp.min??''}</td><td class="chk">${comp.avg??''}</td>
        <td class="chk">${comp.req??''}</td><td class="chk ${comp.pass?'pass':'fail'}">${comp.pass==null?'—':comp.pass?'PASS':'FAIL'}</td></tr></table>
        <p style="font-size:9.5px">All volumes, densities, averages and results are computed by the engine from raw sample dimensions and weights — computed cells cannot be hand-edited.</p>`,
-      `${prefix}-SFRM-FR-06`);
-  } else if(s.test_types?.tab === 'soils' && tid === 'soils_field_report'){
+      `${prefix}-SFRM-FR-06`, {pane});
+  } else if(t?.tab === 'soils' && tid === 'soils_field_report'){
     html = rcChassis('FIELD INSPECTION REPORT','SOILS',
       rcInfo(infoL, infoR),
       `<p style="font-weight:700;margin-bottom:2px">FIELD NARRATIVE</p>
        <table><tr><td class="comments" style="min-height:340px">${(v.narrative||'').replace(/\\n/g,'<br>')}</td></tr></table>` +
       `<p>Findings informed to: <u>${v.informed_to||'&nbsp;&nbsp;&nbsp;&nbsp;'}</u></p>`,
-      `${prefix}-SOIL-FR`);
+      `${prefix}-SOIL-FR`, {pane});
   } else {
-    return cmtReportDefault(id, s);   // every other test type keeps the Track 1 default
+    html = cmtDocDefaultHtml(t, v, ctx);   // every other test type keeps the Track 1 default
   }
-  const w = window.open('','_blank');
-  w.document.write(html); w.document.close();
+  return html;
 }
 // Track 1 default preserved for registry tests without a standardized format
-async function cmtReportDefault(id, s){
-  const fields = (s.test_types?.field_schema?.fields||[]);
+function cmtDocDefaultHtml(t, v, ctx){
+  const fields = (t?.field_schema?.fields||[]);
   const rows = fields.filter(f=>!['tristate_list','readings_grid','density_grid'].includes(f.type)).map(f=>{
-    let val = s.field_data[f.key];
+    let val = v[f.key];
     if(val===true) val='YES'; if(val===false) val='NO'; if(val==null) val='—';
     return `<tr><td>${f.label||f.key}</td><td><b>${val}</b>${f.unit?' '+f.unit:''}</td></tr>`;
   }).join('');
-  const pf = s.pass_flag===true?'<span class="pass">PASS</span>':s.pass_flag===false?'<span class="fail">FAIL — see note</span>':'<i>informational</i>';
-  const html = rcChassis('FIELD TEST REPORT', (s.test_types?.name||'').toUpperCase(),
-    rcInfo([['CLIENT', s.projects?.client_name],['PROJECT NAME', s.projects?.name],['STANDARD', s.astm_ref+' ('+s.astm_year+')']],
-           [['DATE', new Date(s.submitted_at).toLocaleString()],['REPORT NUMBER', s.report_no||s.id.slice(0,8)]]),
-    `<table>${rows}</table><p><b>Determination:</b> ${pf}${s.inspector_note?'<br><b>Inspector note:</b> '+s.inspector_note:''}</p>
-     <p style="font-size:9.5px">Pass/fail is computed from the governing specification — never manually entered. Submission ${s.id} · audit-chained.</p>`,
-    (rcCfg().form_prefix||'FIRM')+'-RPT-FR');
+  const pf = ctx.passFlag===true?'<span class="pass">PASS</span>':ctx.passFlag===false?'<span class="fail">FAIL — see note</span>':'<i>informational</i>';
+  return rcChassis('FIELD TEST REPORT', (t?.name||'').toUpperCase(),
+    rcInfo([['CLIENT', ctx.project?.client_name],['PROJECT NAME', ctx.project?.name],['STANDARD', (ctx.astmRef||'')+' ('+(ctx.astmYear||'')+')']],
+           [['DATE', ctx.dateStr],['REPORT NUMBER', ctx.reportNo]]),
+    `<table>${rows}</table><p><b>Determination:</b> ${pf}${ctx.inspectorNote?'<br><b>Inspector note:</b> '+ctx.inspectorNote:''}</p>
+     <p style="font-size:9.5px">Pass/fail is computed from the governing specification — never manually entered. ${ctx.submissionId?'Submission '+ctx.submissionId+' · audit-chained.':'LIVE PREVIEW — not yet submitted.'}</p>`,
+    (rcCfg().form_prefix||'FIRM')+'-RPT-FR', {pane: !!ctx.pane});
+}
+
+// post-submit mount: fetch the submission, build ctx, same renderer, popup
+async function cmtReport(id){
+  const {data:s} = await sb.from('test_submissions')
+    .select('*, test_types(id,tab,name,field_schema), projects(name,client_name,location,city,state), firms(name,report_config)')
+    .eq('id',id).single();
+  if(!s){ showToast('Could not load submission','error'); return; }
+  currentFirmReportCfg = Object.assign({}, s.firms?.report_config || {}, {firm_display: s.firms?.name});
+  const v = s.field_data || {};
+  const {data:dws} = s.drawings_used && s.drawings_used.length
+    ? await sb.from('job_drawings').select('*').in('id', s.drawings_used) : {data: []};
+  const {data:pins} = await sb.from('element_pins').select('*').eq('submission_id', id).is('deleted_at',null);
+  const ctx = {
+    project: s.projects, firmName: s.firms?.name || 'FIRM',
+    dateStr: new Date(s.submitted_at).toLocaleDateString(),
+    reportNo: s.report_no || s.id.slice(0,8),
+    inspectorName: currentUser?.user_metadata?.full_name || '',
+    drawings: dws||[], pins: pins||[],
+    astmRef: s.astm_ref, astmYear: s.astm_year,
+    passFlag: s.pass_flag, inspectorNote: s.inspector_note,
+    submissionId: s.id, pane: false,
+  };
+  const html = cmtDocHtml(s.test_types, v, ctx);
   const w = window.open('','_blank');
   w.document.write(html); w.document.close();
 }
