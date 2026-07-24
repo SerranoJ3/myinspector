@@ -11679,7 +11679,7 @@ function cmtOpenForm(typeId){
   document.getElementById('cmt-ledger-wrap').style.display='none';
   CMT.lastVariant = undefined;
   CMT.liveReportNo = null;
-  PLANMK.byDrawing = {}; PLANMK.undo = []; PLANMK.view = null; PLANMK.textArm = false; PLANMK.activeId = null;
+  PLANMK.byDrawing = {}; PLANMK.undo = []; PLANMK.view = null; PLANMK.textArm = false; PLANMK.activeId = null; PLANMK.regionLayer = null;
   cmtMobileView('form');
   document.querySelectorAll('#cmt-form-fields [data-rg-key]').forEach(w=>cmtRenderReadingsGrid(w.dataset.rgKey));
   if(cmtRestoreDraft()){
@@ -11946,15 +11946,23 @@ function cmtPdfJs(){
   return _pdfjsP;
 }
 function cmtIsPdfPath(p){ return /\.pdf$/i.test(p||''); }
-// render page 1 at targetWidthPx; cache keeps the BEST render per path and
-// only re-renders upward (zoom out never loses detail already paid for)
-async function cmtPdfRender(path, targetWidthPx){
-  targetWidthPx = Math.min(Math.max(Math.round(targetWidthPx), 1200), 9000);
-  const cached = PLANMK.pdfRenders[path];
-  if(cached && cached.w >= targetWidthPx) return cached.dataUrl;
+// full-page render (base layer + print docs). Capped low on purpose: a dense
+// CAD sheet's FULL-page rasterization cost explodes with width (measured:
+// 3600px full-page > 25s on C-501). Deep zoom detail comes from REGION
+// rendering below, not from ever-bigger full-page rasters.
+async function cmtPdfDoc(path){
+  PLANMK._pdfDocs = PLANMK._pdfDocs || {};
+  if(PLANMK._pdfDocs[path]) return PLANMK._pdfDocs[path];
   const lib = await cmtPdfJs();
   const url = sb.storage.from('inspection-photos').getPublicUrl(path).data.publicUrl;
-  const doc = await lib.getDocument(url).promise;
+  PLANMK._pdfDocs[path] = await lib.getDocument(url).promise;
+  return PLANMK._pdfDocs[path];
+}
+async function cmtPdfRender(path, targetWidthPx){
+  targetWidthPx = Math.min(Math.max(Math.round(targetWidthPx), 1200), 2600);
+  const cached = PLANMK.pdfRenders[path];
+  if(cached && cached.w >= targetWidthPx) return cached.dataUrl;
+  const doc = await cmtPdfDoc(path);
   const page = await doc.getPage(1);
   const vp1 = page.getViewport({scale:1});
   const vp = page.getViewport({scale: targetWidthPx / vp1.width});
@@ -11964,6 +11972,33 @@ async function cmtPdfRender(path, targetWidthPx){
   const dataUrl = cv.toDataURL('image/jpeg', 0.9);
   PLANMK.pdfRenders[path] = {w: cv.width, dataUrl};
   return dataUrl;
+}
+// REGION render — the deep-zoom path: rasterize ONLY the visible window at
+// high scale (~2600px across the window). Cost is bounded by the canvas, so
+// 10x zoom on an E-size sheet is crisp in seconds, exactly like a PDF viewer.
+let _pdfRegionGen = 0;
+async function cmtPdfRenderRegion(path, view){
+  const gen = ++_pdfRegionGen;
+  const doc = await cmtPdfDoc(path);
+  const page = await doc.getPage(1);
+  const vp1 = page.getViewport({scale:1});
+  // the sheet letterboxes into the 800x600 box (meet): content spans x 0..800,
+  // y centered with contentH = 800 * pageH/pageW (landscape sheets)
+  const contentH = Math.min(PLANMK_VB_H, PLANMK_VB_W * vp1.height / vp1.width);
+  const offY = (PLANMK_VB_H - contentH) / 2;
+  const REGION_PX = 2600;
+  const scale = REGION_PX / (vp1.width * (view.w / PLANMK_VB_W));
+  const vp = page.getViewport({scale});
+  const k = vp.width / PLANMK_VB_W;                 // px per viewBox unit
+  const cv = document.createElement('canvas');
+  cv.width = REGION_PX;
+  cv.height = Math.round(view.h * k);
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.translate(-view.x * k, (offY - view.y) * k);
+  await page.render({canvasContext: ctx, viewport: vp}).promise;
+  if(gen !== _pdfRegionGen) return null;            // a newer view superseded this render
+  return {view: {...view}, dataUrl: cv.toDataURL('image/jpeg', 0.9)};
 }
 // best-available href for any drawing path (raster URL, or the cached PDF render)
 function cmtDrawingHref(path){
@@ -11981,19 +12016,37 @@ async function cmtPdfEnsureForDocs(dws){
 }
 let _pdfResT = null;
 function cmtPlanMkEnsureRes(){
-  // editor: after zooming, re-render the PDF base at the zoom-following width
+  // after a zoom settles, region-render the visible window at high scale and
+  // lay it over the base — blurry-then-sharp, never blocking the swipe
   if(_pdfResT) clearTimeout(_pdfResT);
   _pdfResT = setTimeout(async ()=>{
     const d = (CMT.drawingsCache||[]).find(x=>x.id===PLANMK.activeId);
     if(!d || !cmtIsPdfPath(d.image_path)) return;
-    const v = PLANMK.view || {w: PLANMK_VB_W};
-    const zoomF = PLANMK_VB_W / v.w;
+    const v = PLANMK.view;
+    if(!v || v.w >= PLANMK_VB_W * 0.9){ PLANMK.regionLayer = null; cmtPlanMkPatchRegion(); return; }
     try{
-      await cmtPdfRender(d.image_path, 1600 * Math.min(zoomF, 6));
-      cmtPlanMkRenderSvg();
-      cmtPaperDebounced();
-    }catch(e){ console.warn('pdf zoom re-render failed:', e); }
-  }, 250);
+      const region = await cmtPdfRenderRegion(d.image_path, v);
+      if(region){ PLANMK.regionLayer = region; cmtPlanMkPatchRegion(); }
+    }catch(e){ console.warn('pdf region render failed:', e); }
+  }, 400);
+}
+function cmtPlanMkPatchRegion(){
+  // swap ONLY the region overlay image — no full SVG rebuild, marks untouched
+  const svg = document.getElementById('cmt-planmk-svg');
+  if(!svg) return;
+  let img = svg.querySelector('#cmt-planmk-region');
+  if(!PLANMK.regionLayer){ if(img) img.remove(); return; }
+  const r = PLANMK.regionLayer;
+  if(!img){
+    img = document.createElementNS('http://www.w3.org/2000/svg','image');
+    img.id = 'cmt-planmk-region';
+    const overlay = svg.querySelector('#cmt-planmk-overlay');
+    svg.insertBefore(img, overlay);   // above the base, below the marks
+  }
+  img.setAttribute('href', r.dataUrl);
+  img.setAttribute('x', r.view.x); img.setAttribute('y', r.view.y);
+  img.setAttribute('width', r.view.w); img.setAttribute('height', r.view.h);
+  img.setAttribute('preserveAspectRatio','none');
 }
 function cmtPlanMkRec(id){ return PLANMK.byDrawing[id] = PLANMK.byDrawing[id] || {strokes:[], notes:[]}; }
 function cmtPlanMkSelected(){
@@ -12052,6 +12105,7 @@ function cmtPlanMkRenderSvg(){
   svg.addEventListener('wheel', cmtPlanMkWheel, {passive:false});
   svg.addEventListener('touchstart', cmtPlanMkPinch, {passive:false});
   svg.addEventListener('touchmove', cmtPlanMkPinch, {passive:false});
+  cmtPlanMkPatchRegion();   // full rebuilds must not drop the sharp region layer
 }
 function cmtPlanMkPt(ev){
   const svg = document.getElementById('cmt-planmk-svg');
@@ -12160,8 +12214,10 @@ function cmtPlanMkPinch(ev){
 }
 function cmtPlanMkFit(){
   PLANMK.view = null;
+  PLANMK.regionLayer = null;
   const svg = document.getElementById('cmt-planmk-svg');
   if(svg) svg.setAttribute('viewBox', `0 0 ${PLANMK_VB_W} ${PLANMK_VB_H}`);
+  cmtPlanMkPatchRegion();
 }
 function cmtPlanMkZoom(factor){
   const v = PLANMK.view || {x:0, y:0, w:PLANMK_VB_W, h:PLANMK_VB_H};
