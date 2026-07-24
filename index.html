@@ -1027,10 +1027,18 @@ html,body{overflow-x:hidden}
       <input class="field-input" type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')login()">
       <button class="btn-primary" onclick="login()">Sign In</button>
       <button class="btn-primary" onclick="loginAsDemo()" style="margin-top:10px;background:transparent;border:1px solid var(--orange);color:var(--orange)">
-        Demo login (auto-fill super_admin)
+        Try the demo
       </button>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+        <div class="field-label">Have a demo code from an email?</div>
+        <input class="field-input" id="demo-code-input" placeholder="DEMO-XXXX-XXXX" autocapitalize="characters"
+          onkeydown="if(event.key==='Enter')demoCodeLogin()">
+        <button class="btn-primary" onclick="demoCodeLogin()" style="background:transparent;border:1px solid var(--blue-light);color:var(--blue-light)">
+          Enter with your code
+        </button>
+      </div>
       <div class="auth-toggle" style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center">
-        Demo mode — sample tenant data only. No real customer firms.
+        Demo mode — sample tenant data only. No real customer firms. Nothing you enter is saved.
       </div>
       <div class="auth-toggle">No account? <a onclick="showSignup()">Create one</a></div>
     </div>
@@ -1135,6 +1143,13 @@ html,body{overflow-x:hidden}
       </div>
       <div class="nav-link" id="nav-cmt-log" onclick="showPanel('cmt-log')">
         <span class="nav-icon">📁</span> Test Log
+      </div>
+      </div>
+      <!-- SERRANO ADMIN — pack-independent, super_admin only (display gated in applyPack) -->
+      <div id="nav-admin-group" style="display:none">
+      <div class="sidebar-section">Serrano Admin</div>
+      <div class="nav-link" id="nav-demo-invites" onclick="showPanel('demo-invites');invitesLoad()">
+        <span class="nav-icon">🎟️</span> Demo Invites
       </div>
       </div>
       <div class="sidebar-bottom">
@@ -1761,6 +1776,24 @@ html,body{overflow-x:hidden}
         </div>
       </div>
 
+      <!-- DEMO INVITES — the outreach program's control panel (super_admin only) -->
+      <div class="panel" id="panel-demo-invites">
+        <div class="page-header">
+          <div class="page-title">Demo Invites</div>
+          <div class="page-sub">One code per outreach email. The activity column is the warm-lead list — opened twice and never replied is a phone call.</div>
+        </div>
+        <div class="table-wrap" style="padding:14px;margin-bottom:14px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input class="modal-input" id="inv-firm" placeholder="Their firm name (goes on the letterhead)" style="flex:2;min-width:180px">
+            <input class="modal-input" id="inv-contact" placeholder="Contact name" style="flex:1;min-width:120px">
+            <input class="modal-input" id="inv-email" placeholder="contact@firm.com" style="flex:1;min-width:150px">
+            <input class="modal-input" id="inv-source" placeholder="Source (batch-1, referral…)" style="flex:1;min-width:120px">
+            <button class="btn-sm btn-orange" onclick="inviteCreate()">🎟️ New invite</button>
+          </div>
+          <div id="inv-created" style="margin-top:8px;font-size:13px"></div>
+        </div>
+        <div id="inv-list"><div class="loading">Loading…</div></div>
+      </div>
       <!-- OFFICE SIDE — the exception queue, not a work queue (spec 7/23, items 1-3, no AI) -->
       <div class="panel" id="panel-cmt-review">
         <div class="page-header">
@@ -3515,6 +3548,23 @@ function loginAsDemo(){
   login();
 }
 
+// DEMO INVITES (7/24): the outreach code path. Validates + stamps telemetry via
+// the definer RPC, banks the invite for letterhead + forced simulation, then
+// rides the existing demo session. No signup, no password loop.
+async function demoCodeLogin(){
+  const code = (document.getElementById('demo-code-input').value||'').trim();
+  if(!code){ showAuthError('Type the code from your invite email, then tap Enter.'); return; }
+  const {data, error} = await sb.rpc('redeem_demo_invite', {p_code: code});
+  if(error){ showAuthError('Code check failed — give it one more tap.'); return; }
+  if(!data || !data.length){
+    showAuthError('That code isn\'t valid or has expired — reply to the email and we\'ll send a fresh one.');
+    return;
+  }
+  try{ sessionStorage.setItem('mi_demo_invite', JSON.stringify({code, firm_name: data[0].firm_name})); }catch(e){}
+  try{ localStorage.setItem('mi_pitch_mode','on'); }catch(e){}
+  loginAsDemo();
+}
+
 async function signup(){
   const name  = document.getElementById('signup-name').value.trim();
   const email = document.getElementById('signup-email').value.trim();
@@ -3614,12 +3664,12 @@ function applyPitchMode(){
   if(toggle) toggle.textContent = 'Pitch mode: ' + (pitchModeActive ? 'ON' : 'OFF');
   if(textEl){
     textEl.textContent = pitchModeActive
-      ? 'Pitch mode active — all writes suppressed.'
+      ? 'Demo mode — your entries display exactly as they would in your own workspace, and clear when you close this.'
       : 'Sample tenant data — illustrative records only.';
   }
   if(metaEl){
     metaEl.textContent = pitchModeActive
-      ? 'Toggle off in the banner to resume edits.'
+      ? 'Behavior is real; only persistence is simulated. Refresh for a clean slate.'
       : 'No real customer firms or live compliance writes affected.';
   }
 }
@@ -3636,6 +3686,12 @@ function togglePitchMode(){
 }
 
 function pitchModeBlocked(actionLabel){
+  // SIMULATED PITCH MODE (7/24 ruling): a blocked button is a dead end; a
+  // simulated one is a demonstration. When the sim layer is active it absorbs
+  // every write session-only, so the guards PASS THROUGH — the row appears,
+  // the paper inks, nothing persists. Legacy block kept as defense-in-depth
+  // for any state where pitch is on but the sim layer is not.
+  if(typeof simActive==='function' && simActive()) return false;
   if(!pitchModeActive) return false;
   if(!currentFirmIsDemo) return false;
   const verb = actionLabel || 'this action';
@@ -3698,6 +3754,17 @@ async function initApp(user){
       // firmName above is initApp-local (the 7/23 blank-pane ReferenceError)
       if(profile.firms?.name && !currentFirmReportCfg.firm_display)
         currentFirmReportCfg.firm_display = profile.firms.name;
+      // DEMO INVITE session (7/24): THEIR name on the letterhead — it's their
+      // paper, not ours. Demo data stays generic; only the identity is theirs.
+      // Simulation is forced on so nothing a prospect does persists.
+      try{
+        const inv = JSON.parse(sessionStorage.getItem('mi_demo_invite')||'null');
+        if(inv && currentFirmIsDemo){
+          SIM.invite = inv;
+          currentFirmReportCfg = Object.assign({}, currentFirmReportCfg, {firm_display: inv.firm_name});
+          localStorage.setItem('mi_pitch_mode','on');
+        }
+      }catch(e){}
     }
   } catch(e) {
     console.warn('Profile load failed, continuing:', e);
@@ -11464,6 +11531,8 @@ function applyPack(){
   const cmt = ACTIVE_PACK === 'cmt';
   document.getElementById('nav-pack-water').style.display = cmt ? 'none' : '';
   document.getElementById('nav-pack-cmt').style.display = cmt ? '' : 'none';
+  const adminNav = document.getElementById('nav-admin-group');
+  if(adminNav) adminNav.style.display = currentUserIsSuperAdmin ? '' : 'none';
   // toggle visibility: supervisor+ only (mode is a workspace decision, not per-inspector)
   const canToggle = ['owner','supervisor','super_admin'].includes(currentUserRole);
   const wrap = document.getElementById('pack-toggle-wrap');
@@ -12879,6 +12948,52 @@ function cmtDfrPrint(){
   w.document.close();
 }
 
+// ── DEMO INVITES ADMIN (7/24) — one code per outreach email; activity = leads ─
+function inviteGenCode(){
+  const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';   // no 0/O/1/I/L ambiguity
+  const seg = n => Array.from({length:n},()=>A[Math.floor(Math.random()*A.length)]).join('');
+  return 'DEMO-'+seg(4)+'-'+seg(4);
+}
+async function inviteCreate(){
+  const firm = document.getElementById('inv-firm').value.trim();
+  if(!firm){ showToast('Their firm name first — it goes on the letterhead','error'); return; }
+  const code = inviteGenCode();
+  const {error} = await sb.from('demo_invites').insert({
+    code, firm_name: firm,
+    contact_name: document.getElementById('inv-contact').value.trim() || null,
+    contact_email: document.getElementById('inv-email').value.trim() || null,
+    source: document.getElementById('inv-source').value.trim() || null,
+    created_by: currentUser.id });
+  if(error){ showToast('Invite failed: '+error.message,'error'); return; }
+  document.getElementById('inv-created').innerHTML =
+    `✅ Invite for <b>${firm}</b>: <code style="font-size:15px;background:var(--surface2);padding:2px 8px;border-radius:4px">${code}</code> — paste it into the email. Expires in 30 days.`;
+  ['inv-firm','inv-contact','inv-email','inv-source'].forEach(id=>document.getElementById(id).value='');
+  invitesLoad();
+}
+async function invitesLoad(){
+  const el = document.getElementById('inv-list');
+  const {data, error} = await sb.from('demo_invites').select('*')
+    .order('last_used_at', {ascending:false, nullsFirst:false});
+  if(error){ el.innerHTML = '<div class="loading">Load failed: '+error.message+'</div>'; return; }
+  if(!data || !data.length){ el.innerHTML = '<div class="loading">No invites yet — create the first one above.</div>'; return; }
+  const now = Date.now();
+  el.innerHTML = '<table style="width:100%;font-size:13px"><tr style="color:var(--muted);text-align:left">'+
+    '<th style="padding:6px">Code</th><th>Firm</th><th>Contact</th><th>Source</th><th>Opens</th><th>Last opened</th><th>Expires</th></tr>'+
+    data.map(v=>{
+      const warm = v.use_count>0;
+      const expired = new Date(v.expires_at).getTime() < now;
+      return `<tr style="border-top:1px solid var(--border);${warm?'background:rgba(244,168,32,0.05)':''}">
+        <td style="padding:6px"><code>${v.code}</code></td>
+        <td>${v.firm_name}</td>
+        <td style="font-size:11px">${v.contact_name||''}${v.contact_email?'<br>'+v.contact_email:''}</td>
+        <td>${v.source||''}</td>
+        <td style="font-weight:700;${warm?'color:var(--orange)':''}">${v.use_count}${v.use_count>=2?' 🔥':''}</td>
+        <td style="font-size:11px">${v.last_used_at?new Date(v.last_used_at).toLocaleString():'—'}</td>
+        <td style="font-size:11px;${expired?'color:var(--red)':''}">${new Date(v.expires_at).toLocaleDateString()}${expired?' EXPIRED':''}</td></tr>`;
+    }).join('')+'</table>' +
+    '<div style="font-size:11px;color:var(--muted);margin-top:6px">🔥 = opened 2+ times. Sorted by activity — the top of this list is your call sheet.</div>';
+}
+
 // ── OFFICE SIDE — the EXCEPTION queue, not a work queue (spec 7/23, no AI) ───
 const REVIEW = { rows:[], open:null, parts:null, glossary:[] };
 async function cmtReviewLoad(){
@@ -13867,6 +13982,135 @@ async function cmtReport(id){
 sb.auth.onAuthStateChange((event,session)=>{
   if(session?.user && !currentUser) initApp(session.user);
 });
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SIMULATED PITCH MODE — the session overlay (2026-07-24 ruling).
+// Writes complete visually and evaporate: inserts/updates/deletes land in an
+// in-memory overlay; reads merge the overlay over the seeded demo data;
+// refresh = clean slate. "Those plus or minus situations are just for
+// theatrics not execution." Installed LAST so it wraps every earlier patch.
+// ══════════════════════════════════════════════════════════════════════════════
+const SIM = { invite:null, tables:{}, storage:{}, urls:{}, sampleSeq:0 };
+function simActive(){ return (pitchModeActive && currentFirmIsDemo) || !!SIM.invite; }
+function simTable(t){ return SIM.tables[t] = SIM.tables[t] || {inserted:[], updates:[], deletes:[]}; }
+function simMatch(row, filters){
+  return (filters||[]).every(([op,c,v])=>{
+    const rv = row[c];
+    if(op==='eq') return String(rv)===String(v);
+    if(op==='neq') return String(rv)!==String(v);
+    if(op==='in') return (v||[]).map(String).includes(String(rv));
+    if(op==='gte') return rv!=null && rv>=v;
+    if(op==='lte') return rv!=null && rv<=v;
+    if(op==='is') return v===null ? rv==null : rv===v;
+    return true;
+  });
+}
+// sim-inserted rows need the joins the app's selects expect — enrich from caches
+function simEnrich(table, row){
+  try{
+    if(table==='test_submissions' && !row.test_types)
+      row.test_types = (CMT.types||[]).find(t=>t.id===row.test_type_id) || null;
+    if(table==='daily_field_reports'){
+      if(!row.projects) row.projects = (CMT.projects||[]).find(p=>p.id===row.project_id) || null;
+      if(!row.profiles) row.profiles = {full_name: currentUser?.user_metadata?.full_name || 'Demo Visitor'};
+    }
+  }catch(e){}
+  return row;
+}
+(function installSimLayer(){
+  const _from = sb.from.bind(sb);
+  sb.from = function(table){
+    const real = _from(table);
+    if(typeof simActive!=='function' || !simActive()) return real;
+    const st = {op:'select', payload:null, filters:[], order:null, limit:null,
+                single:false, cols:'*', head:false, count:null, returning:false};
+    const api = {};
+    const chain = fn => (...a)=>{ fn(...a); return api; };
+    api.select = chain((cols, opts)=>{ if(st.op==='select' && cols) st.cols=cols;
+      st.returning = true; if(opts&&opts.head) st.head=true; if(opts&&opts.count) st.count=opts.count; });
+    api.insert = chain(p=>{ st.op='insert'; st.payload=p; });
+    api.update = chain(p=>{ st.op='update'; st.payload=p; });
+    api.upsert = chain(p=>{ st.op='insert'; st.payload=p; });
+    api.delete = chain(()=>{ st.op='delete'; });
+    ['eq','neq','gte','lte','is'].forEach(op=>{ api[op] = chain((c,v)=>st.filters.push([op,c,v])); });
+    api.in = chain((c,v)=>st.filters.push(['in',c,v]));
+    api.order = chain((c,o)=>{ st.order=[c, !(o&&o.ascending===false)]; });
+    api.limit = chain(n=>st.limit=n);
+    api.single = chain(()=>st.single=true);
+    api.maybeSingle = chain(()=>st.single=true);
+    api.then = (res, rej) => simExecute(table, _from, st).then(res, rej);
+    return api;
+  };
+  async function simExecute(table, _from, st){
+    const T = simTable(table);
+    if(st.op==='insert'){
+      const rows = (Array.isArray(st.payload)?st.payload:[st.payload]).map(p=>
+        simEnrich(table, Object.assign({id: crypto.randomUUID(), created_at: new Date().toISOString()}, p)));
+      T.inserted.push(...rows);
+      return {data: st.returning ? (st.single ? rows[0] : rows) : null, error: null};
+    }
+    if(st.op==='update'){ T.updates.push({filters: st.filters, patch: st.payload});
+      // sim rows patch immediately; DB rows patch at read-merge
+      T.inserted.forEach(r=>{ if(simMatch(r, st.filters)) Object.assign(r, st.payload); });
+      const matched = T.inserted.filter(r=>simMatch(r, st.filters));
+      return {data: st.returning ? (st.single ? (matched[0]||null) : matched) : null, error: null};
+    }
+    if(st.op==='delete'){ T.deletes.push({filters: st.filters});
+      T.inserted = T.inserted.filter(r=>!simMatch(r, st.filters));
+      return {data: null, error: null};
+    }
+    // SELECT: run the real query, then merge the overlay
+    let q = _from(table).select(st.cols, st.head ? {count: st.count||'exact', head:true} : (st.count?{count:st.count}:undefined));
+    st.filters.forEach(([op,c,v])=>{ q = op==='in' ? q.in(c,v) : q[op](c,v); });
+    if(st.order) q = q.order(st.order[0], {ascending: st.order[1]});
+    if(st.limit) q = q.limit(st.limit);
+    const real = await q;
+    const insMatch = T.inserted.filter(r=>simMatch(r, st.filters));
+    if(st.head){
+      let count = (real.count||0) + insMatch.length;
+      T.deletes.forEach(d=>{ count -= 0; });   // deletes of DB rows rare in demo; count stays honest enough
+      return {count, data: null, error: real.error};
+    }
+    let rows = (real.data||[]).map(r=>Object.assign({}, r));
+    T.updates.forEach(u=>rows.forEach(r=>{ if(simMatch(r, u.filters)) Object.assign(r, u.patch); }));
+    T.deletes.forEach(d=>{ rows = rows.filter(r=>!simMatch(r, d.filters)); });
+    rows = rows.concat(insMatch.map(r=>Object.assign({}, r)));
+    if(st.order){ const [c,asc]=st.order; rows.sort((a,b)=>((a[c]>b[c])?1:(a[c]<b[c])?-1:0)*(asc?1:-1)); }
+    if(st.limit) rows = rows.slice(0, st.limit);
+    if(st.single) return {data: rows[0]||null, error: rows.length?null:real.error};
+    return {data: rows, error: real.error, count: real.count!=null ? real.count+insMatch.length : undefined};
+  }
+  // RPCs: sequence/schedule helpers answer from the overlay; everything else passes through
+  const _rpc = sb.rpc.bind(sb);
+  sb.rpc = function(fn, args){
+    if(typeof simActive!=='function' || !simActive()) return _rpc(fn, args);
+    if(fn==='next_sample_no') return Promise.resolve({data: 'SIM-'+String(++SIM.sampleSeq).padStart(3,'0'), error:null});
+    if(fn==='cmt_break_schedule') return Promise.resolve({data: [7,14,28], error:null});
+    if(fn==='next_entry_seq'){
+      const ins = simTable('report_entries').inserted.filter(r=>r.report_id===(args&&args.p_report));
+      const base = (typeof LEDGER!=='undefined' && LEDGER.entries) ? LEDGER.entries.filter(e=>!String(e.id).includes('-')||true).length : 0;
+      return Promise.resolve({data: base + ins.length + 1, error:null});
+    }
+    return _rpc(fn, args);
+  };
+  // storage: uploads land in memory; sim paths resolve to object URLs
+  const _storageFrom = sb.storage.from.bind(sb.storage);
+  sb.storage.from = function(bucket){
+    const real = _storageFrom(bucket);
+    if(typeof simActive!=='function' || !simActive()) return real;
+    return {
+      upload: async (path, file, opts) => { SIM.storage[path] = file; return {data:{path}, error:null}; },
+      remove: async (paths) => ({data: null, error: null}),
+      getPublicUrl: (path) => {
+        if(SIM.storage[path]){
+          if(!SIM.urls[path]) SIM.urls[path] = URL.createObjectURL(SIM.storage[path]);
+          return {data:{publicUrl: SIM.urls[path]}};
+        }
+        return real.getPublicUrl(path);
+      },
+    };
+  };
+})();
 
 sb.auth.getSession().then(({data:{session}})=>{
   if(session?.user) initApp(session.user);
