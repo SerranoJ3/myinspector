@@ -11534,12 +11534,26 @@ function cmtRenderTabs(){
   if(pourBar) pourBar.style.display = (CMT.tab==='concrete' && !ledgerOpen) ? '' : 'none';
 }
 function cmtSetTab(k){
+  // PUNCH 7/23 (Jorge): working view and day view must never stack. A tab click
+  // unmounts MY DAY and the ledger; if a form was open, AUTO-FLIP to the new
+  // tab's first document — "click one of those tabs, it flips to the proper
+  // document," no tile hunt, drafts make it lossless.
+  const wasWorking = !!CMT.activeType;
   CMT.tab=k; cmtCloseForm();
   if(LEDGER.report && !LEDGER.pendingLink){
     document.getElementById('cmt-ledger-wrap').style.display='none';
     LEDGER.report=null; LEDGER.entries=[];
   }
+  if(DFR.report){
+    document.getElementById('cmt-myday-wrap').style.display='none';
+    DFR.report=null; DFR.parts=null;
+    document.getElementById('cmt-test-tiles').style.display='';
+  }
   cmtRenderTabs();
+  if(wasWorking){
+    const first = CMT.types.find(t=>t.tab===k);
+    if(first) cmtOpenForm(first.id);
+  }
 }
 
 async function cmtProjectChanged(){
@@ -11660,6 +11674,9 @@ function cmtOpenForm(typeId){
       (f.type==='rowgrid' && (f.cols||[]).some(c=>c.kind==='sample')))) cmtFillSampleRefs();
   document.getElementById('cmt-form-wrap').style.display='';
   document.getElementById('cmt-test-tiles').style.display='none';
+  // never stack the day or the ledger above a working form (punch 7/23)
+  document.getElementById('cmt-myday-wrap').style.display='none';
+  document.getElementById('cmt-ledger-wrap').style.display='none';
   CMT.lastVariant = undefined;
   CMT.liveReportNo = null;
   PLANMK.byDrawing = {}; PLANMK.undo = []; PLANMK.view = null; PLANMK.textArm = false; PLANMK.activeId = null;
@@ -12846,6 +12863,11 @@ function cmtPaperRender(){
     const html = cmtDocHtml(CMT.activeType, CMT.lastVals || {}, cmtLiveCtx());
     const doc = fr.contentDocument;
     doc.open(); doc.write(html); doc.close();
+    // WORKING VIEW fits ONE document — front and center, no long scroll (punch 7/23)
+    setTimeout(()=>{ try{
+      const h = fr.contentDocument.body.scrollHeight;
+      fr.style.height = Math.min(Math.max(h + 24, 320), Math.round(window.innerHeight*0.78)) + 'px';
+    }catch(_){} }, 60);
   }catch(e){
     // NEVER-BLANK GUARANTEE: a white rectangle is a forbidden state. Any render
     // failure paints a loud in-pane error card instead of silence.
