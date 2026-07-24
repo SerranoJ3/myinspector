@@ -1130,6 +1130,9 @@ html,body{overflow-x:hidden}
       <div class="nav-link" id="nav-cmt-certs" onclick="showPanel('cmt-certs')">
         <span class="nav-icon">🎓</span> Certifications
       </div>
+      <div class="nav-link" id="nav-cmt-review" onclick="showPanel('cmt-review');cmtReviewLoad();cmtGlossLoad()">
+        <span class="nav-icon">🗂️</span> Review Queue
+      </div>
       <div class="nav-link" id="nav-cmt-log" onclick="showPanel('cmt-log')">
         <span class="nav-icon">📁</span> Test Log
       </div>
@@ -1758,6 +1761,59 @@ html,body{overflow-x:hidden}
         </div>
       </div>
 
+      <!-- OFFICE SIDE — the exception queue, not a work queue (spec 7/23, items 1-3, no AI) -->
+      <div class="panel" id="panel-cmt-review">
+        <div class="page-header">
+          <div class="page-title">Review Queue</div>
+          <div class="page-sub">Everything the field submitted, oldest first. Clean days flow through — stop only on flags.</div>
+        </div>
+        <div id="cmt-review-list"><div class="loading">Loading…</div></div>
+        <div style="margin:10px 0">
+          <button class="btn-sm btn-orange" onclick="cmtReviewApproveSelected()">✓ Approve selected</button>
+          <button class="btn-sm" onclick="cmtReviewLoad()">↻ Refresh</button>
+        </div>
+        <div id="cmt-review-detail" style="display:none">
+          <div style="display:flex;gap:14px;flex-wrap:wrap">
+            <div style="flex:1 1 380px;min-width:0">
+              <div class="table-wrap" style="padding:18px">
+                <div class="table-header" style="padding:0 0 6px 0">
+                  <div class="table-title" id="cmt-review-title"></div>
+                  <span id="cmt-review-substatus" style="font-size:11px;color:var(--muted)"></span>
+                </div>
+                <div class="modal-field"><label class="modal-label">Narrative — the technician's words become the firm's voice. His original is v1, forever.</label>
+                  <textarea class="modal-input" id="cmt-review-narrative" rows="6" spellcheck="true" autocapitalize="sentences" oninput="cmtReviewGlossaryHints()"></textarea>
+                  <div id="cmt-review-original" style="font-size:11px;color:var(--muted);margin-top:4px"></div>
+                  <div id="cmt-review-glossary-hints" style="font-size:12px;margin-top:6px"></div></div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <button class="btn-sm btn-orange" onclick="cmtReviewApprove()">✓ Approve</button>
+                  <button class="btn-sm" onclick="cmtReviewSaveProse()">💾 Save office version</button>
+                  <button class="btn-sm" onclick="cmtReviewReturn()">↩ Return to tech…</button>
+                  <button class="btn-sm" onclick="document.getElementById('cmt-review-detail').style.display='none'">Close</button>
+                </div>
+                <div class="modal-field" id="cmt-review-returnwrap" style="display:none;margin-top:8px">
+                  <label class="modal-label">Note to the technician (what to fix)</label>
+                  <textarea class="modal-input" id="cmt-review-returnnote" rows="2" spellcheck="true"></textarea>
+                  <button class="btn-sm btn-orange" onclick="cmtReviewReturnSend()">Send back</button>
+                </div>
+              </div>
+            </div>
+            <div style="flex:1 1 380px;min-width:0;background:#525659;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+              <iframe id="cmt-review-frame" title="Package as the client will see it" style="width:100%;height:70vh;border:0;background:#fff;display:block"></iframe>
+            </div>
+          </div>
+        </div>
+        <div class="page-header" style="margin-top:18px"><div class="page-title" style="font-size:18px">House Glossary</div>
+          <div class="page-sub">Construction term in → client term out. Yours to read, add, and fix — the tool you maintain, not the tool replacing you.</div></div>
+        <div class="table-wrap" style="padding:14px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+            <input class="modal-input" id="cmt-gloss-in" placeholder="probe stick" style="flex:1;min-width:140px">
+            <span style="align-self:center">→</span>
+            <input class="modal-input" id="cmt-gloss-out" placeholder="hand probe" style="flex:1;min-width:140px">
+            <button class="btn-sm btn-orange" onclick="cmtGlossAdd()">+ Add rule</button>
+          </div>
+          <div id="cmt-gloss-list"><div class="loading">Loading…</div></div>
+        </div>
+      </div>
       <div class="panel" id="panel-cmt-samples">
         <div class="page-header">
           <div class="page-title">Sample Register</div>
@@ -12394,30 +12450,50 @@ async function cmtDfrSave(){
   Object.assign(DFR.report, patch);
   cmtDfrPaper();
 }
-async function cmtDfrRefresh(){
-  if(!DFR.report) return;
-  const pid = DFR.report.project_id, day = DFR.report.report_date;
+async function cmtDfrAssemble(rep){
+  // ONE assembly path — MY DAY and the office Review Queue see the same package
+  const pid = rep.project_id, day = rep.report_date;
   const win = cmtLocalDayWindow(day);
-  const dayStart = win.start, dayEnd = win.end;
-  const [subsR, tickR, ledR] = await Promise.all([
+  const [subsR, tickR, ledR, proseR] = await Promise.all([
     sb.from('test_submissions').select('*, test_types(id,tab,name,field_schema)')
-      .eq('project_id',pid).gte('submitted_at',dayStart).lte('submitted_at',dayEnd)
+      .eq('project_id',pid).gte('submitted_at',win.start).lte('submitted_at',win.end)
       .is('deleted_at',null).order('submitted_at'),
     sb.from('field_tickets').select('*').eq('project_id',pid)
-      .gte('captured_at',dayStart).lte('captured_at',dayEnd).order('captured_at'),
+      .gte('captured_at',win.start).lte('captured_at',win.end).order('captured_at'),
     sb.from('field_reports').select('*').eq('project_id',pid).eq('report_date',day).is('deleted_at',null),
+    sb.from('dfr_prose_versions').select('*').eq('daily_report_id',rep.id).order('version_no'),
   ]);
-  const subs = subsR.data||[], tickets = tickR.data||[], ledgers = ledR.data||[];
+  const subs = subsR.data||[], tickets = tickR.data||[], ledgers = ledR.data||[], prose = proseR.data||[];
   const dwIds = [...new Set(subs.flatMap(s=>s.drawings_used||[]))];
   const dws = dwIds.length ? (await sb.from('job_drawings').select('*').in('id',dwIds)).data||[] : [];
   const subIds = subs.map(s=>s.id);
   const pins = subIds.length ? (await sb.from('element_pins').select('*').in('submission_id',subIds).is('deleted_at',null)).data||[] : [];
   let ledgerEntries = [];
   if(ledgers.length) ledgerEntries = (await sb.from('report_entries').select('*').in('report_id', ledgers.map(l=>l.id)).order('seq')).data||[];
-  DFR.parts = {subs, tickets, ledgers, ledgerEntries, dws, pins};
+  const latestProse = f => { const vs = prose.filter(p=>p.field===f); return vs.length ? vs[vs.length-1] : null; };
+  return {subs, tickets, ledgers, ledgerEntries, dws, pins, prose,
+    officeNarrative: latestProse('narrative'), officeDisc: latestProse('discrepancy_summary')};
+}
+async function cmtDfrRefresh(){
+  if(!DFR.report) return;
+  DFR.parts = await cmtDfrAssemble(DFR.report);
   document.getElementById('cmt-myday-title').textContent = 'Daily Field Report — '+DFR.report.report_no;
   document.getElementById('cmt-myday-status').textContent =
     DFR.report.report_date+' · '+DFR.report.status.toUpperCase().replace('_',' ');
+  // returned-to-tech banner: the office's note, front and center
+  let banner = document.getElementById('cmt-dfr-returned-banner');
+  if(DFR.report.status==='returned'){
+    const {data:notes} = await sb.from('dfr_review_notes').select('note,created_at')
+      .eq('daily_report_id',DFR.report.id).order('created_at',{ascending:false}).limit(1);
+    if(!banner){
+      banner = document.createElement('div');
+      banner.id='cmt-dfr-returned-banner';
+      banner.style.cssText='border:1px solid var(--orange);border-radius:8px;background:rgba(244,168,32,0.08);padding:10px 12px;margin-bottom:10px;font-size:13px;color:var(--orange-light)';
+      document.getElementById('cmt-myday-title').parentElement.after(banner);
+    }
+    banner.innerHTML = '↩ <b>The office sent this day back:</b> '+((notes&&notes[0])?notes[0].note.replace(/</g,'&lt;'):'(no note)')+' — fix it and Submit again.';
+    banner.style.display='';
+  } else if(banner) banner.style.display='none';
   document.getElementById('cmt-dfr-parts').innerHTML =
     `Assembled from today, zero taps: <b>${subs.length}</b> test report${subs.length===1?'':'s'} · <b>${tickets.length}</b> ticket${tickets.length===1?'':'s'} · ` +
     `<b>${ledgers.length}</b> pour ledger${ledgers.length===1?'':'s'} — the paper on the right is the package the office receives.`;
@@ -12427,6 +12503,18 @@ async function cmtDfrRefresh(){
 }
 async function cmtDfrSubmit(){
   if(!DFR.report) return;
+  // completeness (spec item 1): the discrepancies answer is REQUIRED — it's a
+  // yes/no on a legal document; an empty narrative gets one loud warning.
+  const yes = document.querySelector('input[name="cmt-dfr-disc"][value="yes"]').checked;
+  const no = document.querySelector('input[name="cmt-dfr-disc"][value="no"]').checked;
+  if(!yes && !no){ showToast('Answer "Discrepancies observed?" — it\'s one tap, the office cannot answer it for you','error'); return; }
+  if(yes && !document.getElementById('cmt-dfr-discsummary').value.trim()){
+    showToast('You marked discrepancies YES — one line about what you saw, then submit','error'); return; }
+  if(!document.getElementById('cmt-dfr-narrative').value.trim() && !DFR._narrWarned){
+    DFR._narrWarned = true;
+    showToast('⚠ No observations narrative — the cover sheet will say nothing about the day. Tap Submit again to send anyway','error'); return; }
+  DFR._narrWarned = false;
+  await cmtDfrSave();
   if(!confirm('Submit your day to the office? Field entries lock; the office takes it from here.')) return;
   const {error} = await sb.from('daily_field_reports')
     .update({status:'submitted', submitted_at:new Date().toISOString()}).eq('id', DFR.report.id);
@@ -12479,8 +12567,8 @@ function cmtDfrDocHtml(rep, parts, ctx, pane){
   const cover =
     `<p style="font-weight:700;margin-bottom:2px">SERVICES PERFORMED THIS DAY — checked automatically from what was filed:</p>
      <table>${svcRows}</table>
-     <p style="font-weight:700;margin:10px 0 2px">SUMMARY OF OBSERVATIONS</p>
-     <table><tr><td class="comments" style="min-height:80px">${(rep.narrative||'').replace(/\n/g,'<br>')||'<i style="color:#999">— the technician\'s narrative goes here —</i>'}</td></tr></table>
+     <p style="font-weight:700;margin:10px 0 2px">SUMMARY OF OBSERVATIONS${(parts.officeNarrative&&parts.officeNarrative.source!=='field')?' <span style="font-weight:400;font-size:8.5px">(house voice — field original v1 on file)</span>':''}</p>
+     <table><tr><td class="comments" style="min-height:80px">${((parts.officeNarrative&&parts.officeNarrative.text)||rep.narrative||'').replace(/\n/g,'<br>')||'<i style="color:#999">— the technician\'s narrative goes here —</i>'}</td></tr></table>
      <p style="font-weight:700;margin:8px 0 2px">DISCREPANCIES OBSERVED:&nbsp;
        Yes ${rep.discrepancies===true?'☒':'☐'} &nbsp;No ${rep.discrepancies===false?'☒':'☐'}</p>
      ${rep.discrepancies===true?`<table><tr><td class="comments" style="min-height:50px">${(rep.discrepancy_summary||'').replace(/\n/g,'<br>')}</td></tr></table>`:''}
@@ -12545,6 +12633,180 @@ function cmtDfrPrint(){
   const w = window.open('','_blank');
   w.document.write(cmtDfrDocHtml(DFR.report, DFR.parts, ctx, false));
   w.document.close();
+}
+
+// ── OFFICE SIDE — the EXCEPTION queue, not a work queue (spec 7/23, no AI) ───
+const REVIEW = { rows:[], open:null, parts:null, glossary:[] };
+async function cmtReviewLoad(){
+  const el = document.getElementById('cmt-review-list');
+  const {data:reps, error} = await sb.from('daily_field_reports')
+    .select('*, projects(name), profiles!daily_field_reports_technician_id_fkey(full_name)')
+    .in('status',['submitted','in_review','returned']).is('deleted_at',null)
+    .order('submitted_at', {ascending:true});
+  if(error){ el.innerHTML = '<div class="loading">Queue load failed: '+error.message+' — tap Refresh</div>'; return; }
+  REVIEW.rows = reps||[];
+  if(!REVIEW.rows.length){ el.innerHTML = '<div class="loading">Queue is clear — nothing waiting on the office. 🎉</div>'; return; }
+  // exception chips: OOT submissions + empty narrative + pour-without-ticket (cheap queries, the whole point)
+  const ids = REVIEW.rows.map(r=>r.id);
+  const flags = {};
+  for(const r of REVIEW.rows){
+    const win = cmtLocalDayWindow(r.report_date);
+    const [oot, tick, led] = await Promise.all([
+      sb.from('test_submissions').select('id', {count:'exact', head:true}).eq('project_id',r.project_id)
+        .eq('out_of_tolerance',true).gte('submitted_at',win.start).lte('submitted_at',win.end),
+      sb.from('field_tickets').select('id', {count:'exact', head:true}).eq('project_id',r.project_id)
+        .gte('captured_at',win.start).lte('captured_at',win.end),
+      sb.from('field_reports').select('id', {count:'exact', head:true}).eq('project_id',r.project_id).eq('report_date',r.report_date),
+    ]);
+    flags[r.id] = { oot: oot.count||0, noNarrative: !r.narrative,
+      pourNoTicket: (led.count||0) > 0 && (tick.count||0) === 0 };
+  }
+  el.innerHTML = '<table style="width:100%;font-size:13px"><tr style="color:var(--muted);text-align:left">'+
+    '<th style="padding:6px"></th><th>Day</th><th>Project</th><th>Technician</th><th>Status</th><th>Flags</th><th></th></tr>'+
+    REVIEW.rows.map(r=>{
+      const f = flags[r.id]||{};
+      const chips = [
+        f.oot ? `<span style="color:var(--red)">⚠ ${f.oot} out-of-tolerance</span>` : '',
+        f.noNarrative ? `<span style="color:var(--orange)">✎ no narrative</span>` : '',
+        f.pourNoTicket ? `<span style="color:var(--orange)">🎫 pour w/o ticket</span>` : '',
+      ].filter(Boolean).join(' · ') || '<span style="color:var(--green)">clean</span>';
+      return `<tr style="border-top:1px solid var(--border)">
+        <td style="padding:6px"><input type="checkbox" class="cmt-review-sel" value="${r.id}"></td>
+        <td>${r.report_date}</td><td>${r.projects?.name||''}</td><td>${r.profiles?.full_name||''}</td>
+        <td style="text-transform:uppercase;font-size:11px">${r.status.replace('_',' ')}</td>
+        <td style="font-size:11px">${chips}</td>
+        <td><button class="btn-sm" onclick="cmtReviewOpen('${r.id}')">Open</button></td></tr>`;
+    }).join('')+'</table>';
+}
+async function cmtReviewOpen(id){
+  const rep = REVIEW.rows.find(r=>r.id===id);
+  if(!rep) return;
+  if(rep.status==='submitted'){
+    await sb.from('daily_field_reports').update({status:'in_review'}).eq('id',id);
+    rep.status='in_review';
+  }
+  REVIEW.open = rep;
+  REVIEW.parts = await cmtDfrAssemble(rep);
+  document.getElementById('cmt-review-detail').style.display='';
+  document.getElementById('cmt-review-title').textContent = rep.report_no+' — '+(rep.profiles?.full_name||'');
+  document.getElementById('cmt-review-substatus').textContent = rep.report_date+' · '+(rep.projects?.name||'');
+  const current = (REVIEW.parts.officeNarrative && REVIEW.parts.officeNarrative.text) || rep.narrative || '';
+  document.getElementById('cmt-review-narrative').value = current;
+  document.getElementById('cmt-review-original').innerHTML = rep.narrative
+    ? `<b>Field original (v1, on file forever):</b> &ldquo;${rep.narrative.replace(/</g,'&lt;')}&rdquo;` : '';
+  cmtReviewGlossaryHints();
+  cmtReviewPaper();
+}
+function cmtReviewPaper(){
+  const fr = document.getElementById('cmt-review-frame');
+  if(!fr || !REVIEW.open || !REVIEW.parts) return;
+  try{
+    const p = (CMT.projects||[]).find(x=>x.id===REVIEW.open.project_id) || {name:REVIEW.open.projects?.name};
+    const ctx = {project:p, firmName: rcCfg().firm_display || 'FIRM',
+      inspectorName: REVIEW.open.profiles?.full_name || ''};
+    const html = cmtDfrDocHtml(REVIEW.open, REVIEW.parts, ctx, true);
+    const doc = fr.contentDocument; doc.open(); doc.write(html); doc.close();
+  }catch(e){
+    console.warn('review paper render failed:', e);
+    try{ const doc = fr.contentDocument; doc.open();
+      doc.write('<body style="font:13px monospace;color:#a01810;background:#fff;padding:24px"><div style="border:3px solid #a01810;padding:16px"><b>&#9888; PACKAGE PREVIEW ERROR</b><p>'+String(e&&e.message||e).replace(/</g,'&lt;')+'</p></div></body>'); doc.close(); }catch(_){}
+  }
+}
+async function cmtReviewSaveProse(){
+  if(!REVIEW.open) return;
+  const text = document.getElementById('cmt-review-narrative').value.trim();
+  if(!text){ showToast('Nothing to save — the box is empty','error'); return; }
+  const existing = (REVIEW.parts.prose||[]).filter(p=>p.field==='narrative');
+  if(!existing.length && REVIEW.open.narrative){
+    // v1 = the field original, banked the first time the office touches prose
+    await sb.from('dfr_prose_versions').insert({daily_report_id: REVIEW.open.id, firm_id: currentFirmId,
+      field:'narrative', version_no:1, text: REVIEW.open.narrative, source:'field',
+      authored_by: REVIEW.open.technician_id});
+  }
+  const nextNo = (existing.length ? existing[existing.length-1].version_no : 1) + 1;
+  const {error} = await sb.from('dfr_prose_versions').insert({daily_report_id: REVIEW.open.id,
+    firm_id: currentFirmId, field:'narrative', version_no: nextNo, text, source:'office',
+    authored_by: currentUser.id});
+  if(error){ showToast('Save failed: '+error.message+' — tap again','error'); return; }
+  showToast('Office version v'+nextNo+' saved — field original untouched','success');
+  REVIEW.parts = await cmtDfrAssemble(REVIEW.open);
+  cmtReviewPaper();
+}
+async function cmtReviewApprove(){
+  if(!REVIEW.open) return;
+  const {error} = await sb.from('daily_field_reports').update({status:'approved'}).eq('id',REVIEW.open.id);
+  if(error){ showToast('Approve failed: '+error.message,'error'); return; }
+  showToast('Approved — '+REVIEW.open.report_no,'success');
+  document.getElementById('cmt-review-detail').style.display='none';
+  cmtReviewLoad();
+}
+async function cmtReviewApproveSelected(){
+  const ids = [...document.querySelectorAll('.cmt-review-sel:checked')].map(x=>x.value);
+  if(!ids.length){ showToast('Tick the clean days first, then approve','error'); return; }
+  const {error} = await sb.from('daily_field_reports').update({status:'approved'}).in('id',ids);
+  if(error){ showToast('Batch approve failed: '+error.message,'error'); return; }
+  showToast('✓ '+ids.length+' day'+(ids.length===1?'':'s')+' approved','success');
+  cmtReviewLoad();
+}
+function cmtReviewReturn(){ document.getElementById('cmt-review-returnwrap').style.display=''; }
+async function cmtReviewReturnSend(){
+  if(!REVIEW.open) return;
+  const note = document.getElementById('cmt-review-returnnote').value.trim();
+  if(!note){ showToast('Tell the tech what to fix — one line is enough','error'); return; }
+  const {error} = await sb.from('dfr_review_notes').insert({daily_report_id: REVIEW.open.id,
+    firm_id: currentFirmId, note, author: currentUser.id});
+  if(error){ showToast('Note failed: '+error.message,'error'); return; }
+  await sb.from('daily_field_reports').update({status:'returned'}).eq('id',REVIEW.open.id);
+  showToast('Returned to the technician with your note','success');
+  document.getElementById('cmt-review-returnwrap').style.display='none';
+  document.getElementById('cmt-review-detail').style.display='none';
+  document.getElementById('cmt-review-returnnote').value='';
+  cmtReviewLoad();
+}
+// glossary — deterministic, visible, editable; hints offer, NEVER auto-apply
+async function cmtGlossLoad(){
+  const {data} = await sb.from('firm_glossary').select('*').is('deleted_at',null).order('term_in');
+  REVIEW.glossary = data||[];
+  const el = document.getElementById('cmt-gloss-list');
+  if(el) el.innerHTML = REVIEW.glossary.length
+    ? REVIEW.glossary.map(g=>`<div style="padding:5px 0;border-top:1px solid var(--border);font-size:13px">
+        <b>${g.term_in}</b> → ${g.term_out}
+        <button class="btn-sm" style="padding:2px 8px;font-size:11px;float:right" onclick="cmtGlossRetire('${g.id}')">retire</button></div>`).join('')
+    : '<div class="loading">No rules yet — add the first one above. Example: probe stick → hand probe.</div>';
+}
+async function cmtGlossAdd(){
+  const tin = document.getElementById('cmt-gloss-in').value.trim();
+  const tout = document.getElementById('cmt-gloss-out').value.trim();
+  if(!tin || !tout){ showToast('Both sides, then Add','error'); return; }
+  const {error} = await sb.from('firm_glossary').insert({firm_id: currentFirmId,
+    term_in: tin, term_out: tout, added_by: currentUser.id});
+  if(error){ showToast('Add failed: '+error.message,'error'); return; }
+  document.getElementById('cmt-gloss-in').value=''; document.getElementById('cmt-gloss-out').value='';
+  showToast('Rule added — it will suggest on every narrative from now on','success');
+  cmtGlossLoad();
+}
+async function cmtGlossRetire(id){
+  const {error} = await sb.from('firm_glossary').update({deleted_at:new Date().toISOString()}).eq('id',id);
+  if(error){ showToast('Retire failed: '+error.message,'error'); return; }
+  cmtGlossLoad();
+}
+function cmtReviewGlossaryHints(){
+  const el = document.getElementById('cmt-review-glossary-hints');
+  if(!el) return;
+  const text = document.getElementById('cmt-review-narrative').value;
+  const hits = (REVIEW.glossary||[]).filter(g=>text.toLowerCase().includes(g.term_in.toLowerCase()));
+  el.innerHTML = hits.length
+    ? '<b>Glossary suggests:</b> ' + hits.map(g=>
+        `<button class="btn-sm" style="padding:2px 8px;font-size:11px" onclick="cmtGlossApply('${g.id}')">&ldquo;${g.term_in}&rdquo; → &ldquo;${g.term_out}&rdquo;</button>`).join(' ')
+    : '';
+}
+function cmtGlossApply(id){
+  const g = (REVIEW.glossary||[]).find(x=>x.id===id);
+  if(!g) return;
+  const ta = document.getElementById('cmt-review-narrative');
+  ta.value = ta.value.split(new RegExp(g.term_in.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'ig')).join(g.term_out);
+  cmtReviewGlossaryHints();
+  showToast('Applied — Save office version when you\'re done','success');
 }
 
 // ── LIVE PAPER PANE — same renderer as post-submit, mounted in an iframe ─────
@@ -12619,6 +12881,23 @@ async function cmtSubmitTest(){
     ootNote = document.getElementById('cmt-oot-note').value.trim();
     if(ootNote.length < 10){ showToast('Out-of-tolerance requires an inspector note (≥10 chars)','error'); return; }
   }
+  // OFFICE-SIDE COMPLETENESS GATE (spec item 1): loudly flag, never silently
+  // accept — every warning here is a phone call the office does not make.
+  // Second tap of Submit proceeds past warnings (no blocking dialogs).
+  const warnings = [];
+  (t.field_schema.fields||[]).filter(f=>/(^|_)(location|area)($|_)/.test(f.key) && !f.required)
+    .forEach(f=>{ if(v[f.key]==null || v[f.key]==='') warnings.push('No '+(f.label||f.key)+' — the office will have to call you for it'); });
+  if(LEDGER.pendingLink && LEDGER.report){
+    const {count} = await sb.from('field_tickets').select('id',{count:'exact',head:true})
+      .eq('project_id',pid).gte('captured_at',cmtLocalDayWindow(cmtLocalDay()).start);
+    if(!count) warnings.push('Pour is open but NO ticket captured yet — 🎫 shoot it before the driver leaves');
+  }
+  if(warnings.length && !CMT._submitWarned){
+    CMT._submitWarned = true;
+    showToast('⚠ '+warnings.join(' · ')+' — tap Submit again to file anyway','error');
+    return;
+  }
+  CMT._submitWarned = false;
   // photos → storage
   const photoRecs = [];
   for(const [key,file] of Object.entries(CMT.photos)){
