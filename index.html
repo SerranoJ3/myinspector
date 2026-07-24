@@ -1930,8 +1930,8 @@ html,body{overflow-x:hidden}
       <div class="modal-field" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="cmtdw-approved"><label class="modal-label" style="margin:0">Approved</label></div>
       <div class="modal-field" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="cmtdw-noted"><label class="modal-label" style="margin:0">Noted</label></div>
     </div>
-    <div class="modal-field"><label class="modal-label">📐 Drawing image (photo or scan — shows in the report's drawing slot)</label>
-      <input type="file" accept="image/*" id="cmtdw-image"></div>
+    <div class="modal-field"><label class="modal-label">📐 Drawing — PDF straight from the engineer (best: infinite zoom) or a photo/scan (kept at full resolution)</label>
+      <input type="file" accept="image/*,application/pdf" id="cmtdw-image"></div>
     <button class="btn-sm btn-orange" onclick="cmtSaveDrawing()">Register</button>
   </div>
 </div>
@@ -11924,9 +11924,77 @@ function cmtPhotoPicked(key, input){
 // 30, zoom clamp 0.5-3) with an <image> base layer. NO capture step: the sheet
 // auto-populates from drawings_used. Highlighter is the default tool — touch
 // the sheet and swipe, no mode select (B3: no instruction needed).
-const PLANMK = { byDrawing:{}, activeId:null, undo:[], textArm:false, stroke:null, view:null };
+const PLANMK = { byDrawing:{}, activeId:null, undo:[], textArm:false, stroke:null, view:null, pdfRenders:{} };
 const PLANMK_UNDO_CAP = 30;                      // MI-110 convention
-const PLANMK_ZOOM_MIN = 0.5, PLANMK_ZOOM_MAX = 3; // MI-110 clamps
+// P1 (punch 7/23): the MI-110 3x cap was tuned for a generated 800x600 tapcard,
+// not an E-size CAD sheet at 1"=30'. Plan markup zooms to 12x, and the PDF
+// base re-renders at the zoom scale so magnification means MORE detail.
+const PLANMK_ZOOM_MIN = 0.5, PLANMK_ZOOM_MAX = 12;
+
+// ── PDF base layer — vector sources render ON DEMAND at the needed width ─────
+let _pdfjsP = null;
+function cmtPdfJs(){
+  if(_pdfjsP) return _pdfjsP;
+  _pdfjsP = new Promise((res, rej)=>{
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+    s.onload = ()=>{ window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js'; res(window.pdfjsLib); };
+    s.onerror = ()=>{ _pdfjsP = null; rej(new Error('pdf.js failed to load')); };
+    document.head.appendChild(s);
+  });
+  return _pdfjsP;
+}
+function cmtIsPdfPath(p){ return /\.pdf$/i.test(p||''); }
+// render page 1 at targetWidthPx; cache keeps the BEST render per path and
+// only re-renders upward (zoom out never loses detail already paid for)
+async function cmtPdfRender(path, targetWidthPx){
+  targetWidthPx = Math.min(Math.max(Math.round(targetWidthPx), 1200), 9000);
+  const cached = PLANMK.pdfRenders[path];
+  if(cached && cached.w >= targetWidthPx) return cached.dataUrl;
+  const lib = await cmtPdfJs();
+  const url = sb.storage.from('inspection-photos').getPublicUrl(path).data.publicUrl;
+  const doc = await lib.getDocument(url).promise;
+  const page = await doc.getPage(1);
+  const vp1 = page.getViewport({scale:1});
+  const vp = page.getViewport({scale: targetWidthPx / vp1.width});
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+  await page.render({canvasContext: cv.getContext('2d'), viewport: vp}).promise;
+  const dataUrl = cv.toDataURL('image/jpeg', 0.9);
+  PLANMK.pdfRenders[path] = {w: cv.width, dataUrl};
+  return dataUrl;
+}
+// best-available href for any drawing path (raster URL, or the cached PDF render)
+function cmtDrawingHref(path){
+  if(!cmtIsPdfPath(path)) return sb.storage.from('inspection-photos').getPublicUrl(path).data.publicUrl;
+  const cached = PLANMK.pdfRenders[path];
+  return cached ? cached.dataUrl : '';
+}
+// ensure print-grade renders exist for a set of drawings (report/DFR paths)
+async function cmtPdfEnsureForDocs(dws){
+  for(const d of (dws||[])){
+    if(d.image_path && cmtIsPdfPath(d.image_path)){
+      try{ await cmtPdfRender(d.image_path, 2400); }catch(e){ console.warn('pdf render failed for doc:', e); }
+    }
+  }
+}
+let _pdfResT = null;
+function cmtPlanMkEnsureRes(){
+  // editor: after zooming, re-render the PDF base at the zoom-following width
+  if(_pdfResT) clearTimeout(_pdfResT);
+  _pdfResT = setTimeout(async ()=>{
+    const d = (CMT.drawingsCache||[]).find(x=>x.id===PLANMK.activeId);
+    if(!d || !cmtIsPdfPath(d.image_path)) return;
+    const v = PLANMK.view || {w: PLANMK_VB_W};
+    const zoomF = PLANMK_VB_W / v.w;
+    try{
+      await cmtPdfRender(d.image_path, 1600 * Math.min(zoomF, 6));
+      cmtPlanMkRenderSvg();
+      cmtPaperDebounced();
+    }catch(e){ console.warn('pdf zoom re-render failed:', e); }
+  }, 250);
+}
 function cmtPlanMkRec(id){ return PLANMK.byDrawing[id] = PLANMK.byDrawing[id] || {strokes:[], notes:[]}; }
 function cmtPlanMkSelected(){
   const checked = new Set([...document.querySelectorAll('#cmt-drawings-list input:checked')].map(x=>x.value));
@@ -11959,7 +12027,14 @@ function cmtPlanMkRenderSvg(){
   const stage = document.getElementById('cmt-planmk-stage');
   const d = (CMT.drawingsCache||[]).find(x=>x.id===PLANMK.activeId);
   if(!stage || !d) return;
-  const url = sb.storage.from('inspection-photos').getPublicUrl(d.image_path).data.publicUrl;
+  const url = cmtDrawingHref(d.image_path);
+  if(!url && cmtIsPdfPath(d.image_path)){
+    // first mount of a PDF sheet: render base, then re-enter
+    stage.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">Rendering the sheet from the vector source…</div>';
+    cmtPdfRender(d.image_path, 1600).then(()=>{ cmtPlanMkRenderSvg(); cmtPaperDebounced(); })
+      .catch(e=>{ stage.innerHTML = '<div style="padding:20px;color:var(--red)">Sheet render failed: '+String(e.message||e)+' — tap the sheet button to retry</div>'; });
+    return;
+  }
   const v = PLANMK.view || {x:0, y:0, w:PLANMK_VB_W, h:PLANMK_VB_H};
   const mk = cmtPlanMkRec(d.id);
   stage.innerHTML = `<svg id="cmt-planmk-svg" viewBox="${v.x} ${v.y} ${v.w} ${v.h}"
@@ -12096,6 +12171,7 @@ function cmtPlanMkZoom(factor){
   PLANMK.view = {x: cx-w/2, y: cy-h/2, w, h};
   const svg = document.getElementById('cmt-planmk-svg');
   if(svg) svg.setAttribute('viewBox', `${PLANMK.view.x} ${PLANMK.view.y} ${PLANMK.view.w} ${PLANMK.view.h}`);
+  cmtPlanMkEnsureRes();   // PDF base follows the zoom — magnification = more detail
 }
 
 // ── B3 DRAFT AUTOSAVE — every keystroke persists; dropped phone loses nothing ─
@@ -12508,6 +12584,7 @@ async function cmtDfrAssemble(rep){
   const subs = subsR.data||[], tickets = tickR.data||[], ledgers = ledR.data||[], prose = proseR.data||[];
   const dwIds = [...new Set(subs.flatMap(s=>s.drawings_used||[]))];
   const dws = dwIds.length ? (await sb.from('job_drawings').select('*').in('id',dwIds)).data||[] : [];
+  await cmtPdfEnsureForDocs(dws);   // P1: vector sheets render print-grade for the package
   const subIds = subs.map(s=>s.id);
   const pins = subIds.length ? (await sb.from('element_pins').select('*').in('submission_id',subIds).is('deleted_at',null)).data||[] : [];
   let ledgerEntries = [];
@@ -13193,9 +13270,16 @@ async function cmtSaveDrawing(){
   let imagePath = null;
   const imgInput = document.getElementById('cmtdw-image');
   if(imgInput && imgInput.files && imgInput.files[0]){
-    imagePath = `drawings/${currentFirmId}/${crypto.randomUUID()}.jpg`;
-    const {error:upErr} = await sb.storage.from('inspection-photos').upload(imagePath, imgInput.files[0]);
-    if(upErr){ showToast('Drawing image upload failed: '+upErr.message,'error'); return; }
+    // P1 ingest law (punch 7/23): PDFs stay PDFs (vector = infinite zoom, rendered
+    // on demand); photos upload as the RAW file — full resolution, never downscaled.
+    // The C-501 lesson: rasterizing a vector sheet at ingest destroys the drawing.
+    const f = imgInput.files[0];
+    const isPdf = f.type==='application/pdf' || /\.pdf$/i.test(f.name);
+    const ext = isPdf ? 'pdf' : ((f.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg');
+    imagePath = `drawings/${currentFirmId}/${crypto.randomUUID()}.${ext}`;
+    const {error:upErr} = await sb.storage.from('inspection-photos').upload(imagePath, f,
+      f.type ? {contentType: f.type} : undefined);
+    if(upErr){ showToast('Drawing upload failed: '+upErr.message,'error'); return; }
   }
   const {error} = await sb.from('job_drawings').insert({
     image_path: imagePath,
@@ -13616,7 +13700,7 @@ function cmtDocDefaultHtml(t, v, ctx){
 
 function cmtDrawingImgs(dws, markupById){
   return (dws||[]).filter(d=>d.image_path).map(d=>({
-    url: sb.storage.from('inspection-photos').getPublicUrl(d.image_path).data.publicUrl,
+    url: cmtDrawingHref(d.image_path),
     label: (d.dtype==='document'?'DOC ':'DWG ')+d.number,
     markup: (markupById||{})[d.id] || null }));
 }
@@ -13632,6 +13716,7 @@ async function cmtReport(id){
   const {data:dws} = s.drawings_used && s.drawings_used.length
     ? await sb.from('job_drawings').select('*').in('id', s.drawings_used) : {data: []};
   const {data:pins} = await sb.from('element_pins').select('*').eq('submission_id', id).is('deleted_at',null);
+  await cmtPdfEnsureForDocs(dws);   // P1: vector sheets render print-grade before the doc builds
   const ctx = {
     project: s.projects, firmName: s.firms?.name || 'FIRM',
     dateStr: new Date(s.submitted_at).toLocaleDateString(),
