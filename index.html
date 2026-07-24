@@ -11886,9 +11886,16 @@ function cmtPlanMkMove(ev){
   const live = document.getElementById('cmt-planmk-livestroke');
   if(live) live.setAttribute('points', PLANMK.stroke.pts.map(q=>`${(q[0]*PLANMK_VB_W).toFixed(1)},${(q[1]*PLANMK_VB_H).toFixed(1)}`).join(' '));
 }
+function cmtPlanMkStamp(){
+  const d = new Date();
+  const name = currentUser?.user_metadata?.full_name || '';
+  const initials = name.split(/\s+/).filter(Boolean).map(w=>w[0]).join('').toUpperCase().slice(0,3);
+  return { d: (d.getMonth()+1)+'/'+d.getDate(), by: initials };
+}
 function cmtPlanMkUp(){
   if(!PLANMK.stroke) return;
   if(PLANMK.stroke.pts.length >= 3){
+    Object.assign(PLANMK.stroke, cmtPlanMkStamp());
     cmtPlanMkRec(PLANMK.activeId).strokes.push(PLANMK.stroke);
     PLANMK.undo.push({id:PLANMK.activeId, kind:'stroke'});
     if(PLANMK.undo.length > PLANMK_UNDO_CAP) PLANMK.undo.shift();
@@ -11913,7 +11920,7 @@ function cmtPlanMkPlaceText(p){
   const commit = () => {
     const text = document.getElementById('cmt-planmk-notetext').value.trim();
     if(text){
-      cmtPlanMkRec(PLANMK.activeId).notes.push({x:p[0], y:p[1], text});
+      cmtPlanMkRec(PLANMK.activeId).notes.push(Object.assign({x:p[0], y:p[1], text}, cmtPlanMkStamp()));
       PLANMK.undo.push({id:PLANMK.activeId, kind:'note'});
       if(PLANMK.undo.length > PLANMK_UNDO_CAP) PLANMK.undo.shift();
       cmtSaveDraft(); cmtPaperDebounced();
@@ -12694,14 +12701,26 @@ function sfrmDensityCompute(v){
 const PLANMK_VB_W = 800, PLANMK_VB_H = 600;
 function planMarkupOverlaySvg(mk){
   mk = mk || {};
-  const strokes = (mk.strokes||[]).map(s=>
-    `<polyline points="${(s.pts||[]).map(p=>`${(p[0]*PLANMK_VB_W).toFixed(1)},${(p[1]*PLANMK_VB_H).toFixed(1)}`).join(' ')}"
-      fill="none" stroke="#ffd400" stroke-opacity="0.45" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
+  // Field-evidence item 2: every mark carries DATE + INSPECTOR INITIALS, exactly
+  // like the hand-marks on real packets ("10/2/17 JS") — the stamp is what makes
+  // a mark evidence. Rendered with a white halo so it reads over dense linework.
+  const esc = t => String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const stamp = (m, x, y) => (m.d||m.by)
+    ? `<text x="${x}" y="${y}" font-family="Georgia,serif" font-size="15" font-weight="bold"
+        paint-order="stroke" stroke="#ffffff" stroke-width="3.5" fill="#333">${esc([m.d,m.by].filter(Boolean).join(' '))}</text>` : '';
+  const strokes = (mk.strokes||[]).map(s=>{
+    const pts = s.pts||[];
+    const p0 = pts[0]||[0,0];
+    return `<polyline points="${pts.map(p=>`${(p[0]*PLANMK_VB_W).toFixed(1)},${(p[1]*PLANMK_VB_H).toFixed(1)}`).join(' ')}"
+      fill="none" stroke="#ffd400" stroke-opacity="0.45" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>` +
+      stamp(s, p0[0]*PLANMK_VB_W + 6, p0[1]*PLANMK_VB_H - 12);
+  }).join('');
   const notes = (mk.notes||[]).map(n=>{
     const x = n.x*PLANMK_VB_W, y = n.y*PLANMK_VB_H;
     const w = Math.min(Math.max(String(n.text||'').length*11+16, 60), 360);
     return `<g><rect x="${x}" y="${y-24}" width="${w}" height="30" rx="4" fill="#fff8c4" stroke="#8a7a00" stroke-width="1.5"/>
-      <text x="${x+8}" y="${y-3}" font-family="Georgia,serif" font-size="19" fill="#000">${String(n.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</text></g>`;
+      <text x="${x+8}" y="${y-3}" font-family="Georgia,serif" font-size="19" fill="#000">${esc(n.text)}</text></g>` +
+      stamp(n, x, y+16);
   }).join('');
   return strokes + notes;
 }
@@ -12750,7 +12769,10 @@ function rcChassis(title2, sub, info, body, formCode, opts){
   <div class="info">${info}</div>
   ${body}
   ${opts.noDrawingSlot ? '' : `<div style="margin-top:14px">
-    <div style="font-weight:700;font-size:10.5px">INSPECTED ELEMENT / LOCATION — DRAWING</div>
+    <div style="font-weight:700;font-size:10.5px;display:flex;justify-content:space-between">
+      <span>INSPECTED ELEMENT / LOCATION — DRAWING</span>
+      <span style="font-weight:400">Diagram Attached:&nbsp; Yes ${(opts.drawingImgs&&opts.drawingImgs.length)?'☒':'☐'} &nbsp;No ${(opts.drawingImgs&&opts.drawingImgs.length)?'☐':'☒'}</span>
+    </div>
     <div style="border:1.5px solid #000;min-height:${opts.pane?'110px':'180px'};position:relative;${(opts.drawingImgs&&opts.drawingImgs.length)?'padding:16px 6px 4px':'display:flex;align-items:center;justify-content:center'}">
       ${opts.drawingRefs?`<div style="position:absolute;top:3px;left:6px;font-size:9px">${opts.drawingRefs}</div>`:''}
       ${(opts.drawingImgs&&opts.drawingImgs.length)
