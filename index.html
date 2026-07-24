@@ -12009,17 +12009,66 @@ async function cmtPdfRenderRegion(path, view){
   if(gen !== _pdfRegionGen) return null;            // a newer view superseded this render
   return {view: {...view}, dataUrl: cv.toDataURL('image/jpeg', 0.9)};
 }
-// best-available href for any drawing path (raster URL, or the cached PDF render)
+// ── HI-RES SIDECAR — the punch's own 300-DPI law, made permanent ─────────────
+// Measured on C-501: PAINTING a dense Civil-3D operator stream is 15s+ at
+// 1600px and main-thread regardless of worker. Interactive re-render loses on
+// this sheet class. So: render ONCE at ≥300 DPI (ladder 10200→8000→6000px),
+// upload the raster as a sidecar object (image_path + '.hi.jpg'), serve it
+// forever — one slow office-side moment buys instant crisp zoom for every
+// session on every device.
+function cmtPdfSidecarPath(path){ return path + '.hi.jpg'; }
+async function cmtPdfSidecarExists(path){
+  PLANMK.sidecars = PLANMK.sidecars || {};
+  if(PLANMK.sidecars[path] !== undefined) return PLANMK.sidecars[path];
+  try{
+    const url = sb.storage.from('inspection-photos').getPublicUrl(cmtPdfSidecarPath(path)).data.publicUrl;
+    const r = await fetch(url, {method:'HEAD'});
+    PLANMK.sidecars[path] = r.ok;
+  }catch(e){ PLANMK.sidecars[path] = false; }
+  return PLANMK.sidecars[path];
+}
+async function cmtPdfPrepareHiRes(path, statusCb){
+  const doc = await cmtPdfDoc(path);
+  const page = await doc.getPage(1);
+  const vp1 = page.getViewport({scale:1});
+  for(const targetW of [10200, 8000, 6000]){
+    try{
+      if(statusCb) statusCb('Rendering the sheet at high resolution ('+targetW+'px — happens once)…');
+      const vp = page.getViewport({scale: targetW / vp1.width});
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+      await page.render({canvasContext: cv.getContext('2d'), viewport: vp}).promise;
+      if(statusCb) statusCb('Compressing…');
+      const blob = await new Promise(res=>cv.toBlob(res, 'image/jpeg', 0.82));
+      if(!blob) throw new Error('encode failed at '+targetW);
+      if(statusCb) statusCb('Uploading the prepared sheet…');
+      const {error} = await sb.storage.from('inspection-photos').upload(cmtPdfSidecarPath(path), blob, {contentType:'image/jpeg', upsert:true});
+      if(error) throw new Error(error.message);
+      PLANMK.sidecars = PLANMK.sidecars || {};
+      PLANMK.sidecars[path] = true;
+      return sb.storage.from('inspection-photos').getPublicUrl(cmtPdfSidecarPath(path)).data.publicUrl;
+    }catch(e){ console.warn('hi-res prepare failed at this rung:', e.message||e); }
+  }
+  throw new Error('hi-res prepare failed at every resolution');
+}
+// best-available href for any drawing path: raster → its URL · PDF → the hi-res
+// sidecar when it exists, else any cached quick render
 function cmtDrawingHref(path){
   if(!cmtIsPdfPath(path)) return sb.storage.from('inspection-photos').getPublicUrl(path).data.publicUrl;
+  if(PLANMK.sidecars && PLANMK.sidecars[path])
+    return sb.storage.from('inspection-photos').getPublicUrl(cmtPdfSidecarPath(path)).data.publicUrl;
   const cached = PLANMK.pdfRenders[path];
   return cached ? cached.dataUrl : '';
 }
-// ensure print-grade renders exist for a set of drawings (report/DFR paths)
+// ensure print-grade renders exist for a set of drawings (report/DFR paths):
+// the hi-res sidecar IS print-grade — only fall back to a quick render without one
 async function cmtPdfEnsureForDocs(dws){
   for(const d of (dws||[])){
     if(d.image_path && cmtIsPdfPath(d.image_path)){
-      try{ await cmtPdfRender(d.image_path, 2400); }catch(e){ console.warn('pdf render failed for doc:', e); }
+      try{
+        if(await cmtPdfSidecarExists(d.image_path)) continue;
+        await cmtPdfRender(d.image_path, 2400);
+      }catch(e){ console.warn('pdf render failed for doc:', e); }
     }
   }
 }
@@ -12091,10 +12140,20 @@ function cmtPlanMkRenderSvg(){
   if(!stage || !d) return;
   const url = cmtDrawingHref(d.image_path);
   if(!url && cmtIsPdfPath(d.image_path)){
-    // first mount of a PDF sheet: render base, then re-enter
-    stage.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">Rendering the sheet from the vector source…</div>';
-    cmtPdfRender(d.image_path, 1600).then(()=>{ cmtPlanMkRenderSvg(); cmtPaperDebounced(); })
-      .catch(e=>{ stage.innerHTML = '<div style="padding:20px;color:var(--red)">Sheet render failed: '+String(e.message||e)+' — tap the sheet button to retry</div>'; });
+    // first mount of a PDF sheet: hi-res sidecar if it exists; else PREPARE it
+    // once (the office paid this at registration normally — this is the field
+    // fallback, status always visible, never a silent hang)
+    stage.innerHTML = '<div id="cmt-planmk-prep" style="padding:40px;text-align:center;color:var(--muted)">Checking for the prepared sheet…</div>';
+    (async ()=>{
+      const setStatus = t => { const el = document.getElementById('cmt-planmk-prep'); if(el) el.textContent = t; };
+      try{
+        if(await cmtPdfSidecarExists(d.image_path)){ cmtPlanMkRenderSvg(); cmtPaperDebounced(); return; }
+        await cmtPdfPrepareHiRes(d.image_path, setStatus);
+        cmtPlanMkRenderSvg(); cmtPaperDebounced();
+      }catch(e){
+        setStatus('Sheet preparation failed: '+String(e.message||e)+' — reopen the form to retry');
+      }
+    })();
     return;
   }
   const v = PLANMK.view || {x:0, y:0, w:PLANMK_VB_W, h:PLANMK_VB_H};
@@ -13345,6 +13404,13 @@ async function cmtSaveDrawing(){
     const {error:upErr} = await sb.storage.from('inspection-photos').upload(imagePath, f,
       f.type ? {contentType: f.type} : undefined);
     if(upErr){ showToast('Drawing upload failed: '+upErr.message,'error'); return; }
+    if(isPdf){
+      // one-time office-side cost: prepare the ≥300-DPI sidecar NOW so the field
+      // never waits. Registration proceeds even if this fails (field fallback).
+      showToast('Preparing the high-resolution sheet — one time, ~a minute for a dense plan…','success');
+      try{ await cmtPdfPrepareHiRes(imagePath, t=>showToast(t,'success')); }
+      catch(e){ showToast('Sheet registered; high-res preparation will retry on first open ('+String(e.message||e)+')','error'); }
+    }
   }
   const {error} = await sb.from('job_drawings').insert({
     image_path: imagePath,
