@@ -12076,7 +12076,7 @@ function cmtLedgerReportNo(){
 async function cmtOpenLedger(){
   const pid = document.getElementById('cmt-project-select').value;
   if(!pid){ showToast('Pick a project first — the ledger belongs to a pour on a project','error'); return; }
-  const today = new Date().toISOString().slice(0,10);
+  const today = cmtLocalDay();
   const {data:reps, error} = await sb.from('field_reports').select('*')
     .eq('project_id',pid).eq('report_date',today).eq('family','concrete_pour')
     .is('deleted_at',null).neq('status','finalized').limit(1);
@@ -12085,6 +12085,7 @@ async function cmtOpenLedger(){
   if(!rep){
     const ins = await sb.from('field_reports').insert({
       firm_id: currentFirmId, project_id: pid, report_no: cmtLedgerReportNo(),
+      report_date: today,
       owner_id: currentUser.id, created_by: currentUser.id }).select('*').single();
     if(ins.error){ showToast('Could not open the report: '+ins.error.message,'error'); return; }
     rep = ins.data;
@@ -12316,6 +12317,16 @@ function cmtLedgerPaper(){
 // Two human inputs (narrative + discrepancies); everything else is query-time
 // assembly from what already happened today. Keyed (project, date, technician).
 const DFR = { report:null, parts:null };
+// THE FIELD DAY IS THE TECH'S WALL-CLOCK DAY — never UTC. At 8:30pm EDT,
+// toISOString() already says tomorrow; a night pour must not split across a
+// UTC midnight the crew never experienced. (Caught live in the 7/23 e2e.)
+function cmtLocalDay(d){
+  d = d || new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function cmtLocalDayWindow(day){
+  return { start: new Date(day+'T00:00:00').toISOString(), end: new Date(day+'T23:59:59.999').toISOString() };
+}
 function cmtDfrReportNo(){
   const prefix = (currentFirmReportCfg.form_prefix || currentFirmPrefix || 'FIRM');
   const d = new Date();
@@ -12324,7 +12335,7 @@ function cmtDfrReportNo(){
 async function cmtOpenMyDay(){
   const pid = document.getElementById('cmt-project-select').value;
   if(!pid){ showToast('Pick a project first — the day belongs to a job','error'); return; }
-  const today = new Date().toISOString().slice(0,10);
+  const today = cmtLocalDay();
   const {data:reps, error} = await sb.from('daily_field_reports').select('*')
     .eq('project_id',pid).eq('report_date',today).eq('technician_id',currentUser.id)
     .is('deleted_at',null).limit(1);
@@ -12333,6 +12344,7 @@ async function cmtOpenMyDay(){
   if(!rep){
     const ins = await sb.from('daily_field_reports').insert({
       firm_id: currentFirmId, project_id: pid, technician_id: currentUser.id,
+      report_date: today,
       report_no: cmtDfrReportNo(), created_by: currentUser.id }).select('*').single();
     if(ins.error){ showToast('Could not open your day: '+ins.error.message,'error'); return; }
     rep = ins.data;
@@ -12385,7 +12397,8 @@ async function cmtDfrSave(){
 async function cmtDfrRefresh(){
   if(!DFR.report) return;
   const pid = DFR.report.project_id, day = DFR.report.report_date;
-  const dayStart = day+'T00:00:00', dayEnd = day+'T23:59:59.999';
+  const win = cmtLocalDayWindow(day);
+  const dayStart = win.start, dayEnd = win.end;
   const [subsR, tickR, ledR] = await Promise.all([
     sb.from('test_submissions').select('*, test_types(id,tab,name,field_schema)')
       .eq('project_id',pid).gte('submitted_at',dayStart).lte('submitted_at',dayEnd)
@@ -12652,7 +12665,7 @@ async function cmtSubmitTest(){
     const n = +v.n_cylinders || +v.n_specimens || +v.n_prisms || 0;
     madeCount = n;
     const paving = v.paving === true;
-    const today = new Date().toISOString().slice(0,10);
+    const today = cmtLocalDay();
     for(let i=0;i<n;i++){
       const {data:no, error:noErr} = await sb.rpc('next_sample_no',
         {p_firm: currentFirmId, p_project: pid, p_cast: today});
