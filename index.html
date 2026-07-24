@@ -12494,9 +12494,10 @@ async function cmtDfrRefresh(){
     banner.innerHTML = '↩ <b>The office sent this day back:</b> '+((notes&&notes[0])?notes[0].note.replace(/</g,'&lt;'):'(no note)')+' — fix it and Submit again.';
     banner.style.display='';
   } else if(banner) banner.style.display='none';
+  const pc = DFR.parts;
   document.getElementById('cmt-dfr-parts').innerHTML =
-    `Assembled from today, zero taps: <b>${subs.length}</b> test report${subs.length===1?'':'s'} · <b>${tickets.length}</b> ticket${tickets.length===1?'':'s'} · ` +
-    `<b>${ledgers.length}</b> pour ledger${ledgers.length===1?'':'s'} — the paper on the right is the package the office receives.`;
+    `Assembled from today, zero taps: <b>${pc.subs.length}</b> test report${pc.subs.length===1?'':'s'} · <b>${pc.tickets.length}</b> ticket${pc.tickets.length===1?'':'s'} · ` +
+    `<b>${pc.ledgers.length}</b> pour ledger${pc.ledgers.length===1?'':'s'} — the paper on the right is the package the office receives.`;
   const locked = !['open','returned'].includes(DFR.report.status);
   document.getElementById('cmt-dfr-submit').style.display = locked?'none':'';
   cmtDfrPaper();
