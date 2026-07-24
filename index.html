@@ -1643,6 +1643,45 @@ html,body{overflow-x:hidden}
           <div class="modal-field"><label class="modal-label">Governing Spec (mix design / proctor)</label>
             <select class="modal-select" id="cmt-spec-select"></select></div>
         </div>
+        <!-- DFR FIELD LAYER — the tech's day, assembling itself (spec + Addendum 1) -->
+        <div id="cmt-myday-bar" style="margin-bottom:14px">
+          <button class="btn-sm btn-orange" style="font-size:15px;padding:12px 20px" onclick="cmtOpenMyDay()">📋 MY DAY — Daily Field Report</button>
+          <button class="btn-sm" style="font-size:15px;padding:12px 18px" onclick="cmtTicketCapture()">🎫 TICKET — shoot it before the driver leaves</button>
+          <input type="file" accept="image/*" capture="environment" id="cmt-ticket-file" style="display:none" onchange="cmtTicketShot(this)">
+        </div>
+        <div id="cmt-myday-wrap" style="display:none">
+          <div style="display:flex;gap:14px;flex-wrap:wrap">
+            <div style="flex:1 1 380px;min-width:0">
+              <div class="table-wrap" style="padding:18px">
+                <div class="table-header" style="padding:0 0 6px 0">
+                  <div class="table-title" id="cmt-myday-title">Daily Field Report</div>
+                  <span id="cmt-myday-status" style="font-size:11px;color:var(--muted)"></span>
+                </div>
+                <div class="modal-field"><label class="modal-label">Location of work inspected</label>
+                  <input class="modal-input" id="cmt-dfr-location" placeholder="Building pad / Slab prep" oninput="cmtDfrSaveDebounced()"></div>
+                <div class="modal-field"><label class="modal-label">SUMMARY OF OBSERVATIONS — your words, the only typing this report needs</label>
+                  <textarea class="modal-input" id="cmt-dfr-narrative" rows="5" oninput="cmtDfrSaveDebounced()"></textarea></div>
+                <div class="modal-field" style="display:flex;align-items:center;gap:10px">
+                  <label class="modal-label" style="margin:0">Discrepancies observed?</label>
+                  <label style="font-size:14px"><input type="radio" name="cmt-dfr-disc" value="no" onchange="cmtDfrDiscChanged()"> No</label>
+                  <label style="font-size:14px"><input type="radio" name="cmt-dfr-disc" value="yes" onchange="cmtDfrDiscChanged()"> Yes</label>
+                </div>
+                <div class="modal-field" id="cmt-dfr-discwrap" style="display:none">
+                  <label class="modal-label">Summary of discrepancies (opens the Non-Conformance pathway)</label>
+                  <textarea class="modal-input" id="cmt-dfr-discsummary" rows="3" oninput="cmtDfrSaveDebounced()"></textarea></div>
+                <div id="cmt-dfr-parts" style="font-size:12px;color:var(--muted);margin:10px 0"></div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <button class="btn-sm btn-orange" id="cmt-dfr-submit" onclick="cmtDfrSubmit()">✍ Submit my day to the office</button>
+                  <button class="btn-sm" onclick="cmtDfrPrint()">🖨 Print / PDF</button>
+                  <button class="btn-sm" onclick="cmtCloseMyDay()">Back to tests</button>
+                </div>
+              </div>
+            </div>
+            <div style="flex:1 1 380px;min-width:0;background:#525659;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+              <iframe id="cmt-dfr-frame" title="Daily Field Report live paper" style="width:100%;height:78vh;border:0;background:#fff;display:block"></iframe>
+            </div>
+          </div>
+        </div>
         <div id="cmt-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
         <!-- B2 POUR LEDGER — the truck-day accretive report (concrete tab, ratified 7/23) -->
         <div id="cmt-pour-bar" style="display:none;margin-bottom:14px">
@@ -12058,6 +12097,7 @@ async function cmtOpenLedger(){
   document.getElementById('cmt-test-tiles').style.display='none';
   document.getElementById('cmt-form-wrap').style.display='none';
   document.getElementById('cmt-pour-bar').style.display='none';
+  document.getElementById('cmt-myday-wrap').style.display='none';
   await cmtLedgerRefresh();
 }
 function cmtCloseLedger(){
@@ -12270,6 +12310,228 @@ function cmtLedgerPaper(){
       doc.write('<body style="font:13px monospace;color:#a01810;background:#fff;padding:24px"><div style="border:3px solid #a01810;padding:16px"><b>&#9888; LEDGER PREVIEW ERROR</b><p>'+String(e&&e.message||e).replace(/</g,'&lt;')+'</p><p style="color:#333">Entries are safe in the database. Screenshot this card.</p></div></body>');
       doc.close(); }catch(_){}
   }
+}
+
+// ── DFR FIELD LAYER — the tech's day, assembling itself (spec + Addendum 1) ──
+// Two human inputs (narrative + discrepancies); everything else is query-time
+// assembly from what already happened today. Keyed (project, date, technician).
+const DFR = { report:null, parts:null };
+function cmtDfrReportNo(){
+  const prefix = (currentFirmReportCfg.form_prefix || currentFirmPrefix || 'FIRM');
+  const d = new Date();
+  return `${prefix}-DFR-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(Math.floor(Math.random()*900)+100)}`;
+}
+async function cmtOpenMyDay(){
+  const pid = document.getElementById('cmt-project-select').value;
+  if(!pid){ showToast('Pick a project first — the day belongs to a job','error'); return; }
+  const today = new Date().toISOString().slice(0,10);
+  const {data:reps, error} = await sb.from('daily_field_reports').select('*')
+    .eq('project_id',pid).eq('report_date',today).eq('technician_id',currentUser.id)
+    .is('deleted_at',null).limit(1);
+  if(error){ showToast('Could not load your day: '+error.message,'error'); return; }
+  let rep = reps && reps[0];
+  if(!rep){
+    const ins = await sb.from('daily_field_reports').insert({
+      firm_id: currentFirmId, project_id: pid, technician_id: currentUser.id,
+      report_no: cmtDfrReportNo(), created_by: currentUser.id }).select('*').single();
+    if(ins.error){ showToast('Could not open your day: '+ins.error.message,'error'); return; }
+    rep = ins.data;
+    await sb.from('dfr_contributors').insert({daily_report_id: rep.id, firm_id: currentFirmId,
+      user_id: currentUser.id, added_by: currentUser.id});
+    showToast('Your day is open — '+rep.report_no,'success');
+  }
+  DFR.report = rep;
+  document.getElementById('cmt-dfr-location').value = rep.location_of_work||'';
+  document.getElementById('cmt-dfr-narrative').value = rep.narrative||'';
+  document.getElementById('cmt-dfr-discsummary').value = rep.discrepancy_summary||'';
+  const disc = rep.discrepancies===true?'yes':rep.discrepancies===false?'no':null;
+  document.querySelectorAll('input[name="cmt-dfr-disc"]').forEach(r=>{ r.checked = (r.value===disc); });
+  document.getElementById('cmt-dfr-discwrap').style.display = disc==='yes'?'':'none';
+  document.getElementById('cmt-myday-wrap').style.display='';
+  document.getElementById('cmt-test-tiles').style.display='none';
+  document.getElementById('cmt-form-wrap').style.display='none';
+  document.getElementById('cmt-ledger-wrap').style.display='none';
+  await cmtDfrRefresh();
+}
+function cmtCloseMyDay(){
+  document.getElementById('cmt-myday-wrap').style.display='none';
+  document.getElementById('cmt-test-tiles').style.display='';
+  DFR.report=null; DFR.parts=null;
+  cmtRenderTabs();
+}
+let _dfrSaveT = null;
+function cmtDfrSaveDebounced(){ if(_dfrSaveT) clearTimeout(_dfrSaveT); _dfrSaveT = setTimeout(cmtDfrSave, 600); }
+function cmtDfrDiscChanged(){
+  const yes = document.querySelector('input[name="cmt-dfr-disc"][value="yes"]').checked;
+  document.getElementById('cmt-dfr-discwrap').style.display = yes?'':'none';
+  cmtDfrSaveDebounced();
+}
+async function cmtDfrSave(){
+  if(!DFR.report) return;
+  if(!['open','returned'].includes(DFR.report.status)) return;   // submitted days lock in the field
+  const yes = document.querySelector('input[name="cmt-dfr-disc"][value="yes"]').checked;
+  const no = document.querySelector('input[name="cmt-dfr-disc"][value="no"]').checked;
+  const patch = {
+    location_of_work: document.getElementById('cmt-dfr-location').value.trim() || null,
+    narrative: document.getElementById('cmt-dfr-narrative').value.trim() || null,
+    discrepancies: yes ? true : no ? false : null,
+    discrepancy_summary: document.getElementById('cmt-dfr-discsummary').value.trim() || null,
+  };
+  const {error} = await sb.from('daily_field_reports').update(patch).eq('id', DFR.report.id);
+  if(error){ showToast('Save failed: '+error.message+' — your text is still on screen, tap again','error'); return; }
+  Object.assign(DFR.report, patch);
+  cmtDfrPaper();
+}
+async function cmtDfrRefresh(){
+  if(!DFR.report) return;
+  const pid = DFR.report.project_id, day = DFR.report.report_date;
+  const dayStart = day+'T00:00:00', dayEnd = day+'T23:59:59.999';
+  const [subsR, tickR, ledR] = await Promise.all([
+    sb.from('test_submissions').select('*, test_types(id,tab,name,field_schema)')
+      .eq('project_id',pid).gte('submitted_at',dayStart).lte('submitted_at',dayEnd)
+      .is('deleted_at',null).order('submitted_at'),
+    sb.from('field_tickets').select('*').eq('project_id',pid)
+      .gte('captured_at',dayStart).lte('captured_at',dayEnd).order('captured_at'),
+    sb.from('field_reports').select('*').eq('project_id',pid).eq('report_date',day).is('deleted_at',null),
+  ]);
+  const subs = subsR.data||[], tickets = tickR.data||[], ledgers = ledR.data||[];
+  const dwIds = [...new Set(subs.flatMap(s=>s.drawings_used||[]))];
+  const dws = dwIds.length ? (await sb.from('job_drawings').select('*').in('id',dwIds)).data||[] : [];
+  const subIds = subs.map(s=>s.id);
+  const pins = subIds.length ? (await sb.from('element_pins').select('*').in('submission_id',subIds).is('deleted_at',null)).data||[] : [];
+  let ledgerEntries = [];
+  if(ledgers.length) ledgerEntries = (await sb.from('report_entries').select('*').in('report_id', ledgers.map(l=>l.id)).order('seq')).data||[];
+  DFR.parts = {subs, tickets, ledgers, ledgerEntries, dws, pins};
+  document.getElementById('cmt-myday-title').textContent = 'Daily Field Report — '+DFR.report.report_no;
+  document.getElementById('cmt-myday-status').textContent =
+    DFR.report.report_date+' · '+DFR.report.status.toUpperCase().replace('_',' ');
+  document.getElementById('cmt-dfr-parts').innerHTML =
+    `Assembled from today, zero taps: <b>${subs.length}</b> test report${subs.length===1?'':'s'} · <b>${tickets.length}</b> ticket${tickets.length===1?'':'s'} · ` +
+    `<b>${ledgers.length}</b> pour ledger${ledgers.length===1?'':'s'} — the paper on the right is the package the office receives.`;
+  const locked = !['open','returned'].includes(DFR.report.status);
+  document.getElementById('cmt-dfr-submit').style.display = locked?'none':'';
+  cmtDfrPaper();
+}
+async function cmtDfrSubmit(){
+  if(!DFR.report) return;
+  if(!confirm('Submit your day to the office? Field entries lock; the office takes it from here.')) return;
+  const {error} = await sb.from('daily_field_reports')
+    .update({status:'submitted', submitted_at:new Date().toISOString()}).eq('id', DFR.report.id);
+  if(error){ showToast('Submit failed: '+error.message+' — tap again','error'); return; }
+  DFR.report.status='submitted';
+  showToast('Day submitted — the office has '+DFR.report.report_no,'success');
+  cmtDfrRefresh();
+}
+// 🎫 TICKET CAPTURE — the driver is waiting; a photo is the whole job
+function cmtTicketCapture(){
+  const pid = document.getElementById('cmt-project-select').value;
+  if(!pid){ showToast('Pick a project first, then shoot the ticket','error'); return; }
+  document.getElementById('cmt-ticket-file').click();
+}
+async function cmtTicketShot(input){
+  if(!input.files || !input.files[0]) return;
+  const pid = document.getElementById('cmt-project-select').value;
+  const file = input.files[0];
+  input.value = '';
+  const path = `tickets/${currentFirmId}/${crypto.randomUUID()}.jpg`;
+  const {error:upErr} = await sb.storage.from('inspection-photos').upload(path, file);
+  if(upErr){ showToast('Ticket upload failed: '+upErr.message+' — shoot it again','error'); return; }
+  const {error} = await sb.from('field_tickets').insert({
+    firm_id: currentFirmId, project_id: pid,
+    daily_report_id: (DFR.report && DFR.report.project_id===pid) ? DFR.report.id : null,
+    image_path: path, captured_by: currentUser.id });
+  if(error){ showToast('Ticket save failed: '+error.message+' — shoot it again','error'); return; }
+  showToast('🎫 Ticket captured — next truck','success');
+  if(DFR.report) cmtDfrRefresh();
+}
+// the assembled package — cover + narrative + results pages + tickets, one doc
+function rcDocBody(html){ const m = html.match(/<body>([\s\S]*)<\/body>/); return m?m[1].replace(/<button[^>]*>[\s\S]*?<\/button>/,''):html; }
+function cmtDfrDocHtml(rep, parts, ctx, pane){
+  if(pane===undefined) pane=true;
+  const tabs = new Set((parts.subs||[]).map(s=>s.test_types&&s.test_types.tab));
+  const hasConcrete = tabs.has('concrete') || (parts.ledgers||[]).length>0;
+  const rebarDws = [...new Set((parts.subs||[]).filter(s=>s.test_types&&s.test_types.tab==='rebar')
+    .flatMap(s=>s.drawings_used||[]).map(id=>{ const d=(parts.dws||[]).find(x=>x.id===id); return d?`${d.number}${d.rev_date?' ('+d.rev_date+')':''}`:null; }).filter(Boolean))].join(', ');
+  const svc = [
+    ['Concrete Testing', hasConcrete, ''],
+    ['Reinforcing Steel Inspection', tabs.has('rebar'), rebarDws?`Drawings Used: ${rebarDws}`:''],
+    ['Soil Compaction Testing', tabs.has('soils'), ''],
+    ['Asphalt Compaction Testing', tabs.has('asphalt'), ''],
+    ['Masonry Testing', tabs.has('masonry'), ''],
+    ['Other (welding / steel / fireproofing / general)', tabs.has('welding')||tabs.has('steel')||tabs.has('fireproofing')||tabs.has('general'), ''],
+  ];
+  const svcRows = svc.map(([label,on,extra])=>
+    `<tr><td class="chk" style="width:34px;font-size:14px">${on?'☒':'☐'}</td>
+     <td>${label} <span style="font-size:8.5px;color:#555">(See Attached Report for Details)</span>${extra?`<div style="font-size:9px">${extra}</div>`:''}</td></tr>`).join('');
+  const cover =
+    `<p style="font-weight:700;margin-bottom:2px">SERVICES PERFORMED THIS DAY — checked automatically from what was filed:</p>
+     <table>${svcRows}</table>
+     <p style="font-weight:700;margin:10px 0 2px">SUMMARY OF OBSERVATIONS</p>
+     <table><tr><td class="comments" style="min-height:80px">${(rep.narrative||'').replace(/\n/g,'<br>')||'<i style="color:#999">— the technician\'s narrative goes here —</i>'}</td></tr></table>
+     <p style="font-weight:700;margin:8px 0 2px">DISCREPANCIES OBSERVED:&nbsp;
+       Yes ${rep.discrepancies===true?'☒':'☐'} &nbsp;No ${rep.discrepancies===false?'☒':'☐'}</p>
+     ${rep.discrepancies===true?`<table><tr><td class="comments" style="min-height:50px">${(rep.discrepancy_summary||'').replace(/\n/g,'<br>')}</td></tr></table>`:''}
+     <p style="font-size:10px;margin-top:6px"><b>Attached:</b> ${(parts.subs||[]).length} test report(s) · ${(parts.tickets||[]).length} third-party ticket(s) · ${(parts.ledgers||[]).length} pour ledger(s)</p>`;
+  // results pages: the EXISTING pure renderers, one per attachment
+  const resultBodies = (parts.subs||[]).map(s=>{
+    const sDws = (parts.dws||[]).filter(d=>(s.drawings_used||[]).includes(d.id));
+    const sCtx = { project: ctx.project, firmName: ctx.firmName,
+      dateStr: new Date(s.submitted_at).toLocaleDateString(), reportNo: s.report_no || s.id.slice(0,8),
+      inspectorName: ctx.inspectorName, drawings: sDws, pins: (parts.pins||[]).filter(p=>p.submission_id===s.id),
+      drawingImgs: cmtDrawingImgs(sDws, (s.field_data||{}).plan_markup),
+      astmRef: s.astm_ref, astmYear: s.astm_year, passFlag: s.pass_flag,
+      inspectorNote: s.inspector_note, submissionId: s.id, pane: pane };
+    return rcDocBody(cmtDocHtml(s.test_types, s.field_data||{}, sCtx));
+  });
+  const ledgerBodies = (parts.ledgers||[]).map(l=>
+    rcDocBody(cmtPourDocHtml(l, (parts.ledgerEntries||[]).filter(e=>e.report_id===l.id), ctx, pane)));
+  const ticketRows = (parts.tickets||[]).map((t,i)=>
+    `<tr><td class="chk">${i+1}</td><td>${t.ticket_type}</td><td>${t.ticket_no||'<i style="color:#999">on the photo</i>'}</td>
+     <td>${t.supplier||''}</td><td>${t.material||''}</td><td class="chk">${t.quantity??''} ${t.unit||''}</td>
+     <td class="chk">${new Date(t.captured_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</td></tr>`).join('');
+  const ticketImgs = (parts.tickets||[]).map(t=>{
+    const url = sb.storage.from('inspection-photos').getPublicUrl(t.image_path).data.publicUrl;
+    return `<div style="display:inline-block;margin:4px;text-align:center"><img src="${url}" style="max-height:${pane?'160px':'300px'};max-width:46%"><div style="font-size:8.5px">${t.ticket_type} · ${new Date(t.captured_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div></div>`;
+  }).join('');
+  const ticketsBody = (parts.tickets||[]).length ?
+    `<div class="pgbrk"></div><p style="font-weight:700">THIRD-PARTY RECEIPTS / TICKETS — captured at the truck, the only proof of what arrived</p>
+     <table><tr><th>#</th><th>Type</th><th>Ticket No.</th><th>Supplier</th><th>Material</th><th>Qty</th><th>Captured</th></tr>${ticketRows}</table>
+     <div>${ticketImgs}</div>` : '';
+  const attachments = [...resultBodies, ...ledgerBodies].map(b=>`<div class="pgbrk"></div>${b}`).join('');
+  const pageM = 1 + resultBodies.length + ledgerBodies.length + ((parts.tickets||[]).length?1:0);
+  return rcChassis((rep.status||'open').toUpperCase().replace('_',' '), 'DAILY FIELD REPORT',
+    rcInfo([['CLIENT', ctx.project?.client_name],['PROJECT', ctx.project?.name],
+            ['PROJECT ADDRESS', [ctx.project?.location, ctx.project?.city, ctx.project?.state].filter(Boolean).join(', ')],
+            ['LOCATION OF WORK', rep.location_of_work]],
+           [['DATE', rep.report_date],['PROJECT No.', ctx.project?.contract_number],
+            ['REPORT No.', rep.report_no],['TECHNICIAN(S)', ctx.inspectorName]]),
+    cover + attachments + ticketsBody,
+    (rcCfg().form_prefix||'FIRM')+'-DFR', {pane:pane, pageN:1, pageM:pageM, noDrawingSlot:true, sigLabel:'Technician'});
+}
+function cmtDfrPaper(){
+  const fr = document.getElementById('cmt-dfr-frame');
+  if(!fr || !DFR.report || !DFR.parts) return;
+  try{
+    const p = (CMT.projects||[]).find(x=>x.id===DFR.report.project_id) || {};
+    const ctx = {project:p, firmName: rcCfg().firm_display || 'FIRM',
+      inspectorName: currentUser?.user_metadata?.full_name || ''};
+    const html = cmtDfrDocHtml(DFR.report, DFR.parts, ctx, true);
+    const doc = fr.contentDocument; doc.open(); doc.write(html); doc.close();
+  }catch(e){
+    console.warn('DFR paper render failed:', e);
+    try{ const doc = fr.contentDocument; doc.open();
+      doc.write('<body style="font:13px monospace;color:#a01810;background:#fff;padding:24px"><div style="border:3px solid #a01810;padding:16px"><b>&#9888; DAY REPORT PREVIEW ERROR</b><p>'+String(e&&e.message||e).replace(/</g,'&lt;')+'</p><p style="color:#333">Your entries are safe in the database. Screenshot this card.</p></div></body>');
+      doc.close(); }catch(_){}
+  }
+}
+function cmtDfrPrint(){
+  if(!DFR.report || !DFR.parts) return;
+  const p = (CMT.projects||[]).find(x=>x.id===DFR.report.project_id) || {};
+  const ctx = {project:p, firmName: rcCfg().firm_display || 'FIRM',
+    inspectorName: currentUser?.user_metadata?.full_name || ''};
+  const w = window.open('','_blank');
+  w.document.write(cmtDfrDocHtml(DFR.report, DFR.parts, ctx, false));
+  w.document.close();
 }
 
 // ── LIVE PAPER PANE — same renderer as post-submit, mounted in an iframe ─────
