@@ -11935,14 +11935,23 @@ const PLANMK_ZOOM_MIN = 0.5, PLANMK_ZOOM_MAX = 12;
 let _pdfjsP = null;
 function cmtPdfJs(){
   if(_pdfjsP) return _pdfjsP;
-  _pdfjsP = new Promise((res, rej)=>{
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
-    s.onload = ()=>{ window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-      'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js'; res(window.pdfjsLib); };
-    s.onerror = ()=>{ _pdfjsP = null; rej(new Error('pdf.js failed to load')); };
-    document.head.appendChild(s);
-  });
+  _pdfjsP = (async ()=>{
+    await new Promise((res, rej)=>{
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+      s.onload = res; s.onerror = ()=>rej(new Error('pdf.js failed to load'));
+      document.head.appendChild(s);
+    });
+    // a cross-origin workerSrc silently falls back to the FAKE worker — every
+    // display-list op runs on the MAIN thread (measured: dense CAD sheet base
+    // render 30s+ and UI freezes). Blob URL makes the worker same-origin: real
+    // thread, seconds instead, UI stays live.
+    const workerJs = await (await fetch('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js')).text();
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+      URL.createObjectURL(new Blob([workerJs], {type:'text/javascript'}));
+    return window.pdfjsLib;
+  })();
+  _pdfjsP.catch(()=>{ _pdfjsP = null; });
   return _pdfjsP;
 }
 function cmtIsPdfPath(p){ return /\.pdf$/i.test(p||''); }
