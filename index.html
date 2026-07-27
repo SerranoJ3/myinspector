@@ -12251,10 +12251,15 @@ async function cmtPdfPrepareHiRes(path, statusCb){
   }
   throw new Error('hi-res prepare failed at every resolution');
 }
+// 'asset:' paths are demo seed files served from the app's own origin — they
+// live in the repo (P0-3 ruling: no third-party documents in storage, ever).
+// One resolver for every image_path-shaped field (drawings, tickets, photos).
+function cmtStorageUrl(path){
+  if(path && path.startsWith('asset:')) return '/' + path.slice(6);
+  return sb.storage.from('inspection-photos').getPublicUrl(path).data.publicUrl;
+}
 // best-available href for any drawing path: raster → its URL · PDF → the hi-res
 // sidecar when it exists, else any cached quick render.
-// 'asset:' paths are demo seed drawings served from the app's own origin — they
-// live in the repo (P0-3 ruling: no third-party documents in storage, ever).
 function cmtDrawingHref(path){
   if(path && path.startsWith('asset:')) return '/' + path.slice(6);
   if(!cmtIsPdfPath(path)) return sb.storage.from('inspection-photos').getPublicUrl(path).data.publicUrl;
@@ -13059,7 +13064,7 @@ function cmtDfrDocHtml(rep, parts, ctx, pane){
      <td>${t.supplier||''}</td><td>${t.material||''}</td><td class="chk">${t.quantity??''} ${t.unit||''}</td>
      <td class="chk">${new Date(t.captured_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</td></tr>`).join('');
   const ticketImgs = (parts.tickets||[]).map(t=>{
-    const url = sb.storage.from('inspection-photos').getPublicUrl(t.image_path).data.publicUrl;
+    const url = cmtStorageUrl(t.image_path);
     return `<div style="display:inline-block;margin:4px;text-align:center"><img src="${url}" style="max-height:${pane?'160px':'300px'};max-width:46%"><div style="font-size:8.5px">${t.ticket_type} · ${new Date(t.captured_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div></div>`;
   }).join('');
   const ticketsBody = (parts.tickets||[]).length ?
