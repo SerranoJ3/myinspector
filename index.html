@@ -14212,13 +14212,15 @@ function cmtReportWindow(){
     try{
       w.document.write('<body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#fff;font:14px -apple-system,\'Segoe UI\',sans-serif;color:#555">Preparing report…</body>');
       w.document.close();
-      // Some blockers return a NON-null proxy that silently swallows writes
-      // (no tab ever appears). The tell fires AFTER write+close: a real popup
-      // stays on about:blank; the discarded proxy's href mutates to the
-      // opener's URL. Anything not-about:blank here = blocked → overlay path.
-      if(w.location.href !== 'about:blank') w = null;
     }catch(_){ w = null; }
   }
+  // Liveness note (probed 7/30): real browser popup blockers — Chrome/Safari/
+  // Firefox settings, iOS in-app webviews — return NULL, which routes to the
+  // overlay below. Chromium's --block-new-web-contents automation flag instead
+  // returns a perfect impostor proxy (href/readback/closed/innerWidth/rAF/
+  // visibilityState all identical to a live popup) that is provably
+  // undetectable from the page; that flag is an automation artifact, not a
+  // user-reachable browser setting, and is accepted as out of scope.
   return {
     fill(html){
       if(w && !w.closed){
