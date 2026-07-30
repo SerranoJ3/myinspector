@@ -4075,9 +4075,18 @@ async function loadActiveAlerts(){
   const sixtyStr = opsIsoDate(sixtyOut);
   let pendingQ = sb.from('pto_transactions').select('id').is('deleted_at', null).eq('request_status','requested');
   if(currentUserRole === 'inspector') pendingQ = pendingQ.eq('inspector_id', currentUser?.id);
-  let certQ = sb.from('inspector_credentials').select('id').is('deleted_at', null).not('expiration_date','is',null)
-    .gte('expiration_date', today).lte('expiration_date', sixtyStr);
-  if(currentUserRole === 'inspector') certQ = certQ.eq('profile_id', currentUser?.id);
+  // PACK GUARD (7/30 §2.5): the tile must read the SAME table as the Certifications
+  // panel it links to. CMT panel reads `certifications`; water reads
+  // `inspector_credentials`. One screen, one truth.
+  let certQ;
+  if(ACTIVE_PACK === 'cmt'){
+    certQ = sb.from('certifications').select('id').is('deleted_at', null).not('expires','is',null)
+      .gte('expires', today).lte('expires', sixtyStr);
+  }else{
+    certQ = sb.from('inspector_credentials').select('id').is('deleted_at', null).not('expiration_date','is',null)
+      .gte('expiration_date', today).lte('expiration_date', sixtyStr);
+    if(currentUserRole === 'inspector') certQ = certQ.eq('profile_id', currentUser?.id);
+  }
   const [pendingRes, certsRes] = await Promise.all([pendingQ, certQ]);
   if(pendingRes.error) console.warn('loadActiveAlerts pending:', pendingRes.error);
   if(certsRes.error) console.warn('loadActiveAlerts certs:', certsRes.error);
@@ -4097,7 +4106,9 @@ function renderAlertsTile(data){
   const ptoOnclick = data.pendingPtoCount > 0
     ? ` onclick="showPanel('hours-expenses');setTimeout(()=>{switchHoursExpensesSubview('pto');if(heCanSeeQueue())heShowPtoQueue();},0)" style="cursor:pointer"`
     : '';
-  const certOnclick = data.certsExpiringCount > 0 ? ` onclick="showPanel('certs')" style="cursor:pointer"` : '';
+  const certOnclick = data.certsExpiringCount > 0
+    ? ` onclick="showPanel('${ACTIVE_PACK === 'cmt' ? 'cmt-certs' : 'certs'}');${ACTIVE_PACK === 'cmt' ? 'cmtLoadCerts();' : ''}" style="cursor:pointer"`
+    : '';
   host.innerHTML = `
     <div>
       <div class="ops-tile-alert ${ptoCls}"${ptoOnclick}><span>${ptoIcon}</span> <strong>${data.pendingPtoCount}</strong> PTO ${data.pendingPtoCount === 1 ? 'request' : 'requests'} pending</div>
@@ -4169,6 +4180,10 @@ async function updateOpsIntegrationBadges(){
 }
 
 async function renderOpsRecentActivity(){
+  // PACK GUARD (7/30 §3.1): guard on ACTIVE_PACK, never on row counts. Under a
+  // CMT workspace this card is REPLACED, not blanked — same card, same slot,
+  // grouped by project, reading the CMT tables.
+  if(ACTIVE_PACK === 'cmt') return cmtRenderRecentActivity();
   // Recent activity feed preserved from legacy loadDashboard — group-by-property render.
   const {data:subs} = await sb.from('phase_submissions')
     .select('*,properties(address,city)')
@@ -4215,6 +4230,54 @@ async function renderOpsRecentActivity(){
       <td style="font-size:12px;color:var(--muted)">${codeStr}</td>
       <td style="font-size:12px;color:var(--muted)">${dt}</td>
       <td>${wb}</td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  container.innerHTML = html;
+}
+
+// CMT recent activity — the same card slot, materials-testing truth: grouped by
+// project from test_submissions + daily_field_reports. Columns per the order:
+// Project / Test types / Report no. / Latest / Discrepancies flag.
+async function cmtRenderRecentActivity(){
+  const container = document.getElementById('recent-submissions');
+  if(!container) return;
+  const [{data:subs}, {data:dfrs}] = await Promise.all([
+    sb.from('test_submissions').select('id,project_id,report_no,submitted_at,out_of_tolerance,test_types(name),projects(name)')
+      .is('deleted_at',null).order('submitted_at',{ascending:false}).limit(40),
+    sb.from('daily_field_reports').select('project_id,discrepancies').is('deleted_at',null).limit(60),
+  ]);
+  if(!subs || !subs.length){
+    container.innerHTML = '<div class="loading">No tests submitted yet. Open a form under Tests to start the paper.</div>';
+    return;
+  }
+  const dfrDisc = new Set((dfrs||[]).filter(d=>d.discrepancies===true).map(d=>d.project_id));
+  const groups = new Map();
+  subs.forEach(s => {
+    const key = s.project_id || '—';
+    if(!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(s);
+  });
+  const arr = [...groups.entries()].map(([pid, ss]) => ({
+    pid, ss, latest: Math.max(...ss.map(s=>new Date(s.submitted_at).getTime())),
+  })).sort((a,b)=>b.latest-a.latest).slice(0,8);
+  const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  let html = `<table><thead><tr><th>Project</th><th>Test types</th><th>Report no.</th><th>Latest</th><th>⚠</th></tr></thead><tbody>`;
+  arr.forEach(g => {
+    const head = g.ss[0];
+    const types = [...new Set(g.ss.map(s=>s.test_types?.name).filter(Boolean))];
+    const typeBadges = types.slice(0,4).map(t=>`<span class="phase-badge" style="margin-right:4px">${esc(t)}</span>`).join('')
+      + (types.length>4 ? `<span style="color:var(--muted);font-size:11px">+${types.length-4}</span>` : '');
+    const dt = new Date(g.latest).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+    const disc = g.ss.some(s=>s.out_of_tolerance) || dfrDisc.has(g.pid);
+    const flag = disc ? '<span style="color:var(--orange,#e69500)">⚠</span>' : '<span style="color:var(--muted)">—</span>';
+    const count = g.ss.length > 1 ? ` <span style="color:var(--muted);font-size:11px">(${g.ss.length})</span>` : '';
+    html += `<tr style="cursor:pointer" onclick="showPanel('cmt-log')">
+      <td><div style="font-weight:600;color:var(--white)">${esc(head.projects?.name||'—')}${count}</div></td>
+      <td>${typeBadges}</td>
+      <td style="font-size:12px;color:var(--muted)">${esc(head.report_no||'—')}</td>
+      <td style="font-size:12px;color:var(--muted)">${dt}</td>
+      <td>${flag}</td>
     </tr>`;
   });
   html += `</tbody></table>`;
@@ -4830,7 +4893,7 @@ async function cmpmAddAssignment(){
   // project_id: try to pull active project for this firm; null if none
   let projectId = null;
   try {
-    const {data:projs} = await sb.from('projects').select('id').is('deleted_at', null).limit(1);
+    const {data:projs} = await sb.from('projects').select('id').is('deleted_at', null).eq('vertical','water').limit(1);
     if(projs && projs.length) projectId = projs[0].id;
   } catch(e){ /* projects table may be scope-shimmed empty; OK to be null */ }
   const saveBtn = document.getElementById('cmpm-nc-save');
@@ -5336,7 +5399,7 @@ function heFriendlyError(error){
 
 async function populateProjectsDropdowns(selectIds){
   if(!_heProjectsCache){
-    const {data} = await sb.from('projects').select('id,name').is('deleted_at', null).order('name',{ascending:true});
+    const {data} = await sb.from('projects').select('id,name').is('deleted_at', null).eq('vertical', ACTIVE_PACK).order('name',{ascending:true});
     _heProjectsCache = data || [];
   }
   selectIds.forEach(id => {
@@ -11635,7 +11698,7 @@ const CMT_TABS = [['concrete','Concrete'],['soils','Soils'],['asphalt','Asphalt'
 async function cmtInit(){
   const [{data:types},{data:projects}] = await Promise.all([
     sb.from('test_types').select('*').eq('enabled',true).order('sort'),
-    sb.from('projects').select('id,name,contract_number,client_name,location,city,state,spec_ref').is('deleted_at',null).order('name'),
+    sb.from('projects').select('id,name,contract_number,client_name,location,city,state,spec_ref').is('deleted_at',null).eq('vertical','cmt').order('name'),
   ]);
   CMT.types = types||[]; CMT.projects = projects||[];
   const ps = document.getElementById('cmt-project-select');
@@ -11716,7 +11779,7 @@ async function cmtSaveJob(){
     ({error} = await sb.from('projects').update(rec).eq('id', pid));
   }else{
     rec.firm_id = currentFirmId;
-    rec.vertical = 'cmt';
+    rec.vertical = ACTIVE_PACK;   // §3.2: job creation stamps vertical from the workspace pack
     rec.status = 'active';
     rec.created_by = currentUser?.id || null;
     const res = await sb.from('projects').insert(rec).select('id').single();
@@ -11727,7 +11790,7 @@ async function cmtSaveJob(){
   // reload the picker and land ON the job just touched — the paper inks from it
   const {data:projects} = await sb.from('projects')
     .select('id,name,contract_number,client_name,location,city,state,spec_ref')
-    .is('deleted_at',null).order('name');
+    .is('deleted_at',null).eq('vertical','cmt').order('name');
   CMT.projects = projects||[];
   const ps = document.getElementById('cmt-project-select');
   ps.innerHTML = '<option value="">Select project…</option>' +
