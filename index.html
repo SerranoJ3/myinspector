@@ -686,6 +686,11 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
 .pd-tab{padding:7px 14px;border-radius:6px 6px 0 0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);cursor:pointer;border:1px solid transparent;background:transparent;transition:all .15s}
 .pd-tab:hover{color:var(--white);border-color:var(--border)}
 .pd-tab.active{background:rgba(27,58,107,0.4);color:var(--blue-light);border-color:rgba(74,124,196,0.3)}
+/* CMT drill-down (7/30): if it names an entity, it links to it — and looks like it */
+.cmt-link{color:var(--blue-light,#6ea8e8);cursor:pointer;text-decoration:none;border-bottom:1px dotted rgba(110,168,232,0.45)}
+.cmt-link:hover{color:#fff;border-bottom-color:#fff}
+.cmt-drill-row{cursor:pointer}
+.cmt-drill-row:hover{background:rgba(74,124,196,0.10)}
 .pd-page{display:none;padding-top:18px}
 .pd-page.active{display:block}
 .pd-placeholder{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px;background:var(--surface2);border:1px dashed var(--border);border-radius:var(--radius);line-height:1.6}
@@ -1954,6 +1959,27 @@ html,body{overflow-x:hidden}
         <input class="modal-input" id="cmtjob-specref" placeholder="ACI 318-19 / project spec 03 30 00"></div>
     </div>
     <button class="btn-sm btn-orange" id="cmt-job-save-btn" onclick="cmtSaveJob()">Create Job</button>
+  </div>
+</div>
+
+<!-- CMT DRILL-DOWN MODAL (7/30) — one stacked navigator for project / test /
+     sample / ticket / DFR detail. Same visual grammar as the water property
+     detail (modal-lg, pd-tabs, pd-stat) per the packs-stay-consistent rule. -->
+<div class="modal-overlay" id="modal-cmt-drill">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div style="min-width:0">
+        <div id="cmt-drill-crumbs" style="font-size:11px;color:var(--muted);margin-bottom:2px"></div>
+        <div class="modal-title" id="cmt-drill-title">Detail</div>
+        <div class="modal-sub" id="cmt-drill-sub"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <button class="btn-sm" id="cmt-drill-back" style="min-height:40px" onclick="cmtDrillBack()">← Back</button>
+        <button class="modal-close" onclick="cmtDrillClose()">✕</button>
+      </div>
+    </div>
+    <div class="pd-tabs" id="cmt-drill-tabs" style="display:none"></div>
+    <div id="cmt-drill-body" style="min-height:200px"></div>
   </div>
 </div>
 
@@ -4272,8 +4298,8 @@ async function cmtRenderRecentActivity(){
     const disc = g.ss.some(s=>s.out_of_tolerance) || dfrDisc.has(g.pid);
     const flag = disc ? '<span style="color:var(--orange,#e69500)">⚠</span>' : '<span style="color:var(--muted)">—</span>';
     const count = g.ss.length > 1 ? ` <span style="color:var(--muted);font-size:11px">(${g.ss.length})</span>` : '';
-    html += `<tr style="cursor:pointer" onclick="showPanel('cmt-log')">
-      <td><div style="font-weight:600;color:var(--white)">${esc(head.projects?.name||'—')}${count}</div></td>
+    html += `<tr class="cmt-drill-row" onclick="cmtOpenProject('${g.pid}')">
+      <td><div style="font-weight:600"><span class="cmt-link">${esc(head.projects?.name||'—')}</span>${count}</div></td>
       <td>${typeBadges}</td>
       <td style="font-size:12px;color:var(--muted)">${esc(head.report_no||'—')}</td>
       <td style="font-size:12px;color:var(--muted)">${dt}</td>
@@ -13245,7 +13271,7 @@ const REVIEW = { rows:[], open:null, parts:null, glossary:[] };
 async function cmtReviewLoad(){
   const el = document.getElementById('cmt-review-list');
   const {data:reps, error} = await sb.from('daily_field_reports')
-    .select('*, projects(name), profiles!daily_field_reports_technician_id_fkey(full_name)')
+    .select('*, projects(id,name), profiles!daily_field_reports_technician_id_fkey(full_name)')
     .in('status',['submitted','in_review','returned']).is('deleted_at',null)
     .order('submitted_at', {ascending:true});
   if(error){ el.innerHTML = '<div class="loading">Queue load failed: '+error.message+' — tap Refresh</div>'; return; }
@@ -13277,7 +13303,7 @@ async function cmtReviewLoad(){
       ].filter(Boolean).join(' · ') || '<span style="color:var(--green)">clean</span>';
       return `<tr style="border-top:1px solid var(--border)">
         <td style="padding:6px"><input type="checkbox" class="cmt-review-sel" value="${r.id}"></td>
-        <td>${r.report_date}</td><td>${r.projects?.name||''}</td><td>${r.profiles?.full_name||''}</td>
+        <td><span class="cmt-link" onclick="cmtOpenDfrView('${r.id}')">${r.report_date}</span></td><td>${r.projects?`<span class="cmt-link" onclick="cmtOpenProject('${r.projects.id}')">${cmtEsc(r.projects.name)}</span>`:''}</td><td>${r.profiles?.full_name||''}</td>
         <td style="text-transform:uppercase;font-size:11px">${r.status.replace('_',' ')}</td>
         <td style="font-size:11px">${chips}</td>
         <td><button class="btn-sm" onclick="cmtReviewOpen('${r.id}')">Open</button></td></tr>`;
@@ -13598,7 +13624,7 @@ async function cmtSubmitTest(){
 // ── samples register ─────────────────────────────────────────────────────────
 const CMT_STATUS_FLOW = {cast:'curing', curing:'transport', transport:'lab', lab:'broken'};
 async function cmtLoadSamples(){
-  const {data} = await sb.from('samples').select('*').is('deleted_at',null)
+  const {data} = await sb.from('samples').select('*, projects(id,name)').is('deleted_at',null)
     .order('cast_date',{ascending:false}).limit(300);
   const el = document.getElementById('cmt-samples-list');
   if(!data || !data.length){ el.innerHTML='<div class="loading">No samples yet — cast cylinders from a Concrete test.</div>'; return; }
@@ -13608,8 +13634,8 @@ async function cmtLoadSamples(){
       const due = (s.break_schedule||[]).map(b=>`${b.day}d: ${b.due}`).join(' · ');
       const next = CMT_STATUS_FLOW[s.status];
       return `<tr style="border-top:1px solid var(--border)">
-        <td style="padding:8px;font-weight:600;color:var(--white)">${s.sample_no}</td>
-        <td>${s.kind}</td><td>${s.cast_date}</td>
+        <td style="padding:8px;font-weight:600"><span class="cmt-link" onclick="cmtOpenSample('${s.id}')">${s.sample_no}</span></td>
+        <td>${s.kind}${s.projects?` · <span class="cmt-link" onclick="cmtOpenProject('${s.projects.id}')" style="font-size:11px">${cmtEsc(s.projects.name)}</span>`:''}</td><td>${s.cast_date}</td>
         <td style="font-size:11px;color:var(--muted)">${due}</td>
         <td>${s.status}</td>
         <td>${next?`<button class="btn-sm" onclick="cmtAdvanceSample('${s.id}','${next}')">→ ${next}</button>`:''}</td></tr>`;
@@ -13646,11 +13672,11 @@ async function cmtSaveSpec(){
   closeModal('modal-cmt-spec'); showToast('Spec saved','success'); cmtLoadSpecs(); cmtProjectChanged();
 }
 async function cmtLoadSpecs(){
-  const {data} = await sb.from('job_specs').select('*, projects(name)').is('deleted_at',null).order('created_at',{ascending:false});
+  const {data} = await sb.from('job_specs').select('*, projects(id,name)').is('deleted_at',null).order('created_at',{ascending:false});
   const el = document.getElementById('cmt-specs-list');
   el.innerHTML = (data && data.length) ? data.map(s=>
     `<div style="padding:10px;border-top:1px solid var(--border)">
-       <b style="color:var(--white)">${s.name}</b> <span style="color:var(--muted)">· ${s.kind} · ${s.projects?.name||''}${s.material_key?' · material '+s.material_key:''}</span>
+       <b style="color:var(--white)">${s.name}</b> <span style="color:var(--muted)">· ${s.kind} · </span>${s.projects?`<span class="cmt-link" onclick="cmtOpenProject('${s.projects.id}','specs')">${cmtEsc(s.projects.name)}</span>`:''}<span style="color:var(--muted)">${s.material_key?' · material '+s.material_key:''}</span>
        <div style="font-size:11px;color:var(--muted)">${Object.entries(s.params).map(([k,val])=>k+'='+val).join(' · ')}</div>
      </div>`).join('') : '<div class="loading">No specs yet.</div>';
 }
@@ -13685,9 +13711,11 @@ async function cmtLoadCerts(){
 // ── test log + per-submission ASTM report (Track 1 default template) ─────────
 async function cmtLoadLog(){
   const {data} = await sb.from('test_submissions')
-    .select('*, test_types(name,tab), projects(name)')
+    .select('*, test_types(name,tab), projects(id,name)')
     .is('deleted_at',null).order('submitted_at',{ascending:false}).limit(200);
   const el = document.getElementById('cmt-log-list');
+  // DRILL (7/30): the test name opens the in-app detail; the project name opens
+  // the project. Report stays the separate produce-the-paper action.
   el.innerHTML = (data && data.length) ? '<table style="width:100%;font-size:13px">'+
     '<tr style="color:var(--muted);text-align:left"><th style="padding:8px">Test</th><th>Project</th><th>Result</th><th>When</th><th></th></tr>'+
     data.map(s=>{
@@ -13695,11 +13723,315 @@ async function cmtLoadLog(){
                : s.pass_flag===false?'<span style="color:#ff8a7d">FAIL'+(s.supervisor_review?'':' · needs review')+'</span>'
                : '<span style="color:var(--muted)">—</span>';
       return `<tr style="border-top:1px solid var(--border)">
-        <td style="padding:8px;color:var(--white)">${s.test_types?.name||s.test_type_id}</td>
-        <td>${s.projects?.name||''}</td><td>${pf}</td>
+        <td style="padding:8px"><span class="cmt-link" onclick="cmtOpenTest('${s.id}')">${cmtEsc(s.test_types?.name||s.test_type_id)}</span></td>
+        <td>${s.projects?`<span class="cmt-link" onclick="cmtOpenProject('${s.projects.id}')">${cmtEsc(s.projects.name)}</span>`:''}</td><td>${pf}</td>
         <td style="font-size:11px;color:var(--muted)">${new Date(s.submitted_at).toLocaleString()}</td>
         <td><button class="btn-sm" onclick="cmtReport('${s.id}')">Report</button></td></tr>`;
     }).join('')+'</table>' : '<div class="loading">No tests submitted yet.</div>';
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CMT DRILL-DOWN (7/30) — the navigation layer. Everything that names an entity
+// links to it; every FK the schema carries becomes a navigable edge. A view
+// stack gives breadcrumb + back, so three levels deep is always escapable.
+const CMTDRILL = { stack: [] };
+const cmtEsc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function cmtDrillClose(){
+  CMTDRILL.stack = [];
+  document.getElementById('modal-cmt-drill').classList.remove('open');
+}
+function cmtDrillBack(){
+  if(CMTDRILL.stack.length <= 1){ cmtDrillClose(); return; }
+  CMTDRILL.stack.pop();
+  cmtDrillRender();
+}
+function cmtDrillPush(view){
+  const top = CMTDRILL.stack[CMTDRILL.stack.length-1];
+  if(top && top.kind===view.kind && top.id===view.id){ Object.assign(top, view); }
+  else CMTDRILL.stack.push(view);
+  document.getElementById('modal-cmt-drill').classList.add('open');
+  cmtDrillRender();
+}
+function cmtDrillCrumbs(){
+  const el = document.getElementById('cmt-drill-crumbs');
+  el.innerHTML = CMTDRILL.stack.map((v,i)=>{
+    const label = cmtEsc(v.crumb || v.kind);
+    return i === CMTDRILL.stack.length-1
+      ? `<span style="color:var(--white)">${label}</span>`
+      : `<span class="cmt-link" onclick="CMTDRILL.stack.length=${i+1};cmtDrillRender()">${label}</span>`;
+  }).join(' <span style="color:var(--muted)">›</span> ');
+  document.getElementById('cmt-drill-back').textContent = CMTDRILL.stack.length > 1 ? '← Back' : '✕ Close';
+}
+async function cmtDrillRender(){
+  const v = CMTDRILL.stack[CMTDRILL.stack.length-1];
+  if(!v) return cmtDrillClose();
+  const body = document.getElementById('cmt-drill-body');
+  const tabs = document.getElementById('cmt-drill-tabs');
+  tabs.style.display = 'none';
+  body.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try{
+    if(v.kind==='project') await cmtDrillProject(v);
+    else if(v.kind==='test') await cmtDrillTest(v);
+    else if(v.kind==='sample') await cmtDrillSample(v);
+    else if(v.kind==='ticket') await cmtDrillTicket(v);
+    else if(v.kind==='dfr') await cmtDrillDfr(v);
+  }catch(e){
+    body.innerHTML = `<div class="loading">Could not load this view: ${cmtEsc(e.message||e)}</div>`;
+  }
+  cmtDrillCrumbs();
+}
+// public entry points — these are what the clickable names call
+function cmtOpenProject(id, tab){ cmtDrillPush({kind:'project', id, tab: tab||'overview', crumb:'Project'}); }
+function cmtOpenTest(id){ cmtDrillPush({kind:'test', id, crumb:'Test'}); }
+function cmtOpenSample(id){ cmtDrillPush({kind:'sample', id, crumb:'Sample'}); }
+function cmtOpenTicket(id){ cmtDrillPush({kind:'ticket', id, crumb:'Ticket'}); }
+function cmtOpenDfrView(id){ cmtDrillPush({kind:'dfr', id, crumb:'Daily Report'}); }
+
+const CMT_DRILL_TABS = [['overview','Overview'],['tests','Tests'],['dfrs','Daily Reports'],
+  ['drawings','Drawings'],['specs','Specs'],['samples','Samples'],['tickets','Tickets']];
+async function cmtDrillProject(v){
+  const {data:p} = await sb.from('projects').select('*').eq('id', v.id).single();
+  if(!p) throw new Error('project not found');
+  v.crumb = p.name.length > 34 ? p.name.slice(0,32)+'…' : p.name;
+  document.getElementById('cmt-drill-title').textContent = p.name;
+  document.getElementById('cmt-drill-sub').textContent =
+    [p.client_name, [p.location,p.city,p.state].filter(Boolean).join(', ')].filter(Boolean).join(' — ');
+  const tabs = document.getElementById('cmt-drill-tabs');
+  tabs.style.display = '';
+  tabs.innerHTML = CMT_DRILL_TABS.map(([k,label]) =>
+    `<div class="pd-tab ${v.tab===k?'active':''}" onclick="cmtOpenProject('${p.id}','${k}')">${label}</div>`).join('');
+  const body = document.getElementById('cmt-drill-body');
+  const T = v.tab || 'overview';
+  if(T==='overview'){
+    const [tc, dc, drc, sc, smc, tkc] = await Promise.all([
+      sb.from('test_submissions').select('id',{count:'exact',head:true}).eq('project_id',p.id).is('deleted_at',null),
+      sb.from('daily_field_reports').select('id',{count:'exact',head:true}).eq('project_id',p.id).is('deleted_at',null),
+      sb.from('job_drawings').select('id',{count:'exact',head:true}).eq('project_id',p.id).is('deleted_at',null),
+      sb.from('job_specs').select('id',{count:'exact',head:true}).eq('project_id',p.id).is('deleted_at',null),
+      sb.from('samples').select('id',{count:'exact',head:true}).eq('project_id',p.id).is('deleted_at',null),
+      sb.from('field_tickets').select('id',{count:'exact',head:true}).eq('project_id',p.id),
+    ]);
+    const {data:range} = await sb.from('test_submissions').select('submitted_at').eq('project_id',p.id).is('deleted_at',null).order('submitted_at',{ascending:true}).limit(1);
+    const stat = (l,val) => `<div class="pd-stat"><div class="pd-stat-label">${l}</div><div class="pd-stat-val">${val}</div></div>`;
+    const cnt = (label, n, tab) => stat(label, `<span class="cmt-link" onclick="cmtOpenProject('${p.id}','${tab}')">${n??0}</span>`);
+    body.innerHTML = `<div class="pd-header-grid">
+      ${stat('Client', cmtEsc(p.client_name||'—'))}
+      ${stat('Project No.', cmtEsc(p.contract_number||'—'))}
+      ${stat('Spec Reference', cmtEsc(p.spec_ref||'—'))}
+      ${stat('Status', cmtEsc(p.status||'—'))}
+      ${stat('First Activity', range&&range[0] ? new Date(range[0].submitted_at).toLocaleDateString() : '—')}
+      ${cnt('Tests', tc.count, 'tests')}
+      ${cnt('Daily Reports', dc.count, 'dfrs')}
+      ${cnt('Drawings', drc.count, 'drawings')}
+      ${cnt('Specs', sc.count, 'specs')}
+      ${cnt('Samples', smc.count, 'samples')}
+      ${cnt('Tickets', tkc.count, 'tickets')}
+    </div>`;
+  }else if(T==='tests'){
+    const {data} = await sb.from('test_submissions').select('id,report_no,submitted_at,pass_flag,out_of_tolerance,test_types(name)')
+      .eq('project_id',p.id).is('deleted_at',null).order('submitted_at',{ascending:false}).limit(300);
+    body.innerHTML = cmtDrillTable(['Test','Report No.','Result','When'], (data||[]).map(s=>[
+      `<span class="cmt-link" onclick="cmtOpenTest('${s.id}')">${cmtEsc(s.test_types?.name||'—')}</span>`,
+      cmtEsc(s.report_no||'—'),
+      s.pass_flag===true?'<span style="color:#7dff9e">PASS</span>':s.pass_flag===false?'<span style="color:#ff8a7d">FAIL</span>':'—',
+      new Date(s.submitted_at).toLocaleString()]), 'No tests for this project yet.');
+  }else if(T==='dfrs'){
+    const {data} = await sb.from('daily_field_reports').select('id,report_no,report_date,status,discrepancies,profiles:technician_id(full_name)')
+      .eq('project_id',p.id).is('deleted_at',null).order('report_date',{ascending:false}).limit(200);
+    body.innerHTML = cmtDrillTable(['Date','Report No.','Technician','Status','⚠'], (data||[]).map(d=>[
+      `<span class="cmt-link" onclick="cmtOpenDfrView('${d.id}')">${cmtEsc(d.report_date)}</span>`,
+      cmtEsc(d.report_no||'—'), cmtEsc(d.profiles?.full_name||'—'), cmtEsc(d.status),
+      d.discrepancies?'<span style="color:var(--orange,#e69500)">⚠</span>':'—']), 'No daily reports yet.');
+  }else if(T==='drawings'){
+    const {data} = await sb.from('job_drawings').select('*').eq('project_id',p.id).is('deleted_at',null);
+    body.innerHTML = cmtDrillTable(['No.','Name','Rev','Sheet'], (data||[]).map(d=>[
+      cmtEsc(d.number), cmtEsc(d.name), cmtEsc(d.rev_no||'—'),
+      d.image_path?`<span class="cmt-link" onclick="cmtDrillSheet('${cmtEsc(d.image_path)}','${cmtEsc(d.number)}')">open sheet</span>`:'—']),
+      'No drawings registered.');
+  }else if(T==='specs'){
+    const {data} = await sb.from('job_specs').select('*').eq('project_id',p.id).is('deleted_at',null);
+    body.innerHTML = cmtDrillTable(['Kind','Name','Parameters'], (data||[]).map(s=>[
+      cmtEsc(s.kind), cmtEsc(s.name),
+      `<span style="font-size:11px;color:var(--muted)">${cmtEsc(Object.entries(s.params||{}).map(([k,val])=>`${k}: ${val}`).join(' · '))}</span>`]),
+      'No specs on file.');
+  }else if(T==='samples'){
+    const {data} = await sb.from('samples').select('*').eq('project_id',p.id).is('deleted_at',null).order('cast_date',{ascending:false}).limit(200);
+    body.innerHTML = cmtDrillTable(['Sample #','Kind','Cast','Status'], (data||[]).map(s=>[
+      `<span class="cmt-link" onclick="cmtOpenSample('${s.id}')">${cmtEsc(s.sample_no)}</span>`,
+      cmtEsc(s.kind), cmtEsc(s.cast_date), cmtEsc(s.status)]), 'No samples cast yet.');
+  }else if(T==='tickets'){
+    const {data} = await sb.from('field_tickets').select('*').eq('project_id',p.id).order('captured_at',{ascending:false}).limit(200);
+    body.innerHTML = cmtDrillTable(['Ticket No.','Supplier','Material','Qty','Captured'], (data||[]).map(t=>[
+      `<span class="cmt-link" onclick="cmtOpenTicket('${t.id}')">${cmtEsc(t.ticket_no||'(on photo)')}</span>`,
+      cmtEsc(t.supplier||'—'), cmtEsc(t.material||'—'),
+      `${t.quantity??''} ${cmtEsc(t.unit||'')}`, new Date(t.captured_at).toLocaleString()]), 'No tickets captured.');
+  }
+}
+function cmtDrillTable(headers, rows, empty){
+  if(!rows.length) return `<div class="loading">${cmtEsc(empty)}</div>`;
+  return `<div class="table-wrap"><table style="width:100%;font-size:13px">
+    <tr style="color:var(--muted);text-align:left">${headers.map(h=>`<th style="padding:8px">${h}</th>`).join('')}</tr>
+    ${rows.map(r=>`<tr style="border-top:1px solid var(--border)">${r.map(c=>`<td style="padding:8px">${c}</td>`).join('')}</tr>`).join('')}
+  </table></div>`;
+}
+function cmtDrillSheet(path, number){
+  const url = cmtStorageUrl(path);
+  cmtReportOverlay(`<body style="margin:0;background:#222"><img src="${cmtEsc(url)}" style="width:100%;display:block" alt="${cmtEsc(number)}"></body>`);
+}
+
+async function cmtDrillTest(v){
+  const {data:s} = await sb.from('test_submissions')
+    .select('*, test_types(id,name,tab,astm_ref,astm_year,field_schema,pass_logic), projects(id,name), profiles:submitted_by(full_name)')
+    .eq('id', v.id).single();
+  if(!s) throw new Error('test not found');
+  const t = s.test_types || {};
+  v.crumb = t.name || 'Test';
+  document.getElementById('cmt-drill-title').textContent = t.name || 'Test';
+  document.getElementById('cmt-drill-sub').textContent =
+    `${s.report_no||''} · ${t.astm_ref||''} ${t.astm_year||''}`.trim();
+  const [{data:samples}, {data:tickets}, {data:dfr}, {data:dws}] = await Promise.all([
+    sb.from('samples').select('id,sample_no,status').eq('submission_id', s.id).is('deleted_at',null),
+    sb.from('field_tickets').select('id,ticket_no').eq('submission_id', s.id),
+    sb.from('daily_field_reports').select('id,report_no,report_date').eq('project_id', s.project_id)
+      .eq('report_date', (s.submitted_at||'').slice(0,10)).is('deleted_at',null).limit(1),
+    s.drawings_used && s.drawings_used.length
+      ? sb.from('job_drawings').select('id,number,name,image_path').in('id', s.drawings_used) : Promise.resolve({data:[]}),
+  ]);
+  const v_ = s.field_data || {};
+  const fieldRows = (t.field_schema?.fields||[]).map(f=>{
+    let val = v_[f.key];
+    if(val==null || val==='') return '';
+    if(f.type==='checkitem' || f.type==='checkbox') val = val===true?'✓ yes':'✗ no';
+    else if(typeof val === 'object')
+      val = `<details style="font-size:11px"><summary style="cursor:pointer;color:var(--muted)">view data</summary><pre style="white-space:pre-wrap;font-size:10px">${cmtEsc(JSON.stringify(val,null,1).slice(0,4000))}</pre></details>`;
+    else val = cmtEsc(val) + (f.unit ? ` <span style="color:var(--muted)">${cmtEsc(f.unit)}</span>` : '');
+    return `<tr style="border-top:1px solid var(--border)"><td style="padding:6px 8px;color:var(--muted);width:40%">${cmtEsc(f.label||f.key)}</td><td style="padding:6px 8px;color:var(--white)">${val}</td></tr>`;
+  }).join('');
+  const pf = s.pass_flag===true ? '<span style="color:#7dff9e;font-weight:700">PASS</span>'
+    : s.pass_flag===false ? '<span style="color:#ff8a7d;font-weight:700">FAIL — out of tolerance</span>'
+    : '<span style="color:var(--muted)">informational — no pass criterion</span>';
+  const specBits = ['spec_min','spec_max','required_pct','required_thickness_in','req_avg_density_pcf','design_strength_psi','proctor_max_density']
+    .filter(k=>v_[k]!=null).map(k=>`${k.replace(/_/g,' ')}: ${v_[k]}`).join(' · ');
+  const link = (fn,id,label) => `<span class="cmt-link" onclick="${fn}('${id}')">${cmtEsc(label)}</span>`;
+  const photos = (s.photos||[]).length
+    ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">${(s.photos||[]).map(ph=>
+        `<img src="${cmtEsc(cmtStorageUrl(ph.path))}" style="height:110px;border-radius:6px;cursor:pointer" onclick="cmtDrillSheet('${cmtEsc(ph.path)}','photo')" alt="${cmtEsc(ph.key)}">`).join('')}</div>`
+    : `<div style="color:var(--muted);font-size:12px">No photos on this submission.</div>`;
+  document.getElementById('cmt-drill-body').innerHTML = `
+    <div class="pd-header-grid">
+      <div class="pd-stat"><div class="pd-stat-label">Project</div><div class="pd-stat-val">${link('cmtOpenProject', s.projects?.id, s.projects?.name||'—')}</div></div>
+      <div class="pd-stat"><div class="pd-stat-label">Result</div><div class="pd-stat-val">${pf}</div></div>
+      <div class="pd-stat"><div class="pd-stat-label">Judged Against</div><div class="pd-stat-val" style="font-size:12px">${cmtEsc(specBits||'—')}</div></div>
+      <div class="pd-stat"><div class="pd-stat-label">Inspector</div><div class="pd-stat-val">${cmtEsc(s.profiles?.full_name||'—')}</div></div>
+      <div class="pd-stat"><div class="pd-stat-label">Submitted</div><div class="pd-stat-val" style="font-size:12px">${new Date(s.submitted_at).toLocaleString()}</div></div>
+      <div class="pd-stat"><div class="pd-stat-label">Reference</div><div class="pd-stat-val" style="font-size:12px">${cmtEsc((t.astm_ref||'')+' '+(t.astm_year||''))}</div></div>
+    </div>
+    ${s.inspector_note ? `<div style="border:1px solid var(--orange,#e69500);border-radius:8px;padding:10px;margin-bottom:12px;font-size:13px"><b>Inspector note:</b> ${cmtEsc(s.inspector_note)}</div>` : ''}
+    <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;margin-bottom:12px">
+      ${dfr&&dfr[0]?('That day: '+link('cmtOpenDfrView', dfr[0].id, dfr[0].report_no||dfr[0].report_date)):''}
+      ${(samples||[]).map(x=>'Sample: '+link('cmtOpenSample', x.id, x.sample_no)).join(' ')}
+      ${(tickets||[]).map(x=>'Ticket: '+link('cmtOpenTicket', x.id, x.ticket_no||'ticket')).join(' ')}
+      ${(dws||[]).map(d=>`Drawing: <span class="cmt-link" onclick="cmtDrillSheet('${cmtEsc(d.image_path)}','${cmtEsc(d.number)}')">${cmtEsc(d.number)}</span>`).join(' ')}
+    </div>
+    <div class="table-wrap"><table style="width:100%;font-size:13px">${fieldRows||'<tr><td style="padding:8px;color:var(--muted)">No field values recorded.</td></tr>'}</table></div>
+    <div style="margin-top:12px"><div class="pd-stat-label" style="margin-bottom:4px">Photos</div>${photos}</div>
+    <div style="margin-top:14px"><button class="btn-sm btn-orange" onclick="cmtReport('${s.id}')">📄 Report — render the formal document</button></div>`;
+}
+
+async function cmtDrillSample(v){
+  const {data:s} = await sb.from('samples').select('*, projects(id,name)').eq('id', v.id).single();
+  if(!s) throw new Error('sample not found');
+  v.crumb = s.sample_no;
+  document.getElementById('cmt-drill-title').textContent = 'Sample ' + s.sample_no;
+  document.getElementById('cmt-drill-sub').textContent = `${s.kind} · cast ${s.cast_date}`;
+  const [{data:labs}, {data:origin}] = await Promise.all([
+    sb.from('lab_results').select('*').eq('sample_id', s.id).is('deleted_at',null).order('tested_at'),
+    s.submission_id ? sb.from('test_submissions').select('id,report_no,test_types(name)').eq('id', s.submission_id).single() : Promise.resolve({data:null}),
+  ]);
+  const due = (s.break_schedule||[]).map(b=>`${b.day}d → ${b.due}`).join(' · ');
+  document.getElementById('cmt-drill-body').innerHTML = `
+    <div class="pd-header-grid">
+      <div class="pd-stat"><div class="pd-stat-label">Project</div><div class="pd-stat-val"><span class="cmt-link" onclick="cmtOpenProject('${s.projects?.id}')">${cmtEsc(s.projects?.name||'—')}</span></div></div>
+      <div class="pd-stat"><div class="pd-stat-label">Status</div><div class="pd-stat-val">${cmtEsc(s.status)}</div></div>
+      <div class="pd-stat"><div class="pd-stat-label">Break Schedule</div><div class="pd-stat-val" style="font-size:12px">${cmtEsc(due||'—')}</div></div>
+      <div class="pd-stat"><div class="pd-stat-label">Cast From</div><div class="pd-stat-val">${origin?`<span class="cmt-link" onclick="cmtOpenTest('${origin.id}')">${cmtEsc(origin.test_types?.name||'test')} ${cmtEsc(origin.report_no||'')}</span>`:'—'}</div></div>
+    </div>
+    ${cmtDrillTable(['Age','Strength (psi)','Design','Result','Tested'], (labs||[]).map(L=>{
+      const vals = L.values||{};
+      return [ `${vals.age_days??'—'}d`, cmtEsc(vals.strength_psi??'—'), cmtEsc(vals.design_strength_psi??'—'),
+        L.pass_flag===true?'<span style="color:#7dff9e">PASS</span>':L.pass_flag===false?'<span style="color:#ff8a7d">BELOW DESIGN</span>':'<span style="color:var(--muted)">informational</span>',
+        new Date(L.tested_at).toLocaleDateString()];
+    }), 'No breaks logged yet — set is still curing.')}`;
+}
+
+async function cmtDrillTicket(v){
+  const {data:t} = await sb.from('field_tickets').select('*, projects(id,name)').eq('id', v.id).single();
+  if(!t) throw new Error('ticket not found');
+  v.crumb = 'Ticket ' + (t.ticket_no||'');
+  document.getElementById('cmt-drill-title').textContent = 'Ticket ' + (t.ticket_no||'(on photo)');
+  document.getElementById('cmt-drill-sub').textContent = t.supplier||'';
+  let ledgerLink = '—';
+  if(t.ledger_entry_id){
+    const {data:e} = await sb.from('report_entries').select('report_id').eq('id', t.ledger_entry_id).single();
+    if(e) ledgerLink = `<span class="cmt-link" onclick="cmtDrillLedger('${e.report_id}')">open pour ledger</span>`;
+  }else{
+    const {data:led} = await sb.from('field_reports').select('id,report_no').eq('project_id', t.project_id)
+      .eq('report_date', (t.captured_at||'').slice(0,10)).eq('family','concrete_pour').is('deleted_at',null).limit(1);
+    if(led&&led[0]) ledgerLink = `<span class="cmt-link" onclick="cmtDrillLedger('${led[0].id}')">${cmtEsc(led[0].report_no)}</span>`;
+  }
+  document.getElementById('cmt-drill-body').innerHTML = `
+    <div class="pd-header-grid">
+      <div class="pd-stat"><div class="pd-stat-label">Project</div><div class="pd-stat-val"><span class="cmt-link" onclick="cmtOpenProject('${t.projects?.id}')">${cmtEsc(t.projects?.name||'—')}</span></div></div>
+      <div class="pd-stat"><div class="pd-stat-label">Material</div><div class="pd-stat-val" style="font-size:12px">${cmtEsc(t.material||'—')}</div></div>
+      <div class="pd-stat"><div class="pd-stat-label">Quantity</div><div class="pd-stat-val">${t.quantity??'—'} ${cmtEsc(t.unit||'')}</div></div>
+      <div class="pd-stat"><div class="pd-stat-label">Truck</div><div class="pd-stat-val">${cmtEsc(t.truck_no||'—')}</div></div>
+      <div class="pd-stat"><div class="pd-stat-label">Water Added</div><div class="pd-stat-val">${cmtEsc(t.water_added||'—')}</div></div>
+      <div class="pd-stat"><div class="pd-stat-label">Captured</div><div class="pd-stat-val" style="font-size:12px">${new Date(t.captured_at).toLocaleString()}</div></div>
+      <div class="pd-stat"><div class="pd-stat-label">Pour Ledger</div><div class="pd-stat-val">${ledgerLink}</div></div>
+    </div>
+    ${t.image_path?`<img src="${cmtEsc(cmtStorageUrl(t.image_path))}" style="max-width:100%;border-radius:8px;cursor:pointer" onclick="cmtDrillSheet('${cmtEsc(t.image_path)}','ticket')" alt="ticket photo">`:'<div style="color:var(--muted)">No photo on this ticket.</div>'}`;
+}
+async function cmtDrillLedger(reportId){
+  const {data:rep} = await sb.from('field_reports').select('*').eq('id', reportId).single();
+  if(!rep) return;
+  const {data:ents} = await sb.from('report_entries').select('*').eq('report_id', reportId).order('seq');
+  const p = (CMT.projects||[]).find(x=>x.id===rep.project_id) || {};
+  const ctx = {project:p, inspectorName:''};
+  cmtReportOverlay(cmtPourDocHtml(rep, ents||[], ctx, false));
+}
+
+async function cmtDrillDfr(v){
+  const {data:d} = await sb.from('daily_field_reports').select('*, projects(id,name), profiles:technician_id(full_name)').eq('id', v.id).single();
+  if(!d) throw new Error('daily report not found');
+  v.crumb = d.report_no || d.report_date;
+  document.getElementById('cmt-drill-title').textContent = 'Daily Field Report — ' + d.report_date;
+  document.getElementById('cmt-drill-sub').textContent = `${d.report_no||''} · ${d.profiles?.full_name||''}`;
+  const [{data:tests}, {data:tickets}] = await Promise.all([
+    sb.from('test_submissions').select('id,report_no,test_types(name),pass_flag').eq('project_id', d.project_id)
+      .gte('submitted_at', d.report_date+'T00:00:00').lte('submitted_at', d.report_date+'T23:59:59').is('deleted_at',null),
+    sb.from('field_tickets').select('id,ticket_no,supplier').eq('project_id', d.project_id)
+      .gte('captured_at', d.report_date+'T00:00:00').lte('captured_at', d.report_date+'T23:59:59'),
+  ]);
+  document.getElementById('cmt-drill-body').innerHTML = `
+    <div class="pd-header-grid">
+      <div class="pd-stat"><div class="pd-stat-label">Project</div><div class="pd-stat-val"><span class="cmt-link" onclick="cmtOpenProject('${d.projects?.id}')">${cmtEsc(d.projects?.name||'—')}</span></div></div>
+      <div class="pd-stat"><div class="pd-stat-label">Status</div><div class="pd-stat-val">${cmtEsc(d.status)}</div></div>
+      <div class="pd-stat"><div class="pd-stat-label">Location of Work</div><div class="pd-stat-val" style="font-size:12px">${cmtEsc(d.location_of_work||'—')}</div></div>
+      <div class="pd-stat"><div class="pd-stat-label">Discrepancies</div><div class="pd-stat-val">${d.discrepancies?'<span style="color:var(--orange,#e69500)">YES</span>':'No'}</div></div>
+    </div>
+    ${d.discrepancy_summary?`<div style="border:1px solid var(--orange,#e69500);border-radius:8px;padding:10px;margin-bottom:12px;font-size:13px"><b>Discrepancy:</b> ${cmtEsc(d.discrepancy_summary)}</div>`:''}
+    ${d.narrative?`<div style="margin-bottom:12px"><div class="pd-stat-label" style="margin-bottom:4px">Observations</div><div style="font-size:13px;line-height:1.5">${cmtEsc(d.narrative)}</div></div>`:''}
+    <div style="display:flex;gap:24px;flex-wrap:wrap">
+      <div style="flex:1;min-width:260px"><div class="pd-stat-label" style="margin-bottom:4px">Tests That Day</div>
+        ${cmtDrillTable(['Test','Report No.','Result'], (tests||[]).map(s=>[
+          `<span class="cmt-link" onclick="cmtOpenTest('${s.id}')">${cmtEsc(s.test_types?.name||'—')}</span>`,
+          cmtEsc(s.report_no||'—'),
+          s.pass_flag===true?'<span style="color:#7dff9e">PASS</span>':s.pass_flag===false?'<span style="color:#ff8a7d">FAIL</span>':'—']), 'No tests that day.')}</div>
+      <div style="flex:1;min-width:260px"><div class="pd-stat-label" style="margin-bottom:4px">Tickets That Day</div>
+        ${cmtDrillTable(['Ticket','Supplier'], (tickets||[]).map(t=>[
+          `<span class="cmt-link" onclick="cmtOpenTicket('${t.id}')">${cmtEsc(t.ticket_no||'(on photo)')}</span>`,
+          cmtEsc(t.supplier||'—')]), 'No tickets that day.')}</div>
+    </div>`;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
