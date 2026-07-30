@@ -14209,6 +14209,13 @@ function cmtReportWindow(){
   let w = null;
   try{ w = window.open('','_blank'); }catch(_){ w = null; }
   if(w){
+    // Some blockers return a NON-null proxy that silently swallows writes
+    // (no tab ever appears). A genuinely-open blank popup reads about:blank
+    // right after open('') — anything else is a discarded context: treat as
+    // blocked so the overlay fallback fires instead of writing into the void.
+    try{ if(w.location.href !== 'about:blank') w = null; }catch(_){ w = null; }
+  }
+  if(w){
     try{
       w.document.write('<body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#fff;font:14px -apple-system,\'Segoe UI\',sans-serif;color:#555">Preparing report…</body>');
       w.document.close();
