@@ -13914,9 +13914,10 @@ async function cmtDrillTest(v){
     .filter(k=>v_[k]!=null).map(k=>`${k.replace(/_/g,' ')}: ${v_[k]}`).join(' · ');
   const link = (fn,id,label) => `<span class="cmt-link" onclick="${fn}('${id}')">${cmtEsc(label)}</span>`;
   const photos = (s.photos||[]).length
-    ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">${(s.photos||[]).map(ph=>
-        `<img src="${cmtEsc(cmtStorageUrl(ph.path))}" style="height:110px;border-radius:6px;cursor:pointer" onclick="cmtDrillSheet('${cmtEsc(ph.path)}','photo')" alt="${cmtEsc(ph.key)}">`).join('')}</div>`
-    : `<div style="color:var(--muted);font-size:12px">No photos on this submission.</div>`;
+    ? `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">${(s.photos||[]).map(ph=>
+        `<figure style="margin:0;width:150px"><img src="${cmtEsc(cmtStorageUrl(ph.path))}" style="width:100%;border-radius:6px;cursor:pointer" onclick="cmtDrillSheet('${cmtEsc(ph.path)}','photo')" alt="${cmtEsc(ph.key)}"><figcaption style="font-size:10px;color:var(--muted)">${cmtEsc(ph.caption||ph.key||'')}</figcaption></figure>`).join('')}</div>`
+    : `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">${cmtPhotoWouldShow(t, v_).map(w=>
+        `<div style="width:150px;border:1.5px dashed var(--border);border-radius:6px;padding:14px 8px;text-align:center;color:var(--muted);font-size:10.5px;font-style:italic;box-sizing:border-box"><div style="font-size:18px;font-style:normal">📷</div>DEMO PLACEHOLDER<br>Field photo — ${cmtEsc(w)}</div>`).join('')}</div>`;
   document.getElementById('cmt-drill-body').innerHTML = `
     <div class="pd-header-grid">
       <div class="pd-stat"><div class="pd-stat-label">Project</div><div class="pd-stat-val">${link('cmtOpenProject', s.projects?.id, s.projects?.name||'—')}</div></div>
@@ -14290,6 +14291,22 @@ function rcChassis(title2, sub, info, body, formCode, opts){
         : `<span style="color:#aaa;font:italic 12px Georgia,serif">DRAWING — check a sheet under &ldquo;DRAWINGS / DOCUMENTS USED ON THIS VISIT&rdquo; on the form; it appears here with your highlighter marks</span>`}
     </div>
   </div>`}
+  ${(function(){
+    // §4 photo evidence (7/30): consume-once handoff set by cmtDocHtml. Real
+    // photos render as figures with captions; where none exist a DELIBERATE
+    // demo-styled placeholder states what the frame would show — an intentional
+    // placeholder reads as a demo, a broken image icon reads as a bug.
+    const ph = rcChassis._photos, pp = rcChassis._photoPh;
+    rcChassis._photos = null; rcChassis._photoPh = null;
+    const W = opts.pane ? '150px' : '230px';
+    if(ph && ph.length) return '<div style="margin-top:12px"><div style="font-weight:700;font-size:10.5px">FIELD PHOTOS</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">'
+      + ph.map(p=>`<figure style="margin:0;width:${W}"><img src="${p.url}" style="width:100%;border:1px solid #000">${p.caption?`<figcaption style="font-size:8.5px">${p.caption}</figcaption>`:''}</figure>`).join('')
+      + '</div></div>';
+    if(pp && pp.length) return '<div style="margin-top:12px"><div style="font-weight:700;font-size:10.5px">FIELD PHOTOS</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">'
+      + pp.map(cap=>`<div style="width:${W};border:1.5px dashed #999;border-radius:4px;padding:14px 8px;text-align:center;color:#777;font:italic 9.5px Georgia,serif;box-sizing:border-box"><div style="font-size:16px;font-style:normal">📷</div>DEMO PLACEHOLDER<br>${cap}</div>`).join('')
+      + '</div></div>';
+    return '';
+  })()}
   <div class="sig">Respectfully Submitted,<br><br><br><span class="line">${opts.sigLabel||'Special Inspector'}</span>${opts.sigExtra||''}</div>
   <div class="foot"><span>${formCode} ${c.form_rev||'Rv01'} · ${d.toLocaleString('en-US',{month:'short',year:'numeric'})}</span>
     <span>${c.address_line||''} ${c.website?'· '+c.website:''} ${c.phone?'· '+c.phone:''}</span>
@@ -14328,6 +14345,10 @@ function cmtDocHtml(t, v, ctx){
   const firm = ctx.firmName || 'FIRM';
   const prefix = rcCfg().form_prefix || 'FIRM';
   const pane = !!ctx.pane;
+  // §4: hand the photo evidence (or its honest placeholders) to the chassis —
+  // consume-once, so pour/DFR chassis calls without photos stay clean.
+  rcChassis._photos = (ctx.photos && ctx.photos.length) ? ctx.photos : null;
+  rcChassis._photoPh = (!rcChassis._photos && ctx.photoPlaceholders && ctx.photoPlaceholders.length) ? ctx.photoPlaceholders : null;
   const infoL = [['CLIENT', ctx.project?.client_name], ['PROJECT NAME', ctx.project?.name],
                  ['PROJECT ADDRESS', [ctx.project?.location, ctx.project?.city, ctx.project?.state].filter(Boolean).join(', ')],
                  ['AREA INSPECTED', v.area_inspected || v.area_sprayed || '']];
@@ -14588,6 +14609,33 @@ function cmtReportOverlay(html){
   document.getElementById('cmt-report-overlay-print').onclick = () => { try{ fr.contentWindow.focus(); fr.contentWindow.print(); }catch(_){} };
 }
 
+// §4: what the field photo WOULD show, per test type — drives the deliberate
+// placeholders in both the detail view and the formal report.
+function cmtPhotoWouldShow(t, v){
+  v = v || {};
+  const loc = v.location || v.area_sprayed || v.area_inspected || v.placement_location || v.element || '';
+  const at = loc ? ` — ${loc}` : '';
+  const map = {
+    concrete_slump: [`slump cone with rod, measured${v.truck_no?` — truck ${v.truck_no}`:''}`, 'batch ticket at the chute'],
+    concrete_air: ['pressure meter reading', 'batch ticket at the chute'],
+    concrete_temp: ['thermometer in the sample'],
+    concrete_unit_weight: ['measure and scale'],
+    concrete_cyl_cast: [`cylinder set, labeled molds${at}`, 'batch ticket at the chute'],
+    concrete_cyl_break: ['specimen after break — fracture type'],
+    soils_nuclear_density: [`density test location${at}`, 'gauge on test spot'],
+    soils_sand_cone: [`sand cone apparatus at test hole${at}`],
+    rebar_placement: [`steel as placed${at}`, 'bar tag / mill mark'],
+    weld_visual: [`completed weld${at}`, 'welder stencil / WPS posting'],
+    masonry_mortar: [`mortar specimens cast${at}`],
+    masonry_grout: [`grout lift and specimens${at}`],
+    masonry_prism: [`prisms as built${at}`],
+    sfrm_thickness: [`sprayed member with gauge in place${at}`],
+    sfrm_density: [`sample cut location${at}`],
+    site_inspection: [`general view of the work${at}`],
+  };
+  return map[t?.id] || [(t?.name||'test') + ' as performed' + at];
+}
+
 // post-submit mount: fetch the submission, build ctx, same renderer, popup
 async function cmtReport(id){
   const rw = cmtReportWindow();   // FIRST — while the click's activation is live
@@ -14611,6 +14659,9 @@ async function cmtReport(id){
       astmRef: s.astm_ref, astmYear: s.astm_year,
       passFlag: s.pass_flag, inspectorNote: s.inspector_note,
       submissionId: s.id, pane: false,
+      photos: (s.photos||[]).map(ph=>({url: cmtStorageUrl(ph.path), caption: ph.caption || ph.key || ''})),
+      photoPlaceholders: (s.photos||[]).length ? null
+        : ((s.test_types?.field_schema ? cmtPhotoWouldShow(s.test_types, v) : []).map(w=>'Field photo — '+w)),
     };
     rw.fill(cmtDocHtml(s.test_types, v, ctx));
   }catch(e){ rw.fail(e); }
