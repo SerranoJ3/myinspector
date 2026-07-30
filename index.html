@@ -1083,11 +1083,24 @@ html,body{overflow-x:hidden}
     <!-- SIDEBAR -->
     <div class="sidebar">
       <!-- PACK 01 (WATER) NAV — untouched default -->
-      <div id="nav-pack-water">
-      <div class="sidebar-section">Field Ops</div>
+      <!-- NAV-CORE (7/30 regroup): the shared ops skeleton — schedule/hours/PTO/guides
+           are pack-NEUTRAL and render for every workspace. applyPack never touches
+           this group. Role gating on each link preserved exactly as before the move. -->
+      <div id="nav-core">
+      <div class="sidebar-section">Operations</div>
       <div class="nav-link active" id="nav-dashboard" onclick="showPanel('dashboard')">
         <span class="nav-icon">📊</span> Dashboard
       </div>
+      <!-- MI-OPS-HE Unit 2: Hours / Expenses / PTO — visible to all roles. -->
+      <div class="nav-link" id="nav-hours-expenses" onclick="showPanel('hours-expenses')">
+        <span class="nav-icon">💰</span> Hours / Expenses
+      </div>
+      <div class="nav-link" id="nav-field-guides" onclick="showPanel('field-guides')">
+        <span class="nav-icon">📚</span> Field Guides
+      </div>
+      </div>
+      <div id="nav-pack-water">
+      <div class="sidebar-section">Field Ops</div>
       <div class="nav-link" id="nav-properties" onclick="showPanel('properties')">
         <span class="nav-icon">🏠</span> Properties
       </div>
@@ -1097,10 +1110,6 @@ html,body{overflow-x:hidden}
       <!-- MI-302 Unit 2: role-gated tab (super_admin + supervisor); inspector role hides via initApp. -->
       <div class="nav-link" id="nav-cm-pm" onclick="showPanel('cm-pm')" style="display:none">
         <span class="nav-icon">🏗️</span> Construction PM
-      </div>
-      <!-- MI-OPS-HE Unit 2: Hours / Expenses / PTO — visible to all roles. -->
-      <div class="nav-link" id="nav-hours-expenses" onclick="showPanel('hours-expenses')">
-        <span class="nav-icon">💰</span> Hours / Expenses
       </div>
       <div class="nav-link" id="nav-submit" onclick="showPanel('submit')">
         <span class="nav-icon">📋</span> Submit Phase
@@ -1114,9 +1123,6 @@ html,body{overflow-x:hidden}
       </div>
       <div class="nav-link" id="nav-herald" onclick="showPanel('herald')">
         <span class="nav-icon">🗞️</span> The Herald
-      </div>
-      <div class="nav-link" id="nav-field-guides" onclick="showPanel('field-guides')">
-        <span class="nav-icon">📚</span> Field Guides
       </div>
       <div class="nav-link" id="nav-certs" onclick="showPanel('certs')">
         <span class="nav-icon">🪪</span> Certs / Licenses
@@ -8527,7 +8533,11 @@ const fgEscape = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':
 async function loadFieldGuides(){
   fgShowIndex();
   const list = document.getElementById('fg-index-list');
-  const {data, error} = await sb.from('field_guides').select('*').is('deleted_at', null).order('display_order', {ascending: true});
+  // CORE-REGROUP (7/30): guides declare their vertical — a materials-testing
+  // firm never sees a water guide and vice versa. pack NULL = shown to all.
+  const {data, error} = await sb.from('field_guides').select('*').is('deleted_at', null)
+    .or(`pack.is.null,pack.eq.${ACTIVE_PACK}`)
+    .order('display_order', {ascending: true});
   if(error){
     list.innerHTML = `<div class="loading">Error loading field guides: ${fgEscape(error.message)}</div>`;
     return;
@@ -8590,8 +8600,12 @@ function renderFieldGuideDetail(){
     ${publishBtn}
   </div>${fgCurrentGuide.description ? `<div style="color:var(--muted);font-size:13px;margin-top:6px">${fgEscape(fgCurrentGuide.description)}</div>` : ''}`;
   if(!fgPages.length){
-    container.innerHTML = '<div class="loading">No pages yet for this guide. Awaiting source PDF upload + page seed (Jorge action).</div>';
-    indicator.textContent = '0 of 0';
+    // Tip-style guides (7/30 CMT seeds) carry their whole content in the
+    // description — a complete two-sentence craft point is not "awaiting" anything.
+    container.innerHTML = fgCurrentGuide.description
+      ? ''
+      : '<div class="loading">No pages yet for this guide. Awaiting source PDF upload + page seed (Jorge action).</div>';
+    indicator.textContent = fgCurrentGuide.description ? '' : '0 of 0';
     prevBtn.disabled = true;
     nextBtn.disabled = true;
     return;
@@ -11569,6 +11583,9 @@ const PACKS = {
 };
 
 function applyPack(){
+  // 7/30 REGROUP: applyPack toggles ONLY the two pack groups. #nav-core
+  // (Dashboard / Hours & Expenses / Field Guides) renders for every workspace
+  // and is never touched here — the CMT pack is a skin, not a missing skeleton.
   const cmt = ACTIVE_PACK === 'cmt';
   document.getElementById('nav-pack-water').style.display = cmt ? 'none' : '';
   document.getElementById('nav-pack-cmt').style.display = cmt ? '' : 'none';
@@ -11579,12 +11596,9 @@ function applyPack(){
   const wrap = document.getElementById('pack-toggle-wrap');
   wrap.style.display = canToggle ? '' : 'none';
   document.getElementById('pack-toggle').value = ACTIVE_PACK;
-  if(cmt){
-    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-    document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));
-    document.getElementById('panel-cmt-tests').classList.add('active');
-    document.getElementById('nav-cmt-tests').classList.add('active');
-  }
+  // Landing: BOTH packs open on the Dashboard — a firm owner opens the app to
+  // see the week, not a blank test form. (Dashboard nav-link carries the
+  // default 'active' class in markup; nothing to force here anymore.)
 }
 
 async function switchPack(pack){
