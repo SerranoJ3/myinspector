@@ -3577,6 +3577,11 @@ async function login(){
 // demo-tenant maintenance cron. Do NOT promote this function to production
 // main — demo branch stays separate forever per the demo-tenant policy.
 function loginAsDemo(){
+  // 7/30 acceptance finding: a stranger's browser has no pitch flag, so the
+  // public button used to open a REAL-write session on the demo tenant. The
+  // sim is the safety mechanism — arm it by default, same as the invite path.
+  // Deliberate staging keeps its escape hatch: the banner toggle turns it off.
+  try{ localStorage.setItem('mi_pitch_mode','on'); }catch(e){}
   const emailEl = document.getElementById('login-email');
   const passEl = document.getElementById('login-password');
   if(emailEl) emailEl.value = 'demo-jorge@myinspector.io';
