@@ -12899,11 +12899,14 @@ function cmtPourDocHtml(rep, entries, ctx, pane){
 }
 function cmtLedgerPrint(){
   if(!LEDGER.report) return;
-  const p = (CMT.projects||[]).find(x=>x.id===LEDGER.report.project_id) || {};
-  const ctx = {project:p, inspectorName: currentUser?.user_metadata?.full_name || ''};
-  const w = window.open('','_blank');
-  w.document.write(cmtPourDocHtml(LEDGER.report, LEDGER.entries, ctx, false));
-  w.document.close();
+  // sync path, but the null-open case (popup blocker) must never throw —
+  // cmtReportWindow falls back to the in-page overlay (P0 7/30 discipline)
+  const rw = cmtReportWindow();
+  try{
+    const p = (CMT.projects||[]).find(x=>x.id===LEDGER.report.project_id) || {};
+    const ctx = {project:p, inspectorName: currentUser?.user_metadata?.full_name || ''};
+    rw.fill(cmtPourDocHtml(LEDGER.report, LEDGER.entries, ctx, false));
+  }catch(e){ rw.fail(e); }
 }
 function cmtLedgerPaper(){
   const fr = document.getElementById('cmt-ledger-frame');
@@ -13182,12 +13185,13 @@ function cmtDfrPaper(){
 }
 function cmtDfrPrint(){
   if(!DFR.report || !DFR.parts) return;
-  const p = (CMT.projects||[]).find(x=>x.id===DFR.report.project_id) || {};
-  const ctx = {project:p, firmName: rcCfg().firm_display || 'FIRM',
-    inspectorName: currentUser?.user_metadata?.full_name || ''};
-  const w = window.open('','_blank');
-  w.document.write(cmtDfrDocHtml(DFR.report, DFR.parts, ctx, false));
-  w.document.close();
+  const rw = cmtReportWindow();   // same discipline: open first, never assume it succeeded
+  try{
+    const p = (CMT.projects||[]).find(x=>x.id===DFR.report.project_id) || {};
+    const ctx = {project:p, firmName: rcCfg().firm_display || 'FIRM',
+      inspectorName: currentUser?.user_metadata?.full_name || ''};
+    rw.fill(cmtDfrDocHtml(DFR.report, DFR.parts, ctx, false));
+  }catch(e){ rw.fail(e); }
 }
 
 // ── DEMO INVITES ADMIN (7/24) — one code per outreach email; activity = leads ─
@@ -14193,31 +14197,84 @@ function cmtDrawingImgs(dws, markupById){
     markup: (markupById||{})[d.id] || null }));
 }
 
+// ── POPUP DISCIPLINE (P0 7/30): the click's transient user-activation dies at
+// the first await — Chrome/Safari then silently return null from window.open.
+// Rule: open SYNCHRONOUSLY as the first act of the click path, fill async.
+// One helper owns the lifecycle: sync open + "Preparing report…" placeholder,
+// fill(html) into the live tab, fail(err) surfaces into it (never a blank tab),
+// and when open() returns null (hard blocker / in-app browser) BOTH paths fall
+// back to a full-screen in-page overlay with Print + Close — a demo never
+// dead-ends on a browser setting.
+function cmtReportWindow(){
+  let w = null;
+  try{ w = window.open('','_blank'); }catch(_){ w = null; }
+  if(w){
+    try{
+      w.document.write('<body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#fff;font:14px -apple-system,\'Segoe UI\',sans-serif;color:#555">Preparing report…</body>');
+      w.document.close();
+    }catch(_){}
+  }
+  return {
+    fill(html){
+      if(w && !w.closed){
+        try{ w.document.open(); w.document.write(html); w.document.close(); return; }catch(_){}
+      }
+      cmtReportOverlay(html);
+    },
+    fail(err){
+      const msg = String(err && err.message || err).replace(/</g,'&lt;');
+      const html = '<body style="font:13px monospace;color:#a01810;background:#fff;padding:24px"><div style="border:3px solid #a01810;padding:16px"><b>&#9888; REPORT BUILD ERROR</b><p>'+msg+'</p><p style="color:#333">Your data is safe in the database. Close this and retry.</p></div></body>';
+      if(w && !w.closed){
+        try{ w.document.open(); w.document.write(html); w.document.close(); return; }catch(_){}
+      }
+      showToast('Report build failed: '+msg, 'error');
+    },
+  };
+}
+function cmtReportOverlay(html){
+  const old = document.getElementById('cmt-report-overlay'); if(old) old.remove();
+  const ov = document.createElement('div');
+  ov.id = 'cmt-report-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.72);display:flex;flex-direction:column';
+  ov.innerHTML = `
+    <div style="flex:0 0 auto;display:flex;gap:8px;justify-content:flex-end;padding:10px 14px">
+      <button type="button" class="btn-sm btn-orange" id="cmt-report-overlay-print" style="min-height:44px">🖨 Print</button>
+      <button type="button" class="btn-sm" id="cmt-report-overlay-close" style="min-height:44px;background:#fff">✕ Close</button>
+    </div>
+    <iframe id="cmt-report-overlay-frame" title="Report" style="flex:1;border:0;background:#fff;width:100%"></iframe>`;
+  document.body.appendChild(ov);
+  const fr = document.getElementById('cmt-report-overlay-frame');
+  const doc = fr.contentDocument; doc.open(); doc.write(html); doc.close();
+  document.getElementById('cmt-report-overlay-close').onclick = () => ov.remove();
+  document.getElementById('cmt-report-overlay-print').onclick = () => { try{ fr.contentWindow.focus(); fr.contentWindow.print(); }catch(_){} };
+}
+
 // post-submit mount: fetch the submission, build ctx, same renderer, popup
 async function cmtReport(id){
-  const {data:s} = await sb.from('test_submissions')
-    .select('*, test_types(id,tab,name,field_schema), projects(name,client_name,location,city,state), firms(name,report_config)')
-    .eq('id',id).single();
-  if(!s){ showToast('Could not load submission','error'); return; }
-  currentFirmReportCfg = Object.assign({}, s.firms?.report_config || {}, {firm_display: s.firms?.name});
-  const v = s.field_data || {};
-  const {data:dws} = s.drawings_used && s.drawings_used.length
-    ? await sb.from('job_drawings').select('*').in('id', s.drawings_used) : {data: []};
-  const {data:pins} = await sb.from('element_pins').select('*').eq('submission_id', id).is('deleted_at',null);
-  await cmtPdfEnsureForDocs(dws);   // P1: vector sheets render print-grade before the doc builds
-  const ctx = {
-    project: s.projects, firmName: s.firms?.name || 'FIRM',
-    dateStr: new Date(s.submitted_at).toLocaleDateString(),
-    reportNo: s.report_no || s.id.slice(0,8),
-    inspectorName: currentUser?.user_metadata?.full_name || '',
-    drawings: dws||[], pins: pins||[], drawingImgs: cmtDrawingImgs(dws, (s.field_data||{}).plan_markup),
-    astmRef: s.astm_ref, astmYear: s.astm_year,
-    passFlag: s.pass_flag, inspectorNote: s.inspector_note,
-    submissionId: s.id, pane: false,
-  };
-  const html = cmtDocHtml(s.test_types, v, ctx);
-  const w = window.open('','_blank');
-  w.document.write(html); w.document.close();
+  const rw = cmtReportWindow();   // FIRST — while the click's activation is live
+  try{
+    const {data:s} = await sb.from('test_submissions')
+      .select('*, test_types(id,tab,name,field_schema), projects(name,client_name,location,city,state), firms(name,report_config)')
+      .eq('id',id).single();
+    if(!s){ rw.fail('Could not load the submission — it may have been removed.'); return; }
+    currentFirmReportCfg = Object.assign({}, s.firms?.report_config || {}, {firm_display: s.firms?.name});
+    const v = s.field_data || {};
+    const {data:dws} = s.drawings_used && s.drawings_used.length
+      ? await sb.from('job_drawings').select('*').in('id', s.drawings_used) : {data: []};
+    const {data:pins} = await sb.from('element_pins').select('*').eq('submission_id', id).is('deleted_at',null);
+    await cmtPdfEnsureForDocs(dws);   // P1: vector sheets render print-grade before the doc builds
+    const ctx = {
+      project: s.projects, firmName: s.firms?.name || 'FIRM',
+      dateStr: new Date(s.submitted_at).toLocaleDateString(),
+      reportNo: s.report_no || s.id.slice(0,8),
+      inspectorName: currentUser?.user_metadata?.full_name || '',
+      drawings: dws||[], pins: pins||[], drawingImgs: cmtDrawingImgs(dws, (s.field_data||{}).plan_markup),
+      astmRef: s.astm_ref, astmYear: s.astm_year,
+      passFlag: s.pass_flag, inspectorNote: s.inspector_note,
+      submissionId: s.id, pane: false,
+    };
+    rw.fill(cmtDocHtml(s.test_types, v, ctx));
+  }catch(e){ rw.fail(e); }
 }
 
 // ── AUTO AUTH ─────────────────────────────────────────
