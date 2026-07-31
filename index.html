@@ -1903,7 +1903,7 @@ html,body{overflow-x:hidden}
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
           <button class="btn-sm btn-orange" onclick="cmtOpenDrawingModal()">+ Register Sheet</button>
-          <button class="btn-sm" onclick="cmtRBImportOpen()">⇪ Bulk Import (CSV + files)</button>
+          <button class="btn-sm" onclick="openBulkImportFor('drawings')">⇪ Bulk Import (CSV/Excel + files)</button>
           <button class="btn-sm" onclick="cmtRBExportCsv()">⇩ Export CSV</button>
           <input class="modal-input" id="cmt-rb-filter" placeholder="Filter number / name / discipline…" style="flex:1;min-width:180px" oninput="cmtRBRenderList()">
           <select class="modal-select" id="cmt-rb-sort" style="width:150px" onchange="cmtRBRenderList()">
@@ -2061,24 +2061,8 @@ html,body{overflow-x:hidden}
   </div>
 </div>
 
-<!-- BULK IMPORT MODAL (7/31) — CSV + a folder of sheets → the whole register -->
-<div class="modal-overlay" id="modal-cmt-rb-import">
-  <div class="modal modal-lg">
-    <div class="modal-header">
-      <div class="modal-title">Bulk Import Register</div>
-      <button class="modal-close" onclick="closeModal('modal-cmt-rb-import')">✕</button>
-    </div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Drop the CSV and the sheet files together. Files match to rows by the <b>filename</b> column. <a class="cmt-link" onclick="cmtRBTemplateDownload()">↓ Download CSV template</a> so you never guess the columns.</div>
-    <div class="modal-row">
-      <div class="modal-field"><label class="modal-label">Register CSV</label>
-        <input type="file" accept=".csv,text/csv" id="cmt-rb-csv" onchange="cmtRBPreview()"></div>
-      <div class="modal-field"><label class="modal-label">Sheet files (multi-select — PDFs stay PDFs, photos raw)</label>
-        <input type="file" accept="image/*,application/pdf" id="cmt-rb-files" multiple onchange="cmtRBPreview()"></div>
-    </div>
-    <div id="cmt-rb-preview" style="max-height:44vh;overflow:auto;margin:8px 0"></div>
-    <button class="btn-sm btn-orange" id="cmt-rb-commit" style="display:none" onclick="cmtRBCommit()">Commit import</button>
-  </div>
-</div>
+<!-- The Review Board's bulk register import reuses the generalized #modal-bulk-import
+     engine (openBulkImportFor('drawings')) — no bespoke importer here. -->
 
 <!-- SHEET VIEWER (7/31) — full-screen review: zoom/pan/pages + record annotations + threads -->
 <div class="modal-overlay" id="modal-cmt-rb-viewer" style="align-items:stretch;justify-content:stretch;padding:0">
@@ -2253,8 +2237,8 @@ html,body{overflow-x:hidden}
   <div class="modal modal-lg">
     <div class="modal-header">
       <div>
-        <div class="modal-title">Bulk Import Properties</div>
-        <div class="modal-sub">Drop a CSV or Excel file. Minimum required: "address" column.</div>
+        <div class="modal-title" id="bi-title">Bulk Import Properties</div>
+        <div class="modal-sub" id="bi-sub">Drop a CSV or Excel file. Minimum required: "address" column.</div>
       </div>
       <button class="modal-close" onclick="closeModal('modal-bulk-import')">✕</button>
     </div>
@@ -2265,10 +2249,16 @@ html,body{overflow-x:hidden}
         <div class="bi-dropzone-title">Click or drop file here</div>
         <div class="bi-dropzone-sub">CSV, Excel (.xlsx/.xls), or TSV — max ~5MB</div>
       </label>
+      <!-- drawings-only: the sheet files matched to rows by the filename column (hidden for water) -->
+      <div id="bi-drawing-files-wrap" style="display:none;margin-top:10px">
+        <label class="modal-label">Sheet files (multi-select — PDFs stay PDFs, photos raw)</label>
+        <input type="file" id="bi-drawing-files" accept="image/*,application/pdf" multiple onchange="handleBulkDrawingFiles()">
+      </div>
       <div class="bi-hint">
-        <strong>Accepted column names</strong> (case-insensitive, any order):<br>
+        <span id="bi-hint-body"><strong>Accepted column names</strong> (case-insensitive, any order):<br>
         <code>address</code> (required) · <code>city</code> · <code>zip</code> · <code>lot_block</code> · <code>company_material</code> · <code>customer_material</code> · <code>mapcall_id</code><br>
-        Common variations like "street address", "town", "zipcode", "mapcall" also recognized.
+        Common variations like "street address", "town", "zipcode", "mapcall" also recognized.</span>
+        <div id="bi-template-wrap" style="display:none;margin-top:8px"><a class="cmt-link" onclick="biTemplateDownload()">↓ Download a template</a> so you never guess the columns.</div>
       </div>
     </div>
     <div id="bi-step-preview" style="display:none">
@@ -7801,29 +7791,64 @@ async function confirmHeraldUpload(){
   await loadHerald();
 }
 
-// ── BULK IMPORT ──────────────────────────────────────
+// ── BULK IMPORT (descriptor-driven engine) ─────────────────────────────────────
+// One import machine, N targets. handleBulkFile is generic (file → rows via SheetJS);
+// processBulkRows / renderBulkPreview / confirmBulkImport consult `biDescriptor`.
+// Water properties = descriptor #1 (byte-identical to the pre-refactor behavior);
+// the CMT drawing register = descriptor #2. Adding a target is data, not code.
 let bulkParsedRows = [];
+let biDescriptor = null;   // the active import target
+let bulkCtx = {};          // per-run context (dup keys, matched files, project id)
+let _biRawRows = null;     // last-parsed spreadsheet rows, kept so file-picks re-match
 
-function openBulkImport(){
+function openBulkImport(){ openBulkImportFor('properties'); }   // water entry (nav btn)
+
+function openBulkImportFor(key){
+  const d = IMPORT_TARGETS[key];
+  if(!d){ showToast('Unknown import target','error'); return; }
+  if(d.guard && !d.guard()) return;
+  biDescriptor = d;
   resetBulkImport();
+  applyBiChrome();
   document.getElementById('modal-bulk-import').classList.add('open');
   setupBulkDragDrop();
 }
 
+function applyBiChrome(){
+  const d = biDescriptor;
+  document.getElementById('bi-title').textContent = d.modalTitle;
+  document.getElementById('bi-sub').textContent = d.modalSub;
+  document.getElementById('bi-hint-body').innerHTML = d.hintHtml;
+  document.getElementById('bi-file').setAttribute('accept', d.accept);
+  document.getElementById('bi-drawing-files-wrap').style.display = d.showFileMatch ? '' : 'none';
+  document.getElementById('bi-template-wrap').style.display = d.templateCsv ? '' : 'none';
+}
+
+function biTemplateDownload(){
+  const d = biDescriptor; if(!d || !d.templateCsv) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([d.templateCsv()], {type:'text/csv'}));
+  a.download = d.templateName || 'template.csv'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+}
+
+// drawings: adding/removing sheet files after the register is parsed re-matches them
+function handleBulkDrawingFiles(){ if(_biRawRows) processBulkRows(_biRawRows); }
+
 function resetBulkImport(){
   bulkParsedRows = [];
+  _biRawRows = null;
   document.getElementById('bi-step-upload').style.display = 'block';
   document.getElementById('bi-step-preview').style.display = 'none';
   document.getElementById('bi-step-importing').style.display = 'none';
   document.getElementById('bi-step-done').style.display = 'none';
   document.getElementById('bi-file').value = '';
+  const df = document.getElementById('bi-drawing-files'); if(df) df.value = '';
 }
 
 function closeBulkImportAndReload(){
   closeModal('modal-bulk-import');
-  loadProperties();
-  loadPropertySelect();
-  loadDashboard();
+  if(biDescriptor && biDescriptor.onDone) biDescriptor.onDone();
 }
 
 function setupBulkDragDrop(){
@@ -7864,6 +7889,156 @@ function normalizeMaterial(val){
   return 'other';
 }
 
+// ── IMPORT TARGETS ─────────────────────────────────────────────────────────────
+// An import target declared as data. Contract:
+//   aliases        header→canonical map
+//   derive(m)      mutate the mapped row (computed fields) — optional
+//   buildContext() async, returns {} of run state (dup keys, matched files, project id) — optional
+//   rowStatus(r,ctx) → '' if importable, else the skip reason (r={rowNum,data}; may stash r.file)
+//   previewColumns [{label, get(data,row,ctx)}]
+//   commit(valid,ctx,setText) async → {successCount, failCount, failedRows[]}
+//   onDone()       reload the relevant surface after the modal closes
+const IMPORT_TARGETS = {
+  // #1 — WATER PROPERTIES. Behavior is byte-identical to the pre-refactor importer:
+  // same aliases, same address requirement + lot_block derivation, same 7 preview
+  // columns, same batched insert into properties. This is Jorge's live day-job path.
+  properties: {
+    key:'properties', pitchLabel:'bulk import',
+    modalTitle:'Bulk Import Properties',
+    modalSub:'Drop a CSV or Excel file. Minimum required: "address" column.',
+    hintHtml:'<strong>Accepted column names</strong> (case-insensitive, any order):<br>'+
+      '<code>address</code> (required) · <code>city</code> · <code>zip</code> · <code>lot_block</code> · <code>company_material</code> · <code>customer_material</code> · <code>mapcall_id</code><br>'+
+      'Common variations like "street address", "town", "zipcode", "mapcall" also recognized.',
+    accept:'.csv,.xlsx,.xls,.tsv', showFileMatch:false,
+    summaryNoun:'properties',
+    confirmLabel:n=>`Import ${n} Properties`,
+    skipSummary:sk=>`${sk.length} row(s) will be skipped (missing address).`,
+    aliases:BI_COLUMN_ALIASES,
+    derive(m){ if(!m.lot_block && (m.lot || m.block)){ m.lot_block = [m.lot, m.block].filter(Boolean).join('-'); } },
+    rowStatus(r){ return r.data.address ? '' : 'Missing address'; },
+    previewColumns:[
+      {label:'Address', get:d=>d.address||'—'},
+      {label:'City', get:d=>d.city||d.municipality||'—'},
+      {label:'Zip', get:d=>d.zip||'—'},
+      {label:'Lot/Block', get:d=>d.lot_block||'—'},
+      {label:'Company Mat', get:d=>normalizeMaterial(d.company_material)},
+      {label:'Customer Mat', get:d=>normalizeMaterial(d.customer_material)},
+      {label:'Map ID', get:d=>d.mapcall_id||'—'},
+    ],
+    async commit(valid, ctx, setText){
+      const payloads = valid.map(r => ({
+        address: r.data.address,
+        city: r.data.city || null,
+        state: r.data.state || 'NJ',
+        zip: r.data.zip || null,
+        municipality: r.data.municipality || r.data.city || null,
+        lot_block: r.data.lot_block || null,
+        company_material: normalizeMaterial(r.data.company_material),
+        customer_material: normalizeMaterial(r.data.customer_material),
+        mapcall_id: r.data.mapcall_id || null,
+        current_phase: 'test_pit',
+        firm_id: currentFirmId
+      }));
+      let successCount = 0, failCount = 0; const failedRows = [];
+      const BATCH = 50;
+      for(let i = 0; i < payloads.length; i += BATCH){
+        const chunk = payloads.slice(i, i + BATCH);
+        setText(`Importing... ${Math.min(i+BATCH, payloads.length)} of ${payloads.length}`);
+        const {error} = await sb.from('properties').insert(chunk);
+        if(error){ failCount += chunk.length; failedRows.push(error.message); console.error('Bulk import chunk error:', error); }
+        else { successCount += chunk.length; }
+      }
+      return {successCount, failCount, failedRows};
+    },
+    onDone(){ loadProperties(); loadPropertySelect(); loadDashboard(); },
+  },
+
+  // #2 — CMT DRAWING REGISTER. Excel/CSV register + an optional folder of sheet files
+  // matched to rows by the filename column. Every file rides the existing ingest law
+  // (cmtIngestSheetFile — PDFs stay PDFs, photos raw, 300-DPI sidecar). A duplicate of an
+  // existing number+rev is flagged and skipped, never overwritten; a bad row reports its
+  // number and does not abort the good ones.
+  drawings: {
+    key:'drawings', pitchLabel:'register import',
+    modalTitle:'Bulk Import Drawing Register',
+    modalSub:'Drop a CSV or Excel register — add the sheet files too and they match by the filename column. Required: "number".',
+    hintHtml:'<strong>Accepted columns</strong> (case-insensitive, any order):<br>'+
+      '<code>number</code> (required) · <code>name</code> · <code>dtype</code> (drawing|document) · <code>rev_no</code> · <code>rev_date</code> · <code>approved</code> · <code>noted</code> · <code>filename</code> (matches an uploaded sheet)<br>'+
+      'A duplicate of an existing <b>number + revision</b> is flagged and skipped — a revision is never silently overwritten.',
+    accept:'.csv,.xlsx,.xls,.tsv', showFileMatch:true,
+    summaryNoun:'sheets',
+    confirmLabel:n=>`Import ${n} Sheet${n===1?'':'s'}`,
+    skipSummary(sk){ const dup = sk.filter(r=>/^DUPLICATE/.test(r.reason)).length; const err = sk.length - dup;
+      return ` ${sk.length} row(s) skipped (${dup} duplicate${dup===1?'':'s'} — no overwrite, ${err} error${err===1?'':'s'}).`; },
+    aliases:{
+      'number':'number','sheet':'number','sheet number':'number','sheet no':'number','sheet no.':'number',
+      'drawing number':'number','drawing no':'number','dwg':'number','dwg no':'number','dwg number':'number','no':'number','no.':'number',
+      'name':'name','title':'name','sheet name':'name','sheet title':'name','drawing name':'name','description':'name',
+      'dtype':'dtype','type':'dtype','discipline':'dtype','category':'dtype',
+      'rev_no':'rev_no','rev':'rev_no','revision':'rev_no','rev no':'rev_no','rev no.':'rev_no','rev number':'rev_no','revision no':'rev_no',
+      'rev_date':'rev_date','revision date':'rev_date','rev date':'rev_date','date':'rev_date','issued':'rev_date','issue date':'rev_date',
+      'approved':'approved','approved for construction':'approved','afc':'approved','approval':'approved',
+      'noted':'noted','reviewed as noted':'noted','as noted':'noted','noted status':'noted',
+      'filename':'filename','file':'filename','file name':'filename','sheet file':'filename','pdf':'filename','attachment':'filename',
+    },
+    async buildContext(){
+      const files = {};
+      [...(document.getElementById('bi-drawing-files')?.files || [])].forEach(f => files[f.name.toLowerCase()] = f);
+      const pid = document.getElementById('cmt-project-select')?.value || null;
+      let dup = new Set();
+      if(pid){
+        const {data} = await sb.from('job_drawings').select('number,rev_no').eq('project_id', pid).is('deleted_at', null);
+        dup = new Set((data||[]).map(d => (d.number||'') + '|' + (d.rev_no||'')));
+      }
+      return {files, dup, pid};
+    },
+    rowStatus(r, ctx){
+      const d = r.data;
+      if(!d.number) return 'Missing number';
+      if(d.filename){ r.file = ctx.files[d.filename.toLowerCase()]; if(!r.file) return `file "${d.filename}" not uploaded`; }
+      if(ctx.dup.has((d.number||'') + '|' + (d.rev_no||''))) return `DUPLICATE — ${d.number} rev ${d.rev_no||'(none)'} on file`;
+      return '';
+    },
+    previewColumns:[
+      {label:'Number', get:d=>d.number||'—'},
+      {label:'Name', get:d=>d.name||'—'},
+      {label:'Type', get:d=>(d.dtype==='document'?'document':'drawing')},
+      {label:'Rev', get:d=>d.rev_no||'—'},
+      {label:'File', get:(d,r)=>d.filename ? (r.file ? ('✔ '+d.filename) : ('✕ '+d.filename)) : '—'},
+    ],
+    async commit(valid, ctx, setText){
+      let successCount = 0, failCount = 0; const failedRows = [];
+      for(const r of valid){
+        const d = r.data;
+        try {
+          let imagePath = null;
+          if(r.file){ setText('Uploading '+(d.filename||d.number)+'…'); imagePath = await cmtIngestSheetFile(r.file); }
+          else { setText('Importing '+d.number+'…'); }
+          const {error} = await sb.from('job_drawings').insert({
+            firm_id: currentFirmId, project_id: ctx.pid, image_path: imagePath,
+            dtype: (d.dtype==='document' ? 'document' : 'drawing'),
+            number: d.number, name: d.name||null, rev_no: d.rev_no||null, rev_date: d.rev_date||null,
+            approved: /^(true|yes|1|y|approved)$/i.test(d.approved||''),
+            noted: /^(true|yes|1|y|noted)$/i.test(d.noted||''),
+            created_by: currentUser?.id || null
+          });
+          if(error) throw error; successCount++;
+        } catch(e){ failCount++; failedRows.push('row '+r.rowNum+': '+(e.message||e)); }
+      }
+      return {successCount, failCount, failedRows};
+    },
+    onDone(){ if(typeof cmtRBLoad==='function') cmtRBLoad(); if(typeof cmtLoadDrawings==='function') cmtLoadDrawings(); if(typeof cmtFillDrawings==='function') cmtFillDrawings(); },
+    guard(){ if(!document.getElementById('cmt-project-select')?.value){ showToast('Pick a project on the Tests page first','error'); return false; } return true; },
+    templateName:'register_template.csv',
+    templateCsv:()=>[
+      'number,name,dtype,rev_no,rev_date,approved,noted,filename',
+      'S-101,Foundation Plan,drawing,1,2026-10-12,true,false,S-101.pdf',
+      'S-201,Framing Plan Level 2,drawing,2,2026-10-14,false,true,S-201.pdf',
+      'SPEC-033000,Cast-in-Place Concrete,document,1,,true,false,',
+    ].join('\n'),
+  },
+};
+
 async function handleBulkFile(event){
   const file = event.target.files?.[0];
   if(!file) return;
@@ -7879,11 +8054,14 @@ async function handleBulkFile(event){
   }
 }
 
-function processBulkRows(rawRows){
+async function processBulkRows(rawRows){
+  const d = biDescriptor;
+  _biRawRows = rawRows;
+  bulkCtx = d.buildContext ? await d.buildContext() : {};
   const firstRow = rawRows[0];
   const headerMap = {};
   Object.keys(firstRow).forEach(h => {
-    const canonical = BI_COLUMN_ALIASES[String(h).toLowerCase().trim()];
+    const canonical = d.aliases[String(h).toLowerCase().trim()];
     if(canonical) headerMap[h] = canonical;
   });
 
@@ -7893,22 +8071,18 @@ function processBulkRows(rawRows){
       const canon = headerMap[h];
       if(canon) mapped[canon] = String(row[h]||'').trim();
     });
-    if(!mapped.lot_block && (mapped.lot || mapped.block)){
-      mapped.lot_block = [mapped.lot, mapped.block].filter(Boolean).join('-');
-    }
-    const skip = !mapped.address;
-    return {
-      rowNum: idx+2,
-      data: mapped,
-      skip,
-      reason: skip ? 'Missing address' : ''
-    };
+    if(d.derive) d.derive(mapped);
+    const r = { rowNum: idx+2, data: mapped, skip:false, reason:'' };
+    const reason = d.rowStatus(r, bulkCtx);
+    r.skip = !!reason; r.reason = reason || '';
+    return r;
   });
 
   renderBulkPreview();
 }
 
 function renderBulkPreview(){
+  const d = biDescriptor;
   document.getElementById('bi-step-upload').style.display = 'none';
   document.getElementById('bi-step-preview').style.display = 'block';
 
@@ -7916,79 +8090,46 @@ function renderBulkPreview(){
   const skipped = bulkParsedRows.filter(r => r.skip);
 
   document.getElementById('bi-summary').innerHTML =
-    `<div><span class="alert-title">${valid.length} properties ready to import</span>` +
-    (skipped.length ? `${skipped.length} row(s) will be skipped (missing address).` : `All rows valid.`) +
+    `<div><span class="alert-title">${valid.length} ${d.summaryNoun} ready to import</span>` +
+    (skipped.length ? d.skipSummary(skipped) : `All rows valid.`) +
     `</div>`;
 
   document.getElementById('bi-confirm-btn').textContent =
-    valid.length ? `Import ${valid.length} Properties` : 'Nothing to Import';
+    valid.length ? d.confirmLabel(valid.length) : 'Nothing to Import';
   document.getElementById('bi-confirm-btn').disabled = !valid.length;
 
-  let html = '<thead><tr><th>#</th><th>Address</th><th>City</th><th>Zip</th><th>Lot/Block</th><th>Company Mat</th><th>Customer Mat</th><th>Map ID</th><th>Status</th></tr></thead><tbody>';
+  let html = '<thead><tr><th>#</th>' + d.previewColumns.map(c=>`<th>${c.label}</th>`).join('') + '<th>Status</th></tr></thead><tbody>';
   bulkParsedRows.forEach(r => {
-    const d = r.data;
-    html += `<tr class="${r.skip?'bi-skip':''}">
-      <td>${r.rowNum}</td>
-      <td>${d.address||'—'}</td>
-      <td>${d.city||d.municipality||'—'}</td>
-      <td>${d.zip||'—'}</td>
-      <td>${d.lot_block||'—'}</td>
-      <td>${normalizeMaterial(d.company_material)}</td>
-      <td>${normalizeMaterial(d.customer_material)}</td>
-      <td>${d.mapcall_id||'—'}</td>
-      <td>${r.skip?r.reason:'✓'}</td>
-    </tr>`;
+    html += `<tr class="${r.skip?'bi-skip':''}">` +
+      `<td>${r.rowNum}</td>` +
+      d.previewColumns.map(c=>`<td>${c.get(r.data, r, bulkCtx)}</td>`).join('') +
+      `<td>${r.skip?r.reason:'✓'}</td>` +
+    `</tr>`;
   });
   html += '</tbody>';
   document.getElementById('bi-preview-table').innerHTML = html;
 }
 
 async function confirmBulkImport(){
-  if(pitchModeBlocked('bulk import')) return;
+  const d = biDescriptor;
+  if(pitchModeBlocked(d.pitchLabel)) return;
   const valid = bulkParsedRows.filter(r => !r.skip);
   if(!valid.length) return;
 
   document.getElementById('bi-step-preview').style.display = 'none';
   document.getElementById('bi-step-importing').style.display = 'block';
+  const setText = t => { document.getElementById('bi-importing-text').textContent = t; };
 
-  const payloads = valid.map(r => ({
-    address: r.data.address,
-    city: r.data.city || null,
-    state: r.data.state || 'NJ',
-    zip: r.data.zip || null,
-    municipality: r.data.municipality || r.data.city || null,
-    lot_block: r.data.lot_block || null,
-    company_material: normalizeMaterial(r.data.company_material),
-    customer_material: normalizeMaterial(r.data.customer_material),
-    mapcall_id: r.data.mapcall_id || null,
-    current_phase: 'test_pit',
-    firm_id: currentFirmId
-  }));
-
-  let successCount = 0;
-  let failCount = 0;
-  const failedRows = [];
-  const BATCH = 50;
-  for(let i = 0; i < payloads.length; i += BATCH){
-    const chunk = payloads.slice(i, i + BATCH);
-    document.getElementById('bi-importing-text').textContent =
-      `Importing... ${Math.min(i+BATCH, payloads.length)} of ${payloads.length}`;
-    const {error} = await sb.from('properties').insert(chunk);
-    if(error){
-      failCount += chunk.length;
-      failedRows.push(error.message);
-      console.error('Bulk import chunk error:', error);
-    } else {
-      successCount += chunk.length;
-    }
-  }
+  let res;
+  try { res = await d.commit(valid, bulkCtx, setText); }
+  catch(e){ res = {successCount:0, failCount:valid.length, failedRows:[e.message||String(e)]}; console.error('Bulk import error:', e); }
 
   document.getElementById('bi-step-importing').style.display = 'none';
   document.getElementById('bi-step-done').style.display = 'block';
   document.getElementById('bi-done-summary').innerHTML =
     `<div><span class="alert-title">Import complete</span>` +
-    `${successCount} imported successfully` +
-    (failCount ? ` · ${failCount} failed (${failedRows[0]||'see console'})` : '') +
+    `${res.successCount} imported successfully` +
+    (res.failCount ? ` · ${res.failCount} failed (${res.failedRows[0]||'see console'})` : '') +
     `.</div>`;
 }
 
@@ -14256,93 +14397,18 @@ function cmtRBRenderList(){
       <td><button class="btn-sm" onclick="event.stopPropagation();cmtRBOpen('${d.id}')">Open</button></td></tr>`).join('')+'</table>';
 }
 
-// ── CSV import ────────────────────────────────────────────────────────────────
-const RB_CSV_COLS = ['number','name','dtype','rev_no','rev_date','approved','noted','filename'];
-function cmtRBTemplateDownload(){
-  const sample = RB_CSV_COLS.join(',') + '\n' +
-    'S-101,Foundation Plan,drawing,1,2026-10-12,true,false,S-101.pdf\n' +
-    'S-201,Framing Plan Level 2,drawing,2,2026-10-14,false,true,S-201.pdf\n' +
-    'SPEC-033000,Cast-in-Place Concrete,document,1,,true,false,\n';
-  const blob = new Blob([sample], {type:'text/csv'});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'register_template.csv'; a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
-}
-function cmtRBImportOpen(){
-  if(!document.getElementById('cmt-project-select')?.value){ showToast('Pick a project on the Tests page first','error'); return; }
-  document.getElementById('cmt-rb-csv').value=''; document.getElementById('cmt-rb-files').value='';
-  document.getElementById('cmt-rb-preview').innerHTML=''; document.getElementById('cmt-rb-commit').style.display='none';
-  document.getElementById('modal-cmt-rb-import').classList.add('open');
-}
-function cmtRBParseCsv(text){
-  // minimal RFC-ish CSV: handles quoted fields + commas inside quotes
-  const lines = text.replace(/\r\n?/g,'\n').split('\n').filter(l=>l.trim().length);
-  const parseLine = l => { const out=[]; let cur='', q=false; for(let i=0;i<l.length;i++){ const c=l[i];
-    if(q){ if(c==='"'){ if(l[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c; }
-    else { if(c===','){out.push(cur);cur='';} else if(c==='"')q=true; else cur+=c; } } out.push(cur); return out; };
-  const header = parseLine(lines[0]).map(h=>h.trim().toLowerCase());
-  return lines.slice(1).map((l,i)=>{ const cells=parseLine(l); const row={_line:i+2}; header.forEach((h,ci)=>row[h]=(cells[ci]||'').trim()); return row; });
-}
-async function cmtRBPreview(){
-  const csvF = document.getElementById('cmt-rb-csv').files[0];
-  const files = [...document.getElementById('cmt-rb-files').files];
-  const box = document.getElementById('cmt-rb-preview');
-  if(!csvF){ box.innerHTML='<div class="loading">Choose a CSV to preview.</div>'; return; }
-  const text = await csvF.text();
-  let rows; try{ rows = cmtRBParseCsv(text); }catch(e){ box.innerHTML='<div class="loading">CSV parse error: '+rbEsc(e.message)+'</div>'; return; }
-  const fileByName = {}; files.forEach(f=>fileByName[f.name.toLowerCase()]=f);
-  const pid = document.getElementById('cmt-project-select').value;
-  const {data:existing} = await sb.from('job_drawings').select('number,rev_no').eq('project_id',pid).is('deleted_at',null);
-  const dupKey = new Set((existing||[]).map(d=>(d.number||'')+'|'+(d.rev_no||'')));
-  RB._importRows = [];
-  const trs = rows.map(r=>{
-    const errs = [];
-    if(!r.number) errs.push('missing number');
-    const isDup = dupKey.has((r.number||'')+'|'+(r.rev_no||''));
-    let fmatch = null;
-    if(r.filename){ fmatch = fileByName[r.filename.toLowerCase()]; if(!fmatch) errs.push('file "'+r.filename+'" not uploaded'); }
-    const ok = errs.length===0 && !isDup;
-    if(ok || (!errs.length && isDup)) RB._importRows.push({ r, file:fmatch, dup:isDup });
-    return `<tr style="border-top:1px solid var(--border);font-size:12px;${errs.length?'color:#ff8a7d':isDup?'color:#e69500':''}">
-      <td style="padding:4px 8px">${r._line}</td><td>${rbEsc(r.number||'—')}</td><td>${rbEsc(r.name||'')}</td>
-      <td>${rbEsc(r.rev_no||'')}</td><td>${r.filename?(fmatch?'✔ '+rbEsc(r.filename):'✕ '+rbEsc(r.filename)):'—'}</td>
-      <td>${errs.length?('ERROR: '+errs.join('; ')):isDup?'DUPLICATE (skipped — no overwrite)':'✔ will create'}</td></tr>`;
-  }).join('');
-  const willCreate = RB._importRows.filter(x=>!x.dup).length;
-  box.innerHTML = `<div style="font-size:12px;color:var(--muted);margin-bottom:6px">${rows.length} rows · <b style="color:#7dff9e">${willCreate} to create</b> · ${RB._importRows.filter(x=>x.dup).length} duplicates skipped · ${rows.length-RB._importRows.length} errors</div>`+
-    '<table style="width:100%"><tr style="color:var(--muted);text-align:left;font-size:11px"><th style="padding:4px 8px">Row</th><th>Number</th><th>Name</th><th>Rev</th><th>File</th><th>Status</th></tr>'+trs+'</table>';
-  document.getElementById('cmt-rb-commit').style.display = willCreate>0 ? '' : 'none';
-  document.getElementById('cmt-rb-commit').textContent = 'Commit import ('+willCreate+' sheets)';
-}
-async function cmtRBCommit(){
-  const pid = document.getElementById('cmt-project-select').value;
-  const btn = document.getElementById('cmt-rb-commit'); btn.disabled = true;
-  let ok=0, fail=0; const fails=[];
-  for(const {r, file, dup} of (RB._importRows||[])){
-    if(dup) continue;
-    try{
-      let imagePath = null;
-      if(file){ btn.textContent = 'Uploading '+(r.filename||r.number)+'…'; imagePath = await cmtIngestSheetFile(file); }
-      const {error} = await sb.from('job_drawings').insert({
-        firm_id: currentFirmId, project_id: pid, image_path: imagePath,
-        dtype: (r.dtype==='document'?'document':'drawing'),
-        number: r.number, name: r.name||null, rev_no: r.rev_no||null, rev_date: r.rev_date||null,
-        approved: /^(true|yes|1|y)$/i.test(r.approved||''), noted: /^(true|yes|1|y)$/i.test(r.noted||''),
-        created_by: currentUser.id });
-      if(error) throw error; ok++;
-    }catch(e){ fail++; fails.push('row '+r._line+': '+(e.message||e)); }
-  }
-  btn.disabled=false; closeModal('modal-cmt-rb-import');
-  showToast(`Imported ${ok} sheet(s)`+(fail?`; ${fail} failed (${fails[0]||''})`:''), fail?'error':'success');
-  cmtRBLoad(); cmtLoadDrawings(); cmtFillDrawings();
-}
+// ── register export ────────────────────────────────────────────────────────────
+// Register OUT (a firm that can export what it imported trusts the import). The
+// register IN path is the generalized importer — openBulkImportFor('drawings').
 async function cmtRBExportCsv(){
   const pid = document.getElementById('cmt-project-select')?.value;
   if(!pid){ showToast('Pick a project first','error'); return; }
   const {data} = await sb.from('job_drawings').select('*').eq('project_id',pid).is('deleted_at',null).order('number');
+  const cols = ['number','name','dtype','rev_no','rev_date','approved','noted','filename'];
   const esc = v => { v = v==null?'':String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
   const rows = (data||[]).map(d=>[d.number,d.name,d.dtype,d.rev_no,d.rev_date,d.approved,d.noted,
     d.image_path?d.image_path.split('/').pop():''].map(esc).join(','));
-  const csv = RB_CSV_COLS.join(',')+'\n'+rows.join('\n');
+  const csv = cols.join(',')+'\n'+rows.join('\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='register_export.csv'; a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),2000);
 }
