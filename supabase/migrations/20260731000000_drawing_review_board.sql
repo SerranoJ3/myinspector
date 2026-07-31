@@ -1,0 +1,5 @@
+-- DRAWING REVIEW BOARD (CC_ORDER 7/31, Abdool's one request). Annotations are
+-- RECORDS not baked pixels: editable/deletable/listable/threaded/resolvable.
+-- MI-202 pattern: firm_id + forced RLS + active_firm/super_admin + audit triggers.
+-- (Applied to prod via MCP; mirrored here.) See drawing_annotations +
+-- drawing_annotation_replies with per-firm RLS + audit triggers ×3/×2.

@@ -1146,6 +1146,9 @@ html,body{overflow-x:hidden}
       <div class="nav-link" id="nav-cmt-specs" onclick="showPanel('cmt-specs')">
         <span class="nav-icon">📐</span> Job Specs
       </div>
+      <div class="nav-link" id="nav-cmt-review-board" onclick="showPanel('cmt-review-board');cmtRBLoad()">
+        <span class="nav-icon">📐</span> Review Board
+      </div>
       <div class="nav-link" id="nav-cmt-certs" onclick="showPanel('cmt-certs')">
         <span class="nav-icon">🎓</span> Certifications
       </div>
@@ -1892,6 +1895,27 @@ html,body{overflow-x:hidden}
         <div class="table-wrap"><div id="cmt-certs-list"><div class="loading">Loading…</div></div></div>
       </div>
 
+      <!-- REVIEW BOARD (7/31, Abdool's request) — first-class review surface -->
+      <div class="panel" id="panel-cmt-review-board">
+        <div class="page-header">
+          <div class="page-title">Review Board</div>
+          <div class="page-sub">Open a sheet, read it, mark it up. Import a whole register at once; export it back out.</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+          <button class="btn-sm btn-orange" onclick="cmtOpenDrawingModal()">+ Register Sheet</button>
+          <button class="btn-sm" onclick="cmtRBImportOpen()">⇪ Bulk Import (CSV + files)</button>
+          <button class="btn-sm" onclick="cmtRBExportCsv()">⇩ Export CSV</button>
+          <input class="modal-input" id="cmt-rb-filter" placeholder="Filter number / name / discipline…" style="flex:1;min-width:180px" oninput="cmtRBRenderList()">
+          <select class="modal-select" id="cmt-rb-sort" style="width:150px" onchange="cmtRBRenderList()">
+            <option value="number">Sort: Number</option>
+            <option value="name">Sort: Name</option>
+            <option value="rev">Sort: Revision</option>
+            <option value="date">Sort: Date</option>
+          </select>
+        </div>
+        <div class="table-wrap"><div id="cmt-rb-list"><div class="loading">Pick a project on the Tests page, then open the Review Board.</div></div></div>
+      </div>
+
       <div class="panel" id="panel-cmt-log">
         <div class="page-header">
           <div class="page-title">Test Log</div>
@@ -2034,6 +2058,59 @@ html,body{overflow-x:hidden}
     <div class="modal-field"><label class="modal-label">📐 Drawing — PDF straight from the engineer (best: infinite zoom) or a photo/scan (kept at full resolution)</label>
       <input type="file" accept="image/*,application/pdf" id="cmtdw-image"></div>
     <button class="btn-sm btn-orange" onclick="cmtSaveDrawing()">Register</button>
+  </div>
+</div>
+
+<!-- BULK IMPORT MODAL (7/31) — CSV + a folder of sheets → the whole register -->
+<div class="modal-overlay" id="modal-cmt-rb-import">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">Bulk Import Register</div>
+      <button class="modal-close" onclick="closeModal('modal-cmt-rb-import')">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Drop the CSV and the sheet files together. Files match to rows by the <b>filename</b> column. <a class="cmt-link" onclick="cmtRBTemplateDownload()">↓ Download CSV template</a> so you never guess the columns.</div>
+    <div class="modal-row">
+      <div class="modal-field"><label class="modal-label">Register CSV</label>
+        <input type="file" accept=".csv,text/csv" id="cmt-rb-csv" onchange="cmtRBPreview()"></div>
+      <div class="modal-field"><label class="modal-label">Sheet files (multi-select — PDFs stay PDFs, photos raw)</label>
+        <input type="file" accept="image/*,application/pdf" id="cmt-rb-files" multiple onchange="cmtRBPreview()"></div>
+    </div>
+    <div id="cmt-rb-preview" style="max-height:44vh;overflow:auto;margin:8px 0"></div>
+    <button class="btn-sm btn-orange" id="cmt-rb-commit" style="display:none" onclick="cmtRBCommit()">Commit import</button>
+  </div>
+</div>
+
+<!-- SHEET VIEWER (7/31) — full-screen review: zoom/pan/pages + record annotations + threads -->
+<div class="modal-overlay" id="modal-cmt-rb-viewer" style="align-items:stretch;justify-content:stretch;padding:0">
+  <div style="position:fixed;inset:0;display:flex;flex-direction:column;background:#0d1117">
+    <div style="flex:0 0 auto;display:flex;gap:6px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+      <button class="btn-sm" onclick="cmtRBViewerClose()">← Register</button>
+      <span id="cmt-rb-vtitle" style="font-weight:700;color:var(--white);font-size:14px"></span>
+      <span style="flex:1"></span>
+      <button class="btn-sm" onclick="cmtRBStep(-1)" title="Previous sheet">‹ prev</button>
+      <button class="btn-sm" onclick="cmtRBStep(1)" title="Next sheet">next ›</button>
+      <button class="btn-sm" id="cmt-rb-pageprev" style="display:none" onclick="cmtRBPage(-1)">◀ pg</button>
+      <span id="cmt-rb-pagelabel" style="display:none;font-size:12px;color:var(--muted)"></span>
+      <button class="btn-sm" id="cmt-rb-pagenext" style="display:none" onclick="cmtRBPage(1)">pg ▶</button>
+      <button class="btn-sm" onclick="cmtRBZoom(0.7)">🔍+</button>
+      <button class="btn-sm" onclick="cmtRBZoom(1.4)">🔍−</button>
+      <button class="btn-sm" onclick="cmtRBFit('width')">↔ width</button>
+      <button class="btn-sm" onclick="cmtRBFit('page')">⤢ page</button>
+      <button class="btn-sm btn-orange" onclick="cmtRBExportPdf()">⇩ PDF</button>
+    </div>
+    <div style="flex:1;display:flex;min-height:0">
+      <div id="cmt-rb-stage" style="flex:1;position:relative;overflow:hidden;background:#161b22"></div>
+      <div id="cmt-rb-side" style="flex:0 0 300px;max-width:44vw;border-left:1px solid var(--border);overflow-y:auto;padding:8px;background:#0d1117"></div>
+    </div>
+    <div style="flex:0 0 auto;display:flex;gap:6px;padding:8px 10px;border-top:1px solid var(--border);flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--muted);align-self:center">Markup:</span>
+      <button class="btn-sm" data-tool="arrow" onclick="cmtRBTool('arrow')">↗ arrow</button>
+      <button class="btn-sm" data-tool="box" onclick="cmtRBTool('box')">▭ box</button>
+      <button class="btn-sm" data-tool="cloud" onclick="cmtRBTool('cloud')">☁ cloud</button>
+      <button class="btn-sm" data-tool="freehand" onclick="cmtRBTool('freehand')">✎ freehand</button>
+      <button class="btn-sm" data-tool="text" onclick="cmtRBTool('text')">T text</button>
+      <button class="btn-sm" onclick="cmtRBTool(null)">✋ pan</button>
+    </div>
   </div>
 </div>
 
@@ -14082,29 +14159,36 @@ function cmtAddPinRow(){
   box.appendChild(div);
 }
 function cmtOpenDrawingModal(){ document.getElementById('modal-cmt-drawing').classList.add('open'); }
+// P1 INGEST LAW (punch 7/23) — the ONE upload path, extracted so single-save AND
+// bulk import share it byte-for-byte. PDFs stay PDFs (vector = infinite zoom,
+// rendered on demand); photos upload as the RAW file, never downscaled. The
+// C-501 lesson: rasterizing a vector sheet at ingest destroys the drawing.
+// DO NOT add any resize/rasterize step here. Returns the storage image_path.
+async function cmtIngestSheetFile(f, statusCb){
+  const isPdf = f.type==='application/pdf' || /\.pdf$/i.test(f.name);
+  const ext = isPdf ? 'pdf' : ((f.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg');
+  const imagePath = `drawings/${currentFirmId}/${crypto.randomUUID()}.${ext}`;
+  const {error:upErr} = await sb.storage.from('inspection-photos').upload(imagePath, f,
+    f.type ? {contentType: f.type} : undefined);
+  if(upErr) throw upErr;
+  if(isPdf){
+    // one-time office-side ≥300-DPI sidecar so the field never waits; registration
+    // survives a failure (field fallback prepares on first open).
+    try{ await cmtPdfPrepareHiRes(imagePath, statusCb || (()=>{})); }
+    catch(e){ if(statusCb) statusCb('High-res prep deferred to first open: '+String(e.message||e)); }
+  }
+  return imagePath;
+}
 async function cmtSaveDrawing(){
   const pid = document.getElementById('cmt-project-select').value;
   if(!pid){ showToast('Pick a project on the Tests page first','error'); return; }
   let imagePath = null;
   const imgInput = document.getElementById('cmtdw-image');
   if(imgInput && imgInput.files && imgInput.files[0]){
-    // P1 ingest law (punch 7/23): PDFs stay PDFs (vector = infinite zoom, rendered
-    // on demand); photos upload as the RAW file — full resolution, never downscaled.
-    // The C-501 lesson: rasterizing a vector sheet at ingest destroys the drawing.
-    const f = imgInput.files[0];
-    const isPdf = f.type==='application/pdf' || /\.pdf$/i.test(f.name);
-    const ext = isPdf ? 'pdf' : ((f.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg');
-    imagePath = `drawings/${currentFirmId}/${crypto.randomUUID()}.${ext}`;
-    const {error:upErr} = await sb.storage.from('inspection-photos').upload(imagePath, f,
-      f.type ? {contentType: f.type} : undefined);
-    if(upErr){ showToast('Drawing upload failed: '+upErr.message,'error'); return; }
-    if(isPdf){
-      // one-time office-side cost: prepare the ≥300-DPI sidecar NOW so the field
-      // never waits. Registration proceeds even if this fails (field fallback).
+    if(imgInput.files[0].type==='application/pdf' || /\.pdf$/i.test(imgInput.files[0].name))
       showToast('Preparing the high-resolution sheet — one time, ~a minute for a dense plan…','success');
-      try{ await cmtPdfPrepareHiRes(imagePath, t=>showToast(t,'success')); }
-      catch(e){ showToast('Sheet registered; high-res preparation will retry on first open ('+String(e.message||e)+')','error'); }
-    }
+    try{ imagePath = await cmtIngestSheetFile(imgInput.files[0], t=>showToast(t,'success')); }
+    catch(upErr){ showToast('Drawing upload failed: '+upErr.message,'error'); return; }
   }
   const {error} = await sb.from('job_drawings').insert({
     image_path: imagePath,
@@ -14130,6 +14214,301 @@ async function cmtLoadDrawings(){
       <b style="color:var(--white)">${d.dtype==='document'?'DOC':'DWG'} ${d.number}</b> ${d.name}
       <span style="color:var(--muted)">· Rev ${d.rev_no||'—'} ${d.rev_date||''} · ${d.projects?.name||''} ${d.approved?'· ✔Approved':''}${d.noted?'· ✎Noted':''}</span></div>`).join('')
     : '<div class="loading">No drawings registered.</div>';
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// REVIEW BOARD (CC_ORDER 7/31 — Abdool's one request). Register list + full-screen
+// viewer + record-based annotations + reply threads + resolve. Pack-guarded (CMT).
+// ══════════════════════════════════════════════════════════════════════════════
+const RB = { rows: [], sheet: null, page: 1, view: null, tool: null, ann: [], stroke: null, dragStart: null };
+const rbEsc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const RB_VB_W = 1000, RB_VB_H = 700;
+
+async function cmtRBLoad(){
+  const pid = document.getElementById('cmt-project-select')?.value;
+  const el = document.getElementById('cmt-rb-list');
+  if(!pid){ el.innerHTML = '<div class="loading">Pick a project on the Tests page first, then reopen the Review Board.</div>'; return; }
+  const {data} = await sb.from('job_drawings').select('*').eq('project_id', pid).is('deleted_at',null).order('number');
+  RB.rows = data || [];
+  // supersede detection: for each number, the max rev_no is current; older = superseded
+  const maxRev = {};
+  RB.rows.forEach(d => { const r = parseFloat(d.rev_no)||0; if(maxRev[d.number]==null || r>maxRev[d.number]) maxRev[d.number]=r; });
+  RB.rows.forEach(d => { d._superseded = (parseFloat(d.rev_no)||0) < (maxRev[d.number]||0); });
+  cmtRBRenderList();
+}
+function cmtRBRenderList(){
+  const el = document.getElementById('cmt-rb-list');
+  const q = (document.getElementById('cmt-rb-filter')?.value||'').toLowerCase();
+  const sort = document.getElementById('cmt-rb-sort')?.value||'number';
+  let rows = RB.rows.filter(d => !q || (d.number+' '+d.name+' '+(d.dtype||'')).toLowerCase().includes(q));
+  rows.sort((a,b)=> sort==='name' ? (a.name||'').localeCompare(b.name||'')
+    : sort==='rev' ? (parseFloat(b.rev_no)||0)-(parseFloat(a.rev_no)||0)
+    : sort==='date' ? String(b.rev_date||'').localeCompare(String(a.rev_date||''))
+    : (a.number||'').localeCompare(b.number||'', undefined, {numeric:true}));
+  if(!rows.length){ el.innerHTML = '<div class="loading">No sheets — register one or bulk-import.</div>'; return; }
+  el.innerHTML = '<table style="width:100%;font-size:13px"><tr style="color:var(--muted);text-align:left">'+
+    '<th style="padding:8px">Number</th><th>Name</th><th>Disc.</th><th>Rev</th><th>Date</th><th>Status</th><th></th></tr>'+
+    rows.map(d=>`<tr class="cmt-drill-row" style="${d._superseded?'opacity:0.55':''}" onclick="cmtRBOpen('${d.id}')">
+      <td style="padding:8px"><span class="cmt-link">${rbEsc(d.number)}</span>${d._superseded?' <span style="font-size:10px;color:var(--orange,#e69500)">SUPERSEDED</span>':''}</td>
+      <td>${rbEsc(d.name||'')}</td><td>${d.dtype==='document'?'DOC':'DWG'}</td>
+      <td>${rbEsc(d.rev_no||'—')}</td><td>${rbEsc(d.rev_date||'')}</td>
+      <td style="font-size:11px">${d.approved?'✔ Approved ':''}${d.noted?'✎ Noted':''}${d.image_path?'':'<span style="color:var(--muted)">no file</span>'}</td>
+      <td><button class="btn-sm" onclick="event.stopPropagation();cmtRBOpen('${d.id}')">Open</button></td></tr>`).join('')+'</table>';
+}
+
+// ── CSV import ────────────────────────────────────────────────────────────────
+const RB_CSV_COLS = ['number','name','dtype','rev_no','rev_date','approved','noted','filename'];
+function cmtRBTemplateDownload(){
+  const sample = RB_CSV_COLS.join(',') + '\n' +
+    'S-101,Foundation Plan,drawing,1,2026-10-12,true,false,S-101.pdf\n' +
+    'S-201,Framing Plan Level 2,drawing,2,2026-10-14,false,true,S-201.pdf\n' +
+    'SPEC-033000,Cast-in-Place Concrete,document,1,,true,false,\n';
+  const blob = new Blob([sample], {type:'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'register_template.csv'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+}
+function cmtRBImportOpen(){
+  if(!document.getElementById('cmt-project-select')?.value){ showToast('Pick a project on the Tests page first','error'); return; }
+  document.getElementById('cmt-rb-csv').value=''; document.getElementById('cmt-rb-files').value='';
+  document.getElementById('cmt-rb-preview').innerHTML=''; document.getElementById('cmt-rb-commit').style.display='none';
+  document.getElementById('modal-cmt-rb-import').classList.add('open');
+}
+function cmtRBParseCsv(text){
+  // minimal RFC-ish CSV: handles quoted fields + commas inside quotes
+  const lines = text.replace(/\r\n?/g,'\n').split('\n').filter(l=>l.trim().length);
+  const parseLine = l => { const out=[]; let cur='', q=false; for(let i=0;i<l.length;i++){ const c=l[i];
+    if(q){ if(c==='"'){ if(l[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+    else { if(c===','){out.push(cur);cur='';} else if(c==='"')q=true; else cur+=c; } } out.push(cur); return out; };
+  const header = parseLine(lines[0]).map(h=>h.trim().toLowerCase());
+  return lines.slice(1).map((l,i)=>{ const cells=parseLine(l); const row={_line:i+2}; header.forEach((h,ci)=>row[h]=(cells[ci]||'').trim()); return row; });
+}
+async function cmtRBPreview(){
+  const csvF = document.getElementById('cmt-rb-csv').files[0];
+  const files = [...document.getElementById('cmt-rb-files').files];
+  const box = document.getElementById('cmt-rb-preview');
+  if(!csvF){ box.innerHTML='<div class="loading">Choose a CSV to preview.</div>'; return; }
+  const text = await csvF.text();
+  let rows; try{ rows = cmtRBParseCsv(text); }catch(e){ box.innerHTML='<div class="loading">CSV parse error: '+rbEsc(e.message)+'</div>'; return; }
+  const fileByName = {}; files.forEach(f=>fileByName[f.name.toLowerCase()]=f);
+  const pid = document.getElementById('cmt-project-select').value;
+  const {data:existing} = await sb.from('job_drawings').select('number,rev_no').eq('project_id',pid).is('deleted_at',null);
+  const dupKey = new Set((existing||[]).map(d=>(d.number||'')+'|'+(d.rev_no||'')));
+  RB._importRows = [];
+  const trs = rows.map(r=>{
+    const errs = [];
+    if(!r.number) errs.push('missing number');
+    const isDup = dupKey.has((r.number||'')+'|'+(r.rev_no||''));
+    let fmatch = null;
+    if(r.filename){ fmatch = fileByName[r.filename.toLowerCase()]; if(!fmatch) errs.push('file "'+r.filename+'" not uploaded'); }
+    const ok = errs.length===0 && !isDup;
+    if(ok || (!errs.length && isDup)) RB._importRows.push({ r, file:fmatch, dup:isDup });
+    return `<tr style="border-top:1px solid var(--border);font-size:12px;${errs.length?'color:#ff8a7d':isDup?'color:#e69500':''}">
+      <td style="padding:4px 8px">${r._line}</td><td>${rbEsc(r.number||'—')}</td><td>${rbEsc(r.name||'')}</td>
+      <td>${rbEsc(r.rev_no||'')}</td><td>${r.filename?(fmatch?'✔ '+rbEsc(r.filename):'✕ '+rbEsc(r.filename)):'—'}</td>
+      <td>${errs.length?('ERROR: '+errs.join('; ')):isDup?'DUPLICATE (skipped — no overwrite)':'✔ will create'}</td></tr>`;
+  }).join('');
+  const willCreate = RB._importRows.filter(x=>!x.dup).length;
+  box.innerHTML = `<div style="font-size:12px;color:var(--muted);margin-bottom:6px">${rows.length} rows · <b style="color:#7dff9e">${willCreate} to create</b> · ${RB._importRows.filter(x=>x.dup).length} duplicates skipped · ${rows.length-RB._importRows.length} errors</div>`+
+    '<table style="width:100%"><tr style="color:var(--muted);text-align:left;font-size:11px"><th style="padding:4px 8px">Row</th><th>Number</th><th>Name</th><th>Rev</th><th>File</th><th>Status</th></tr>'+trs+'</table>';
+  document.getElementById('cmt-rb-commit').style.display = willCreate>0 ? '' : 'none';
+  document.getElementById('cmt-rb-commit').textContent = 'Commit import ('+willCreate+' sheets)';
+}
+async function cmtRBCommit(){
+  const pid = document.getElementById('cmt-project-select').value;
+  const btn = document.getElementById('cmt-rb-commit'); btn.disabled = true;
+  let ok=0, fail=0; const fails=[];
+  for(const {r, file, dup} of (RB._importRows||[])){
+    if(dup) continue;
+    try{
+      let imagePath = null;
+      if(file){ btn.textContent = 'Uploading '+(r.filename||r.number)+'…'; imagePath = await cmtIngestSheetFile(file); }
+      const {error} = await sb.from('job_drawings').insert({
+        firm_id: currentFirmId, project_id: pid, image_path: imagePath,
+        dtype: (r.dtype==='document'?'document':'drawing'),
+        number: r.number, name: r.name||null, rev_no: r.rev_no||null, rev_date: r.rev_date||null,
+        approved: /^(true|yes|1|y)$/i.test(r.approved||''), noted: /^(true|yes|1|y)$/i.test(r.noted||''),
+        created_by: currentUser.id });
+      if(error) throw error; ok++;
+    }catch(e){ fail++; fails.push('row '+r._line+': '+(e.message||e)); }
+  }
+  btn.disabled=false; closeModal('modal-cmt-rb-import');
+  showToast(`Imported ${ok} sheet(s)`+(fail?`; ${fail} failed (${fails[0]||''})`:''), fail?'error':'success');
+  cmtRBLoad(); cmtLoadDrawings(); cmtFillDrawings();
+}
+async function cmtRBExportCsv(){
+  const pid = document.getElementById('cmt-project-select')?.value;
+  if(!pid){ showToast('Pick a project first','error'); return; }
+  const {data} = await sb.from('job_drawings').select('*').eq('project_id',pid).is('deleted_at',null).order('number');
+  const esc = v => { v = v==null?'':String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+  const rows = (data||[]).map(d=>[d.number,d.name,d.dtype,d.rev_no,d.rev_date,d.approved,d.noted,
+    d.image_path?d.image_path.split('/').pop():''].map(esc).join(','));
+  const csv = RB_CSV_COLS.join(',')+'\n'+rows.join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='register_export.csv'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+
+// ── the viewer ────────────────────────────────────────────────────────────────
+async function cmtRBOpen(id){
+  const d = RB.rows.find(x=>x.id===id); if(!d) return;
+  RB.sheet = d; RB.page = 1; RB.view = null; RB.tool = null; RB.pdfDoc = null;
+  document.getElementById('modal-cmt-rb-viewer').classList.add('open');
+  document.getElementById('cmt-rb-vtitle').textContent = (d.dtype==='document'?'DOC ':'DWG ')+d.number+' — '+(d.name||'');
+  await cmtRBLoadAnn();
+  await cmtRBRenderStage();
+}
+function cmtRBViewerClose(){ document.getElementById('modal-cmt-rb-viewer').classList.remove('open'); RB.sheet=null; }
+function cmtRBStep(dir){
+  const list = RB.rows.filter(d=>d.image_path); const i = list.findIndex(d=>d.id===RB.sheet?.id);
+  const nx = list[(i+dir+list.length)%list.length]; if(nx) cmtRBOpen(nx.id);
+}
+async function cmtRBLoadAnn(){
+  const {data} = await sb.from('drawing_annotations').select('*, profiles:author_id(full_name)')
+    .eq('drawing_id', RB.sheet.id).is('deleted_at',null).order('created_at');
+  RB.ann = data || [];
+  cmtRBRenderSide();
+}
+async function cmtRBRenderStage(){
+  const stage = document.getElementById('cmt-rb-stage');
+  const d = RB.sheet;
+  if(!d.image_path){ stage.innerHTML='<div class="loading" style="padding:40px">No file on this register row — import or register the sheet to review it.</div>'; return; }
+  const href = cmtDrawingHref(d.image_path);
+  if(!href && cmtIsPdfPath(d.image_path)){
+    stage.innerHTML='<div class="loading" id="cmt-rb-prep" style="padding:40px">Preparing the sheet…</div>';
+    try{ if(await cmtPdfSidecarExists(d.image_path)){ await cmtRBRenderStage(); return; }
+         await cmtPdfPrepareHiRes(d.image_path, t=>{const e=document.getElementById('cmt-rb-prep');if(e)e.textContent=t;}); await cmtRBRenderStage(); }
+    catch(e){ const el=document.getElementById('cmt-rb-prep'); if(el) el.textContent='Prep failed: '+String(e.message||e); }
+    return;
+  }
+  const v = RB.view || {x:0,y:0,w:RB_VB_W,h:RB_VB_H};
+  stage.innerHTML = `<svg id="cmt-rb-svg" viewBox="${v.x} ${v.y} ${v.w} ${v.h}" style="width:100%;height:100%;display:block;touch-action:none;cursor:${RB.tool?'crosshair':'grab'}" xmlns="http://www.w3.org/2000/svg">
+    <image href="${rbEsc(href)}" x="0" y="0" width="${RB_VB_W}" height="${RB_VB_H}" preserveAspectRatio="xMidYMid meet"/>
+    <g id="cmt-rb-annlayer">${cmtRBAnnSvg()}</g>
+    <g id="cmt-rb-live"></g></svg>`;
+  const svg = document.getElementById('cmt-rb-svg');
+  svg.addEventListener('pointerdown', cmtRBDown);
+  svg.addEventListener('pointermove', cmtRBMove);
+  svg.addEventListener('pointerup', cmtRBUp);
+  svg.addEventListener('wheel', cmtRBWheel, {passive:false});
+  svg.addEventListener('touchstart', cmtRBPinch, {passive:false});
+  svg.addEventListener('touchmove', cmtRBPinch, {passive:false});
+}
+function cmtRBAnnSvg(){
+  return RB.ann.filter(a=>(a.page||1)===RB.page).map(a=>{
+    const g = a.geometry||{}; const col = a.resolved?'#7dff9e':'#ff5a4d';
+    const jump = `onclick="event.stopPropagation();cmtRBFocusAnn('${a.id}')" style="cursor:pointer"`;
+    if(a.kind==='box') return `<rect ${jump} x="${g.x*RB_VB_W}" y="${g.y*RB_VB_H}" width="${(g.w||0)*RB_VB_W}" height="${(g.h||0)*RB_VB_H}" fill="none" stroke="${col}" stroke-width="3"/>`;
+    if(a.kind==='arrow'){ const x1=g.x*RB_VB_W,y1=g.y*RB_VB_H,x2=(g.x2||g.x)*RB_VB_W,y2=(g.y2||g.y)*RB_VB_H; const ang=Math.atan2(y2-y1,x2-x1);
+      return `<g ${jump}><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="3"/><path d="M${x2},${y2} L${x2-14*Math.cos(ang-0.4)},${y2-14*Math.sin(ang-0.4)} M${x2},${y2} L${x2-14*Math.cos(ang+0.4)},${y2-14*Math.sin(ang+0.4)}" stroke="${col}" stroke-width="3" fill="none"/></g>`; }
+    if(a.kind==='cloud'){ const x=g.x*RB_VB_W,y=g.y*RB_VB_H,w=(g.w||0)*RB_VB_W,h=(g.h||0)*RB_VB_H; const r=10; let p='';
+      for(let px=0;px<w;px+=r*2) p+=`M${x+px},${y} a${r},${r} 0 0 1 ${r*2},0 `; for(let px=0;px<w;px+=r*2) p+=`M${x+px},${y+h} a${r},${r} 0 0 0 ${r*2},0 `;
+      return `<g ${jump}><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${col}" stroke-width="2" stroke-dasharray="6 4"/></g>`; }
+    if(a.kind==='freehand'){ const pts=(g.pts||[]).map(p=>`${p[0]*RB_VB_W},${p[1]*RB_VB_H}`).join(' '); return `<polyline ${jump} points="${pts}" fill="none" stroke="${col}" stroke-width="3" stroke-linecap="round"/>`; }
+    if(a.kind==='text') return `<g ${jump}><circle cx="${g.x*RB_VB_W}" cy="${g.y*RB_VB_H}" r="6" fill="${col}"/><text x="${g.x*RB_VB_W+10}" y="${g.y*RB_VB_H+4}" fill="${col}" font-size="16" font-weight="700" style="paint-order:stroke;stroke:#000;stroke-width:3">${rbEsc(a.body||'')}</text></g>`;
+    return '';
+  }).join('');
+}
+function cmtRBRenderSide(){
+  const side = document.getElementById('cmt-rb-side');
+  const open = RB.ann.filter(a=>!a.resolved).length;
+  side.innerHTML = `<div style="font-size:11px;color:var(--muted);letter-spacing:1px;margin-bottom:6px">ANNOTATIONS · ${open} open / ${RB.ann.length}</div>`+
+    (RB.ann.length ? RB.ann.map(a=>`<div id="ann-${a.id}" style="border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:8px;${a.resolved?'opacity:0.6':''}">
+      <div style="display:flex;justify-content:space-between;gap:6px;font-size:11px;color:var(--muted)"><span>${a.kind}${a.resolved?' · resolved':''} · pg${a.page||1}</span><span>${rbEsc(a.profiles?.full_name||'')} ${new Date(a.created_at).toLocaleDateString()}</span></div>
+      ${a.body?`<div style="font-size:13px;color:var(--white);margin:4px 0" class="cmt-link" onclick="cmtRBFocusAnn('${a.id}')">${rbEsc(a.body)}</div>`:`<div class="cmt-link" style="font-size:12px" onclick="cmtRBFocusAnn('${a.id}')">jump to mark →</div>`}
+      <div id="replies-${a.id}"></div>
+      <div style="display:flex;gap:4px;margin-top:6px">
+        <input class="modal-input" id="reply-${a.id}" placeholder="Reply…" style="flex:1;font-size:12px;min-height:32px">
+        <button class="btn-sm" style="min-height:32px" onclick="cmtRBReply('${a.id}')">↩</button>
+        <button class="btn-sm" style="min-height:32px" onclick="cmtRBResolve('${a.id}',${!a.resolved})">${a.resolved?'↺':'✓'}</button>
+        <button class="btn-sm" style="min-height:32px" onclick="cmtRBDeleteAnn('${a.id}')">🗑</button>
+      </div></div>`).join('') : '<div style="font-size:12px;color:var(--muted)">No annotations yet. Pick a markup tool below and draw on the sheet.</div>');
+  RB.ann.forEach(a=>cmtRBLoadReplies(a.id));
+}
+async function cmtRBLoadReplies(aid){
+  const {data} = await sb.from('drawing_annotation_replies').select('*, profiles:author_id(full_name)').eq('annotation_id',aid).is('deleted_at',null).order('created_at');
+  const el = document.getElementById('replies-'+aid); if(!el) return;
+  el.innerHTML = (data||[]).map(r=>`<div style="font-size:12px;border-left:2px solid var(--border);padding:2px 6px;margin:3px 0"><b style="color:var(--muted);font-size:10px">${rbEsc(r.profiles?.full_name||'')}</b> ${rbEsc(r.body)}</div>`).join('');
+}
+async function cmtRBReply(aid){
+  const inp = document.getElementById('reply-'+aid); const body=(inp.value||'').trim(); if(!body) return;
+  const {error} = await sb.from('drawing_annotation_replies').insert({firm_id:currentFirmId, annotation_id:aid, author_id:currentUser.id, body});
+  if(error){ showToast('Reply failed: '+error.message,'error'); return; }
+  inp.value=''; cmtRBLoadReplies(aid);
+}
+async function cmtRBResolve(aid, resolved){
+  const {error} = await sb.from('drawing_annotations').update({resolved, resolved_by: resolved?currentUser.id:null, resolved_at: resolved?new Date().toISOString():null, updated_at:new Date().toISOString()}).eq('id',aid);
+  if(error){ showToast('Update failed: '+error.message,'error'); return; }
+  cmtRBLoadAnn(); cmtRBRenderStage();
+}
+async function cmtRBDeleteAnn(aid){
+  const {error} = await sb.from('drawing_annotations').update({deleted_at:new Date().toISOString(), deleted_by:currentUser.id}).eq('id',aid);
+  if(error){ showToast('Delete failed: '+error.message,'error'); return; }
+  cmtRBLoadAnn(); cmtRBRenderStage();
+}
+function cmtRBFocusAnn(aid){
+  const a = RB.ann.find(x=>x.id===aid); if(!a) return;
+  if((a.page||1)!==RB.page){ RB.page=a.page||1; cmtRBRenderStage(); }
+  const g=a.geometry||{}; RB.view={x:Math.max(0,g.x*RB_VB_W-200),y:Math.max(0,g.y*RB_VB_H-150),w:400,h:280}; cmtRBRenderStage();
+  const card=document.getElementById('ann-'+aid); if(card){ card.style.outline='2px solid var(--orange,#e69500)'; setTimeout(()=>card.style.outline='',1200); }
+}
+// tools + drawing
+function cmtRBTool(t){ RB.tool=t; document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('btn-orange', b.dataset.tool===t)); const svg=document.getElementById('cmt-rb-svg'); if(svg) svg.style.cursor = t?'crosshair':'grab'; }
+function cmtRBPt(ev){ const svg=document.getElementById('cmt-rb-svg'); const pt=svg.createSVGPoint(); pt.x=ev.clientX; pt.y=ev.clientY; const p=pt.matrixTransform(svg.getScreenCTM().inverse()); return [Math.min(1,Math.max(0,p.x/RB_VB_W)), Math.min(1,Math.max(0,p.y/RB_VB_H))]; }
+function cmtRBDown(ev){
+  if(ev.pointerType==='touch' && ev.isPrimary===false) return;
+  if(!RB.tool){ RB._pan={x:ev.clientX,y:ev.clientY,view:{...(RB.view||{x:0,y:0,w:RB_VB_W,h:RB_VB_H})}}; return; }
+  ev.preventDefault(); const p=cmtRBPt(ev);
+  if(RB.tool==='text'){ cmtRBPlaceText(p); return; }
+  RB.stroke = RB.tool==='freehand' ? {pts:[p]} : {x:p[0],y:p[1],x2:p[0],y2:p[1]};
+  try{ ev.target.closest('svg').setPointerCapture(ev.pointerId); }catch(_){}
+}
+function cmtRBMove(ev){
+  if(RB._pan){ const svg=document.getElementById('cmt-rb-svg'); const sc=RB._pan.view.w/svg.clientWidth; RB.view={...RB._pan.view, x:RB._pan.view.x-(ev.clientX-RB._pan.x)*sc, y:RB._pan.view.y-(ev.clientY-RB._pan.y)*sc}; const s=document.getElementById('cmt-rb-svg'); s.setAttribute('viewBox',`${RB.view.x} ${RB.view.y} ${RB.view.w} ${RB.view.h}`); return; }
+  if(!RB.stroke) return; const p=cmtRBPt(ev); const live=document.getElementById('cmt-rb-live');
+  if(RB.tool==='freehand'){ RB.stroke.pts.push(p); live.innerHTML=`<polyline points="${RB.stroke.pts.map(q=>q[0]*RB_VB_W+','+q[1]*RB_VB_H).join(' ')}" fill="none" stroke="#ff5a4d" stroke-width="3"/>`; }
+  else { RB.stroke.x2=p[0]; RB.stroke.y2=p[1]; const x=Math.min(RB.stroke.x,p[0])*RB_VB_W,y=Math.min(RB.stroke.y,p[1])*RB_VB_H,w=Math.abs(p[0]-RB.stroke.x)*RB_VB_W,h=Math.abs(p[1]-RB.stroke.y)*RB_VB_H;
+    live.innerHTML = RB.tool==='arrow' ? `<line x1="${RB.stroke.x*RB_VB_W}" y1="${RB.stroke.y*RB_VB_H}" x2="${p[0]*RB_VB_W}" y2="${p[1]*RB_VB_H}" stroke="#ff5a4d" stroke-width="3"/>` : `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="#ff5a4d" stroke-width="3" ${RB.tool==='cloud'?'stroke-dasharray="6 4"':''}/>`; }
+}
+async function cmtRBUp(ev){
+  if(RB._pan){ RB._pan=null; return; }
+  if(!RB.stroke) return; const s=RB.stroke; RB.stroke=null; document.getElementById('cmt-rb-live').innerHTML='';
+  let geom;
+  if(RB.tool==='freehand'){ if(s.pts.length<3) return; geom={pts:s.pts}; }
+  else if(RB.tool==='arrow'){ geom={x:s.x,y:s.y,x2:s.x2,y2:s.y2}; }
+  else { geom={x:Math.min(s.x,s.x2),y:Math.min(s.y,s.y2),w:Math.abs(s.x2-s.x),h:Math.abs(s.y2-s.y)}; if(geom.w<0.01&&geom.h<0.01) return; }
+  await cmtRBSaveAnn(RB.tool, geom, null);
+}
+function cmtRBPlaceText(p){
+  const box=document.getElementById('cmt-rb-side');
+  const wrap=document.createElement('div'); wrap.style.cssText='border:1px solid var(--orange,#e69500);border-radius:8px;padding:8px;margin-bottom:8px';
+  wrap.innerHTML='<input class="modal-input" id="rb-textin" placeholder="Callout text, then ADD" style="width:100%;font-size:13px"><div style="display:flex;gap:6px;margin-top:6px"><button class="btn-sm btn-orange" id="rb-textok">ADD</button><button class="btn-sm" id="rb-textcancel">✕</button></div>';
+  box.insertBefore(wrap, box.children[1]||null);
+  const placedAt=Date.now();
+  const commit=async()=>{ if(Date.now()-placedAt<300) return; const t=document.getElementById('rb-textin').value.trim(); if(!t){ showToast('Type the note first, then ADD','error'); return; } wrap.remove(); await cmtRBSaveAnn('text',{x:p[0],y:p[1]},t); };
+  document.getElementById('rb-textok').onclick=commit;
+  document.getElementById('rb-textin').onkeydown=e=>{if(e.key==='Enter')commit();};
+  document.getElementById('rb-textcancel').onclick=()=>wrap.remove();
+  document.getElementById('rb-textin').focus();
+}
+async function cmtRBSaveAnn(kind, geometry, body){
+  const {error} = await sb.from('drawing_annotations').insert({
+    firm_id:currentFirmId, drawing_id:RB.sheet.id, project_id:RB.sheet.project_id,
+    author_id:currentUser.id, kind, geometry, page:RB.page, body });
+  if(error){ showToast('Annotation save failed: '+error.message,'error'); return; }
+  cmtRBLoadAnn(); cmtRBRenderStage();
+}
+// zoom / pan / pages
+function cmtRBZoom(f){ const v=RB.view||{x:0,y:0,w:RB_VB_W,h:RB_VB_H}; const cx=v.x+v.w/2,cy=v.y+v.h/2; const nw=Math.min(RB_VB_W,Math.max(RB_VB_W*0.06,v.w*f)),nh=nw*(RB_VB_H/RB_VB_W); RB.view={x:cx-nw/2,y:cy-nh/2,w:nw,h:nh}; cmtRBRenderStage(); }
+function cmtRBFit(mode){ RB.view = mode==='width' ? {x:0,y:0,w:RB_VB_W,h:RB_VB_H*0.62} : {x:0,y:0,w:RB_VB_W,h:RB_VB_H}; cmtRBRenderStage(); }
+function cmtRBWheel(ev){ if(!ev.ctrlKey && !ev.metaKey) return; ev.preventDefault(); cmtRBZoom(ev.deltaY>0?1.12:0.9); }
+let _rbPinchD=0;
+function cmtRBPinch(ev){ if(ev.touches.length!==2) return; ev.preventDefault(); const dx=ev.touches[0].clientX-ev.touches[1].clientX,dy=ev.touches[0].clientY-ev.touches[1].clientY; const d=Math.hypot(dx,dy); if(ev.type==='touchstart'){_rbPinchD=d;return;} if(_rbPinchD){ cmtRBZoom(_rbPinchD/d); _rbPinchD=d; } }
+function cmtRBPage(dir){ RB.page=Math.max(1,RB.page+dir); document.getElementById('cmt-rb-pagelabel').textContent='pg '+RB.page; cmtRBRenderStage(); }
+function cmtRBExportPdf(){
+  // flatten: open the sheet + annotation SVG in a print window (browser → Save as PDF).
+  const href = cmtDrawingHref(RB.sheet.image_path);
+  const w = window.open('','_blank'); if(!w){ showToast('Allow popups to export the marked-up sheet','error'); return; }
+  w.document.write(`<html><head><title>${rbEsc(RB.sheet.number)} — marked up</title></head><body style="margin:0"><div style="position:relative;width:100%"><img src="${rbEsc(href)}" style="width:100%;display:block"><svg viewBox="0 0 ${RB_VB_W} ${RB_VB_H}" preserveAspectRatio="xMidYMid meet" style="position:absolute;inset:0;width:100%;height:100%">${cmtRBAnnSvg()}</svg></div><script>setTimeout(()=>print(),400)<\/script></body></html>`);
+  w.document.close();
 }
 
 // ── SFRM computations (engine-computed, never hand-entered) ──────────────────
