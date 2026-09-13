@@ -13383,8 +13383,28 @@ function cmtLocalDay(d){
   d = d || new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
+// The services checklist and everything keyed to a report day are pinned to the
+// firm timezone (America/New_York), so the same report reads identically no matter
+// where it is opened from. Was new Date(day+'T00:00:00') which parsed in the
+// VIEWER'S local timezone - a submission near a date boundary could fall into the
+// wrong day's window depending on who was looking. Handles EST/EDT automatically.
+const CMT_FIRM_TZ = 'America/New_York';
+function cmtTzOffsetMs(instant, tz){
+  const dtf = new Intl.DateTimeFormat('en-US', {timeZone:tz, hour12:false,
+    year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  const p = {};
+  for(const part of dtf.formatToParts(instant)) if(part.type!=='literal') p[part.type]=part.value;
+  const hh = p.hour==='24' ? 0 : Number(p.hour);
+  const asUTC = Date.UTC(Number(p.year), Number(p.month)-1, Number(p.day), hh, Number(p.minute), Number(p.second));
+  return asUTC - instant.getTime();
+}
 function cmtLocalDayWindow(day){
-  return { start: new Date(day+'T00:00:00').toISOString(), end: new Date(day+'T23:59:59.999').toISOString() };
+  const [y,mo,d] = day.split('-').map(Number);
+  // sample the offset at local noon (never inside the 2am DST transition gap)
+  const off = cmtTzOffsetMs(new Date(Date.UTC(y,mo-1,d,12,0,0)), CMT_FIRM_TZ);
+  const start = new Date(Date.UTC(y,mo-1,d,0,0,0,0) - off);
+  const end   = new Date(Date.UTC(y,mo-1,d,23,59,59,999) - off);
+  return { start: start.toISOString(), end: end.toISOString() };
 }
 function cmtDfrReportNo(){
   const prefix = (currentFirmReportCfg.form_prefix || currentFirmPrefix || 'FIRM');
