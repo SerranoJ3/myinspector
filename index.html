@@ -13724,22 +13724,36 @@ async function cmtReviewLoad(){
 }
 async function cmtReviewOpen(id){
   const rep = REVIEW.rows.find(r=>r.id===id);
-  if(!rep) return;
-  if(rep.status==='submitted'){
-    await sb.from('daily_field_reports').update({status:'in_review'}).eq('id',id);
-    rep.status='in_review';
+  if(!rep){
+    // silent-bail guard: the row's id is no longer in REVIEW.rows (queue moved under us).
+    // Was a bare return with no feedback - now it says why and refreshes.
+    console.warn('cmtReviewOpen: id not found in REVIEW.rows', {id, have: REVIEW.rows.map(r=>r.id)});
+    showToast('That day just left the queue (approved or returned). Refreshing.','error');
+    cmtReviewLoad();
+    return;
   }
-  REVIEW.open = rep;
-  REVIEW.parts = await cmtDfrAssemble(rep);
-  document.getElementById('cmt-review-detail').style.display='';
-  document.getElementById('cmt-review-title').textContent = rep.report_no+' — '+(rep.profiles?.full_name||'');
-  document.getElementById('cmt-review-substatus').textContent = rep.report_date+' · '+(rep.projects?.name||'');
-  const current = (REVIEW.parts.officeNarrative && REVIEW.parts.officeNarrative.text) || rep.narrative || '';
-  document.getElementById('cmt-review-narrative').value = current;
-  document.getElementById('cmt-review-original').innerHTML = rep.narrative
-    ? `<b>Field original (v1, on file forever):</b> &ldquo;${rep.narrative.replace(/</g,'&lt;')}&rdquo;` : '';
-  cmtReviewGlossaryHints();
-  cmtReviewPaper();
+  try{
+    if(rep.status==='submitted'){
+      await sb.from('daily_field_reports').update({status:'in_review'}).eq('id',id);
+      rep.status='in_review';
+    }
+    REVIEW.open = rep;
+    REVIEW.parts = await cmtDfrAssemble(rep);
+    document.getElementById('cmt-review-detail').style.display='';
+    document.getElementById('cmt-review-title').textContent = rep.report_no+' - '+(rep.profiles?.full_name||'');
+    document.getElementById('cmt-review-substatus').textContent = rep.report_date+' · '+(rep.projects?.name||'');
+    const current = (REVIEW.parts.officeNarrative && REVIEW.parts.officeNarrative.text) || rep.narrative || '';
+    document.getElementById('cmt-review-narrative').value = current;
+    document.getElementById('cmt-review-original').innerHTML = rep.narrative
+      ? `<b>Field original (v1, on file forever):</b> &ldquo;${rep.narrative.replace(/</g,'&lt;')}&rdquo;` : '';
+    cmtReviewGlossaryHints();
+    cmtReviewPaper();
+  }catch(e){
+    // unguarded awaits used to throw into a void (unhandled rejection, no UI change).
+    // Surface it instead of vanishing.
+    console.error('cmtReviewOpen failed:', e);
+    showToast('Could not open that report: '+(e&&e.message||e),'error');
+  }
 }
 function cmtReviewPaper(){
   const fr = document.getElementById('cmt-review-frame');
@@ -14799,12 +14813,24 @@ async function cmtRBExportCsv(){
 
 // ── the viewer ────────────────────────────────────────────────────────────────
 async function cmtRBOpen(id){
-  const d = RB.rows.find(x=>x.id===id); if(!d) return;
-  RB.sheet = d; RB.page = 1; RB.view = null; RB.tool = null; RB.pdfDoc = null;
-  document.getElementById('modal-cmt-rb-viewer').classList.add('open');
-  document.getElementById('cmt-rb-vtitle').textContent = (d.dtype==='document'?'DOC ':'DWG ')+d.number+' — '+(d.name||'');
-  await cmtRBLoadAnn();
-  await cmtRBRenderStage();
+  const d = RB.rows.find(x=>x.id===id);
+  if(!d){
+    // same silent-bail class as cmtReviewOpen: id gone from RB.rows.
+    console.warn('cmtRBOpen: id not found in RB.rows', {id, have: RB.rows.map(x=>x.id)});
+    showToast('That sheet just left the register. Refreshing.','error');
+    cmtRBLoad();
+    return;
+  }
+  try{
+    RB.sheet = d; RB.page = 1; RB.view = null; RB.tool = null; RB.pdfDoc = null;
+    document.getElementById('modal-cmt-rb-viewer').classList.add('open');
+    document.getElementById('cmt-rb-vtitle').textContent = (d.dtype==='document'?'DOC ':'DWG ')+d.number+' - '+(d.name||'');
+    await cmtRBLoadAnn();
+    await cmtRBRenderStage();
+  }catch(e){
+    console.error('cmtRBOpen failed:', e);
+    showToast('Could not open that sheet: '+(e&&e.message||e),'error');
+  }
 }
 function cmtRBViewerClose(){ document.getElementById('modal-cmt-rb-viewer').classList.remove('open'); RB.sheet=null; }
 function cmtRBStep(dir){
@@ -14895,7 +14921,8 @@ async function cmtRBDeleteAnn(aid){
   cmtRBLoadAnn(); cmtRBRenderStage();
 }
 function cmtRBFocusAnn(aid){
-  const a = RB.ann.find(x=>x.id===aid); if(!a) return;
+  const a = RB.ann.find(x=>x.id===aid);
+  if(!a){ console.warn('cmtRBFocusAnn: id not found in RB.ann', {aid}); return; }
   if((a.page||1)!==RB.page){ RB.page=a.page||1; cmtRBRenderStage(); }
   const g=a.geometry||{}; RB.view={x:Math.max(0,g.x*RB_VB_W-200),y:Math.max(0,g.y*RB_VB_H-150),w:400,h:280}; cmtRBRenderStage();
   const card=document.getElementById('ann-'+aid); if(card){ card.style.outline='2px solid var(--orange,#e69500)'; setTimeout(()=>card.style.outline='',1200); }
