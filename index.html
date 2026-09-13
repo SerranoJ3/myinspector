@@ -15522,10 +15522,12 @@ function simMatch(row, filters){
     if(op==='eq') return String(rv)===String(v);
     if(op==='neq') return String(rv)!==String(v);
     if(op==='in') return (v||[]).map(String).includes(String(rv));
+    if(op==='gt') return rv!=null && rv>v;
     if(op==='gte') return rv!=null && rv>=v;
+    if(op==='lt') return rv!=null && rv<v;
     if(op==='lte') return rv!=null && rv<=v;
     if(op==='is') return v===null ? rv==null : rv===v;
-    return true;
+    return true;   // 'or' and any unmodeled op pass through for overlay rows (real query still filters)
   });
 }
 // sim-inserted rows need the joins the app's selects expect — enrich from caches
@@ -15555,11 +15557,13 @@ function simEnrich(table, row){
     api.update = chain(p=>{ st.op='update'; st.payload=p; });
     api.upsert = chain(p=>{ st.op='insert'; st.payload=p; });
     api.delete = chain(()=>{ st.op='delete'; });
-    ['eq','neq','gte','lte','is'].forEach(op=>{ api[op] = chain((c,v)=>st.filters.push([op,c,v])); });
+    ['eq','neq','gt','gte','lt','lte','is'].forEach(op=>{ api[op] = chain((c,v)=>st.filters.push([op,c,v])); });
     api.in = chain((c,v)=>st.filters.push(['in',c,v]));
-    // PostgREST .not(column, operator, value) - the mock lacked it, so any select using
-    // .not() (the dashboard cert + equipment cal-due alerts) threw and hung the demo dashboard.
+    // PostgREST filter methods the mock originally omitted. Any demo/pitch select using one
+    // threw ".<m> is not a function" and hung its panel silently. .not: dashboard cert +
+    // equipment cal-due alerts. .or: field guides pack filter. gt/lt: contractor billable hours.
     api.not = chain((c,operator,v)=>st.filters.push(['not',c,operator,v]));
+    api.or = chain((str,opts)=>st.filters.push(['or',str]));
     api.order = chain((c,o)=>{ st.order=[c, !(o&&o.ascending===false)]; });
     api.limit = chain(n=>st.limit=n);
     api.single = chain(()=>st.single=true);
