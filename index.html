@@ -15512,8 +15512,13 @@ const SIM = { invite:null, tables:{}, storage:{}, urls:{}, sampleSeq:0 };
 function simActive(){ return (pitchModeActive && currentFirmIsDemo) || !!SIM.invite; }
 function simTable(t){ return SIM.tables[t] = SIM.tables[t] || {inserted:[], updates:[], deletes:[]}; }
 function simMatch(row, filters){
-  return (filters||[]).every(([op,c,v])=>{
-    const rv = row[c];
+  return (filters||[]).every(f=>{
+    const op=f[0], c=f[1], rv=row[c];
+    if(op==='not'){ const operator=f[2], val=f[3];
+      if(operator==='is') return val===null ? rv!=null : rv!==val;
+      if(operator==='eq') return String(rv)!==String(val);
+      return true; }
+    const v=f[2];
     if(op==='eq') return String(rv)===String(v);
     if(op==='neq') return String(rv)!==String(v);
     if(op==='in') return (v||[]).map(String).includes(String(rv));
@@ -15552,6 +15557,9 @@ function simEnrich(table, row){
     api.delete = chain(()=>{ st.op='delete'; });
     ['eq','neq','gte','lte','is'].forEach(op=>{ api[op] = chain((c,v)=>st.filters.push([op,c,v])); });
     api.in = chain((c,v)=>st.filters.push(['in',c,v]));
+    // PostgREST .not(column, operator, value) - the mock lacked it, so any select using
+    // .not() (the dashboard cert + equipment cal-due alerts) threw and hung the demo dashboard.
+    api.not = chain((c,operator,v)=>st.filters.push(['not',c,operator,v]));
     api.order = chain((c,o)=>{ st.order=[c, !(o&&o.ascending===false)]; });
     api.limit = chain(n=>st.limit=n);
     api.single = chain(()=>st.single=true);
@@ -15579,7 +15587,7 @@ function simEnrich(table, row){
     }
     // SELECT: run the real query, then merge the overlay
     let q = _from(table).select(st.cols, st.head ? {count: st.count||'exact', head:true} : (st.count?{count:st.count}:undefined));
-    st.filters.forEach(([op,c,v])=>{ q = op==='in' ? q.in(c,v) : q[op](c,v); });
+    st.filters.forEach(f=>{ const op=f[0]; if(op==='in') q=q.in(f[1],f[2]); else if(op==='not') q=q.not(f[1],f[2],f[3]); else q=q[op](f[1],f[2]); });
     if(st.order) q = q.order(st.order[0], {ascending: st.order[1]});
     if(st.limit) q = q.limit(st.limit);
     const real = await q;
