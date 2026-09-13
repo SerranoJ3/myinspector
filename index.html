@@ -1149,6 +1149,9 @@ html,body{overflow-x:hidden}
       <div class="nav-link" id="nav-cmt-review-board" onclick="showPanel('cmt-review-board');cmtRBLoad()">
         <span class="nav-icon">📐</span> Review Board
       </div>
+      <div class="nav-link" id="nav-cmt-equipment" onclick="showPanel('cmt-equipment');eqLoad()">
+        <span class="nav-icon">🧰</span> Equipment
+      </div>
       <div class="nav-link" id="nav-cmt-certs" onclick="showPanel('cmt-certs')">
         <span class="nav-icon">🎓</span> Certifications
       </div>
@@ -1916,6 +1919,31 @@ html,body{overflow-x:hidden}
         <div class="table-wrap"><div id="cmt-rb-list"><div class="loading">Pick a project on the Tests page, then open the Review Board.</div></div></div>
       </div>
 
+      <div class="panel" id="panel-cmt-equipment">
+        <div id="eq-listview">
+          <div class="page-header">
+            <div class="page-title">Equipment</div>
+            <div class="page-sub">Calibration, documents, and sign-out for the firm's testing kit.</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+            <button class="btn-sm btn-orange" onclick="eqOpenAddModal()">+ Add Equipment</button>
+            <button class="btn-sm" onclick="eqOpenImport()">⇪ Import</button>
+          </div>
+          <div id="eq-filters" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+            <button class="btn-sm eq-filter active" data-f="all" onclick="eqSetFilter('all')">All</button>
+            <button class="btn-sm eq-filter" data-f="in_service" onclick="eqSetFilter('in_service')">In Service</button>
+            <button class="btn-sm eq-filter" data-f="out" onclick="eqSetFilter('out')">Out</button>
+            <button class="btn-sm eq-filter" data-f="due" onclick="eqSetFilter('due')">Calibration Due</button>
+          </div>
+          <div class="table-wrap"><div id="eq-list"><div class="loading">Loading equipment…</div></div></div>
+        </div>
+        <div id="eq-detail" style="display:none">
+          <div id="eq-detail-head"></div>
+          <div class="pd-tabs" id="eq-detail-tabs" style="margin:12px 0"></div>
+          <div id="eq-detail-body" style="min-height:160px"></div>
+        </div>
+      </div>
+
       <div class="panel" id="panel-cmt-log">
         <div class="page-header">
           <div class="page-title">Test Log</div>
@@ -2027,6 +2055,100 @@ html,body{overflow-x:hidden}
         <input class="modal-input" type="date" id="cmtcert-expires"></div>
     </div>
     <button class="btn-sm btn-orange" onclick="cmtSaveCert()">Save</button>
+  </div>
+</div>
+
+<!-- EQUIPMENT ADD / EDIT MODAL -->
+<div class="modal-overlay" id="modal-equipment">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="eqm-title">Add Equipment</div>
+      <button class="modal-close" onclick="closeModal('modal-equipment')">✕</button>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field"><label class="modal-label">Asset Tag</label>
+        <input class="modal-input" id="eqm-asset_tag" placeholder="Your own number, e.g. NDG-01"></div>
+      <div class="modal-field"><label class="modal-label">Type</label>
+        <input class="modal-input" id="eqm-type" placeholder="Nuclear Density Gauge"></div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field"><label class="modal-label">Make</label>
+        <input class="modal-input" id="eqm-make"></div>
+      <div class="modal-field"><label class="modal-label">Model</label>
+        <input class="modal-input" id="eqm-model"></div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field"><label class="modal-label">Serial</label>
+        <input class="modal-input" id="eqm-serial"></div>
+      <div class="modal-field"><label class="modal-label">Status</label>
+        <select class="modal-select" id="eqm-status">
+          <option value="in_service">In Service</option>
+          <option value="out_for_calibration">Out for Calibration</option>
+          <option value="out_of_service">Out of Service</option>
+        </select></div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field"><label class="modal-label">Home Location</label>
+        <input class="modal-input" id="eqm-home_location" placeholder="Gauge locker / Field Kit A"></div>
+      <div class="modal-field"><label class="modal-label">Cal Vendor</label>
+        <input class="modal-input" id="eqm-cal_vendor"></div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field"><label class="modal-label">Last Calibrated</label>
+        <input class="modal-input" type="date" id="eqm-last_cal_date"></div>
+      <div class="modal-field"><label class="modal-label">Calibration Due</label>
+        <input class="modal-input" type="date" id="eqm-cal_due_date"></div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field"><label class="modal-label">Secondary Label</label>
+        <input class="modal-input" id="eqm-secondary_label" placeholder="Leak Test, Verification…"></div>
+      <div class="modal-field"><label class="modal-label">Secondary Due</label>
+        <input class="modal-input" type="date" id="eqm-secondary_due_date"></div>
+    </div>
+    <div class="modal-field"><label class="modal-label">Notes</label>
+      <textarea class="modal-input" id="eqm-notes" rows="2"></textarea></div>
+    <button class="btn-sm btn-orange" onclick="eqSaveEquipment()">Save</button>
+  </div>
+</div>
+
+<!-- EQUIPMENT SIGN-OUT MODAL -->
+<div class="modal-overlay" id="modal-equipment-signout">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="eqco-title">Sign Out Equipment</div>
+      <button class="modal-close" onclick="closeModal('modal-equipment-signout')">✕</button>
+    </div>
+    <div class="modal-field"><label class="modal-label">Who is taking it</label>
+      <input class="modal-input" id="eqco-person" placeholder="Full name"></div>
+    <div class="modal-field"><label class="modal-label">Due back (optional)</label>
+      <input class="modal-input" type="date" id="eqco-due_back"></div>
+    <button class="btn-sm btn-orange" onclick="eqSignOutSave()">Sign Out</button>
+  </div>
+</div>
+
+<!-- EQUIPMENT DOCUMENT MODAL -->
+<div class="modal-overlay" id="modal-equipment-doc">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add Document</div>
+      <button class="modal-close" onclick="closeModal('modal-equipment-doc')">✕</button>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field"><label class="modal-label">Type</label>
+        <select class="modal-select" id="eqd-type">
+          <option value="calibration_cert">Calibration Cert</option>
+          <option value="bill_of_lading">Bill of Lading</option>
+          <option value="bridge_doc">Bridge Doc</option>
+          <option value="other">Other</option>
+        </select></div>
+      <div class="modal-field"><label class="modal-label">Document Date</label>
+        <input class="modal-input" type="date" id="eqd-doc_date"></div>
+    </div>
+    <div class="modal-field"><label class="modal-label">File</label>
+      <input class="modal-input" type="file" id="eqd-file" accept=".pdf,.jpg,.jpeg,.png"></div>
+    <div class="modal-field"><label class="modal-label">Notes</label>
+      <input class="modal-input" id="eqd-notes"></div>
+    <button class="btn-sm btn-orange" id="eqd-save" onclick="eqSaveDoc()">Attach</button>
   </div>
 </div>
 
@@ -4180,10 +4302,15 @@ async function loadActiveAlerts(){
       .gte('expiration_date', today).lte('expiration_date', sixtyStr);
     if(currentUserRole === 'inspector') certQ = certQ.eq('profile_id', currentUser?.id);
   }
-  const [pendingRes, certsRes] = await Promise.all([pendingQ, certQ]);
+  // Equipment calibration due (CMT pack): cal_due within 60 days OR already overdue.
+  let equipQ = ACTIVE_PACK === 'cmt'
+    ? sb.from('equipment').select('id').is('deleted_at', null).not('cal_due_date','is',null).lte('cal_due_date', sixtyStr)
+    : Promise.resolve({data:[]});
+  const [pendingRes, certsRes, equipRes] = await Promise.all([pendingQ, certQ, equipQ]);
   if(pendingRes.error) console.warn('loadActiveAlerts pending:', pendingRes.error);
   if(certsRes.error) console.warn('loadActiveAlerts certs:', certsRes.error);
-  return {pendingPtoCount:(pendingRes.data||[]).length, certsExpiringCount:(certsRes.data||[]).length};
+  if(equipRes && equipRes.error) console.warn('loadActiveAlerts equipment:', equipRes.error);
+  return {pendingPtoCount:(pendingRes.data||[]).length, certsExpiringCount:(certsRes.data||[]).length, equipmentDueCount:(equipRes && equipRes.data ? equipRes.data.length : 0)};
 }
 
 function renderAlertsTile(data){
@@ -4202,10 +4329,15 @@ function renderAlertsTile(data){
   const certOnclick = data.certsExpiringCount > 0
     ? ` onclick="showPanel('${ACTIVE_PACK === 'cmt' ? 'cmt-certs' : 'certs'}');${ACTIVE_PACK === 'cmt' ? 'cmtLoadCerts();' : ''}" style="cursor:pointer"`
     : '';
+  const equipCls = data.equipmentDueCount > 0 ? 'warn' : 'ok';
+  const equipIcon = data.equipmentDueCount > 0 ? '⚠' : '✓';
+  const equipOnclick = (ACTIVE_PACK === 'cmt' && data.equipmentDueCount > 0)
+    ? ` onclick="showPanel('cmt-equipment');eqLoad()" style="cursor:pointer"` : '';
   host.innerHTML = `
     <div>
       <div class="ops-tile-alert ${ptoCls}"${ptoOnclick}><span>${ptoIcon}</span> <strong>${data.pendingPtoCount}</strong> PTO ${data.pendingPtoCount === 1 ? 'request' : 'requests'} pending</div>
       <div class="ops-tile-alert ${certCls}" style="margin-top:6px"${certOnclick}><span>${certIcon}</span> <strong>${data.certsExpiringCount}</strong> cert${data.certsExpiringCount === 1 ? '' : 's'} expiring <span style="color:var(--muted);font-weight:400">(60d)</span></div>
+      ${ACTIVE_PACK === 'cmt' ? `<div class="ops-tile-alert ${equipCls}" style="margin-top:6px"${equipOnclick}><span>${equipIcon}</span> <strong>${data.equipmentDueCount||0}</strong> equipment cal due <span style="color:var(--muted);font-weight:400">(60d)</span></div>` : ''}
       <div class="ops-tile-alert ok" style="margin-top:6px"><span>✓</span> All synced</div>
     </div>`;
 }
@@ -8035,6 +8167,69 @@ const IMPORT_TARGETS = {
       'S-101,Foundation Plan,drawing,1,2026-10-12,true,false,S-101.pdf',
       'S-201,Framing Plan Level 2,drawing,2,2026-10-14,false,true,S-201.pdf',
       'SPEC-033000,Cast-in-Place Concrete,document,1,,true,false,',
+    ].join('\n'),
+  },
+
+  // #3 - EQUIPMENT REGISTER. Data-only import (documents attach per-item). A duplicate
+  // asset_tag already on file is flagged and skipped, never overwritten. No new importer:
+  // rides the same descriptor engine as properties and drawings.
+  equipment: {
+    key:'equipment', pitchLabel:'equipment import',
+    modalTitle:'Bulk Import Equipment',
+    modalSub:'Drop a CSV or Excel file. Minimum required: "asset_tag".',
+    hintHtml:'<strong>Accepted columns</strong> (case-insensitive, any order):<br>'+
+      '<code>asset_tag</code> (required) &middot; <code>type</code> &middot; <code>make</code> &middot; <code>model</code> &middot; <code>serial</code> &middot; <code>status</code> &middot; <code>home_location</code> &middot; <code>last_cal_date</code> &middot; <code>cal_due_date</code> &middot; <code>cal_vendor</code> &middot; <code>secondary_label</code> &middot; <code>secondary_due_date</code> &middot; <code>notes</code><br>'+
+      'A duplicate <b>asset tag</b> already on file is flagged and skipped, never overwritten.',
+    accept:'.csv,.xlsx,.xls,.tsv', showFileMatch:false,
+    summaryNoun:'equipment',
+    confirmLabel:n=>`Import ${n} Item${n===1?'':'s'}`,
+    skipSummary(sk){ const dup=sk.filter(r=>/^DUPLICATE/.test(r.reason)).length; const err=sk.length-dup;
+      return ` ${sk.length} row(s) skipped (${dup} duplicate${dup===1?'':'s'}, no overwrite; ${err} error${err===1?'':'s'}).`; },
+    aliases:{
+      'asset_tag':'asset_tag','asset tag':'asset_tag','tag':'asset_tag','asset':'asset_tag','asset no':'asset_tag','asset number':'asset_tag','id':'asset_tag','equipment id':'asset_tag','unit':'asset_tag',
+      'type':'type','equipment type':'type','category':'type','kind':'type',
+      'make':'make','manufacturer':'make','mfr':'make','brand':'make',
+      'model':'model','model no':'model','model number':'model',
+      'serial':'serial','serial no':'serial','serial number':'serial','sn':'serial','s/n':'serial',
+      'status':'status','state':'status',
+      'home_location':'home_location','home location':'home_location','location':'home_location','stored':'home_location','storage':'home_location',
+      'last_cal_date':'last_cal_date','last cal':'last_cal_date','last calibrated':'last_cal_date','last calibration':'last_cal_date','calibrated':'last_cal_date',
+      'cal_due_date':'cal_due_date','cal due':'cal_due_date','calibration due':'cal_due_date','due':'cal_due_date','next cal':'cal_due_date','next calibration':'cal_due_date',
+      'cal_vendor':'cal_vendor','vendor':'cal_vendor','calibration vendor':'cal_vendor','cal lab':'cal_vendor','lab':'cal_vendor',
+      'secondary_label':'secondary_label','secondary label':'secondary_label','secondary':'secondary_label',
+      'secondary_due_date':'secondary_due_date','secondary due':'secondary_due_date','leak test date':'secondary_due_date','leak test due':'secondary_due_date','secondary date':'secondary_due_date',
+      'notes':'notes','note':'notes','comment':'notes','comments':'notes','remarks':'notes',
+    },
+    async buildContext(){
+      const {data}=await sb.from('equipment').select('asset_tag').eq('firm_id',currentFirmId).is('deleted_at',null);
+      return { dup:new Set((data||[]).map(d=>String(d.asset_tag||'').toLowerCase())) };
+    },
+    rowStatus(r, ctx){
+      const d=r.data;
+      if(!d.asset_tag) return 'Missing asset_tag';
+      if(d.status && !['in_service','out_for_calibration','out_of_service'].includes(String(d.status).trim())) return `invalid status "${d.status}"`;
+      if(ctx.dup.has(String(d.asset_tag).toLowerCase())) return `DUPLICATE asset tag ${d.asset_tag} already on file`;
+      return '';
+    },
+    previewColumns:[
+      {label:'Asset Tag', get:d=>d.asset_tag||'-'},
+      {label:'Type', get:d=>d.type||'-'},
+      {label:'Make/Model', get:d=>[d.make,d.model].filter(Boolean).join(' ')||'-'},
+      {label:'Serial', get:d=>d.serial||'-'},
+      {label:'Cal Due', get:d=>d.cal_due_date||'-'},
+    ],
+    async commit(valid, ctx, setText){
+      const payloads=valid.map(r=>({ firm_id:currentFirmId, asset_tag:r.data.asset_tag, type:r.data.type||null, make:r.data.make||null, model:r.data.model||null, serial:r.data.serial||null, status:(r.data.status||'in_service'), home_location:r.data.home_location||null, last_cal_date:r.data.last_cal_date||null, cal_due_date:r.data.cal_due_date||null, cal_vendor:r.data.cal_vendor||null, secondary_label:r.data.secondary_label||null, secondary_due_date:r.data.secondary_due_date||null, notes:r.data.notes||null }));
+      let successCount=0, failCount=0; const failedRows=[]; const BATCH=50;
+      for(let i=0;i<payloads.length;i+=BATCH){ const chunk=payloads.slice(i,i+BATCH); setText(`Importing... ${Math.min(i+BATCH,payloads.length)} of ${payloads.length}`); const {error}=await sb.from('equipment').insert(chunk); if(error){ failCount+=chunk.length; failedRows.push(error.message); } else { successCount+=chunk.length; } }
+      return {successCount, failCount, failedRows};
+    },
+    onDone(){ if(typeof eqLoad==='function') eqLoad(); },
+    templateName:'equipment_template.csv',
+    templateCsv:()=>[
+      'asset_tag,type,make,model,serial,status,home_location,last_cal_date,cal_due_date,cal_vendor,secondary_label,secondary_due_date,notes',
+      'NDG-01,Nuclear Density Gauge,FieldScan,3500,NDG3500-1188,in_service,Gauge Locker,2026-05-30,2026-11-30,Statewide Calibration,Leak Test,2026-10-05,Moisture-density gauge',
+      'AIR-01,Air Meter,PressurePro,Type B,AM-4471,in_service,Field Kit A,2025-08-20,2026-08-20,Precision Cal Lab,,,Pressure-type air meter',
     ].join('\n'),
   },
 };
@@ -14305,6 +14500,195 @@ function cmtOpenDrawingModal(){ document.getElementById('modal-cmt-drawing').cla
 // rendered on demand); photos upload as the RAW file, never downscaled. The
 // C-501 lesson: rasterizing a vector sheet at ingest destroys the drawing.
 // DO NOT add any resize/rasterize step here. Returns the storage image_path.
+// ════════════════════════════════════════════════════════════════════════════
+// EQUIPMENT REGISTER (CMT pack) - 2026-09-13. Firm-scoped calibration + documents
+// + checkout. Reuses the certifications expiry-pill color logic, the pd- drill-down
+// grammar, the shared modal chrome, and the IMPORT_TARGETS engine + cmtIngestSheetFile
+// ingest law. Pack-guarded inside #nav-pack-cmt. B3 doctrine on sign-out / sign-in.
+// ════════════════════════════════════════════════════════════════════════════
+let _eqFilter='all', _eqCache=[], _eqOpenByEq={}, _eqCurrentId=null, _eqDetailTab='overview', _eqEditId=null;
+function eqEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+const EQ_STATUS_LABEL={ in_service:'In Service', out_for_calibration:'Out for Calibration', out_of_service:'Out of Service' };
+function eqDateFmt(d){ return d ? new Date(d+(String(d).length===10?'T00:00:00':'')).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '-'; }
+// calibration-due pill - same day-count + color states as the certifications renderPill.
+function eqCalPill(dateStr, noneLabel){
+  if(!dateStr) return '<span class="cert-pill" style="background:#e2e8f0;color:#1a1a1a">'+(noneLabel||'No Cal')+'</span>';
+  const days=Math.floor((new Date(dateStr+'T00:00:00') - new Date())/86400000);
+  let bg,color,label;
+  if(days<0){ bg='#1a1a1a';color='#fff';label='Overdue'; }
+  else if(days<30){ bg='#dc2626';color='#fff';label=days+'d'; }
+  else if(days<60){ bg='#f59e0b';color='#1a1a1a';label=days+'d'; }
+  else if(days<365){ bg='#10b981';color='#fff';label=Math.floor(days/30)+'mo'; }
+  else { const y=Math.floor(days/365),m=Math.floor((days%365)/30); bg='#10b981';color='#fff';label=y+'y'+(m?' '+m+'mo':''); }
+  return '<span class="cert-pill" style="background:'+bg+';color:'+color+'">'+label+'</span>';
+}
+async function eqLoad(){
+  const host=document.getElementById('eq-list'); if(!host) return;
+  document.getElementById('eq-detail').style.display='none';
+  document.getElementById('eq-listview').style.display='';
+  host.innerHTML='<div class="loading">Loading equipment...</div>';
+  const {data,error}=await sb.from('equipment').select('*').eq('firm_id',currentFirmId).is('deleted_at',null).order('asset_tag',{ascending:true});
+  if(error){ host.innerHTML='<div class="pd-empty">Error loading equipment: '+eqEsc(error.message)+'</div>'; return; }
+  _eqCache=data||[];
+  const {data:cos}=await sb.from('equipment_checkouts').select('*').eq('firm_id',currentFirmId).is('deleted_at',null).is('in_at',null);
+  _eqOpenByEq={}; (cos||[]).forEach(c=>{ _eqOpenByEq[c.equipment_id]=c; });
+  eqRenderList();
+}
+function eqSetFilter(f){ _eqFilter=f; document.querySelectorAll('#eq-filters .eq-filter').forEach(b=>b.classList.toggle('active', b.dataset.f===f)); eqRenderList(); }
+function eqRenderList(){
+  const host=document.getElementById('eq-list'); if(!host) return;
+  const today=new Date(); let rows=_eqCache.slice();
+  if(_eqFilter==='in_service') rows=rows.filter(r=>r.status==='in_service' && !_eqOpenByEq[r.id]);
+  else if(_eqFilter==='out') rows=rows.filter(r=>_eqOpenByEq[r.id] || r.status==='out_for_calibration');
+  else if(_eqFilter==='due') rows=rows.filter(r=>r.cal_due_date && Math.floor((new Date(r.cal_due_date+'T00:00:00')-today)/86400000)<60);
+  if(!rows.length){ host.innerHTML='<div class="pd-empty">No equipment'+(_eqFilter!=='all'?' in this view':' yet')+'. Use + Add Equipment or Import to get started.</div>'; return; }
+  let html='<table class="data-table"><thead><tr><th>Asset Tag</th><th>Type</th><th>Make / Model</th><th>Serial</th><th>Status</th><th>Calibration Due</th><th>Held By</th></tr></thead><tbody>';
+  rows.forEach(r=>{
+    const co=_eqOpenByEq[r.id];
+    const held=co?('<strong>'+eqEsc(co.person||'-')+'</strong>'):'<span style="color:var(--muted)">In stock</span>';
+    const statusTxt=co?'Signed Out':(EQ_STATUS_LABEL[r.status]||r.status);
+    html+='<tr class="cmt-link" onclick="eqOpenDetail(\''+r.id+'\')">'
+      +'<td><strong>'+eqEsc(r.asset_tag||'-')+'</strong></td><td>'+eqEsc(r.type||'-')+'</td>'
+      +'<td>'+eqEsc([r.make,r.model].filter(Boolean).join(' ')||'-')+'</td><td>'+eqEsc(r.serial||'-')+'</td>'
+      +'<td>'+statusTxt+'</td>'
+      +'<td>'+eqCalPill(r.cal_due_date)+(r.cal_due_date?' <span style="color:var(--muted);font-size:11px">'+eqDateFmt(r.cal_due_date)+'</span>':'')+'</td>'
+      +'<td>'+held+'</td></tr>';
+  });
+  host.innerHTML=html+'</tbody></table>';
+}
+function eqOpenDetail(id){ _eqCurrentId=id; _eqDetailTab='overview'; document.getElementById('eq-listview').style.display='none'; document.getElementById('eq-detail').style.display=''; eqRenderDetail(); }
+function eqBackToList(){ document.getElementById('eq-detail').style.display='none'; document.getElementById('eq-listview').style.display=''; }
+function eqSwitchTab(t){ _eqDetailTab=t; eqRenderDetail(); }
+function eqRenderDetail(){
+  const eq=_eqCache.find(e=>e.id===_eqCurrentId); if(!eq){ eqBackToList(); return; }
+  document.getElementById('eq-detail-head').innerHTML=
+    '<button class="btn-sm" onclick="eqBackToList()">‹ Back to Equipment</button>'
+    +'<div class="page-title" style="margin-top:8px">'+eqEsc(eq.asset_tag||'Equipment')+' <span style="color:var(--muted);font-size:14px;font-weight:500">'+eqEsc(eq.type||'')+'</span></div>';
+  const tabs=[['overview','Overview'],['documents','Documents'],['checkout','Checkout History']];
+  document.getElementById('eq-detail-tabs').innerHTML=tabs.map(([k,l])=>'<div class="pd-tab '+(_eqDetailTab===k?'active':'')+'" onclick="eqSwitchTab(\''+k+'\')">'+eqEsc(l)+'</div>').join('');
+  const body=document.getElementById('eq-detail-body');
+  if(_eqDetailTab==='overview'){ body.innerHTML=eqOverviewHtml(eq); }
+  else if(_eqDetailTab==='documents'){ body.innerHTML='<div class="loading">Loading documents...</div>'; eqLoadDocs(eq.id); }
+  else { body.innerHTML='<div class="loading">Loading checkout history...</div>'; eqLoadCheckouts(eq.id); }
+}
+function eqOverviewHtml(eq){
+  const co=_eqOpenByEq[eq.id];
+  const stat=(l,v)=>'<div class="pd-stat"><div class="pd-stat-label">'+l+'</div><div class="pd-stat-val">'+v+'</div></div>';
+  const action = co
+    ? '<div class="ops-tile-alert warn" style="margin-bottom:12px"><span>⚠</span> Signed out to <strong>'+eqEsc(co.person||'-')+'</strong>'+(co.due_back?' · due back '+eqDateFmt(co.due_back):'')+' <button class="btn-sm btn-orange" style="margin-left:8px" onclick="eqSignIn(\''+co.id+'\')">Sign In</button></div>'
+    : '<div style="margin-bottom:12px"><button class="btn-sm btn-orange" onclick="eqOpenSignOut(\''+eq.id+'\')">Sign Out</button></div>';
+  return action
+    +'<div class="pd-header-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:14px">'
+      +stat('Status', co?'Signed Out':(EQ_STATUS_LABEL[eq.status]||eq.status))
+      +stat('Make / Model', eqEsc([eq.make,eq.model].filter(Boolean).join(' ')||'-'))
+      +stat('Serial', eqEsc(eq.serial||'-'))
+      +stat('Home Location', eqEsc(eq.home_location||'-'))
+      +stat('Calibration Due', eqCalPill(eq.cal_due_date)+' '+eqDateFmt(eq.cal_due_date))
+      +stat('Last Calibrated', eqDateFmt(eq.last_cal_date))
+      +stat('Cal Vendor', eqEsc(eq.cal_vendor||'-'))
+      +stat(eqEsc(eq.secondary_label||'Secondary Due'), eq.secondary_due_date?(eqCalPill(eq.secondary_due_date)+' '+eqDateFmt(eq.secondary_due_date)):'-')
+    +'</div>'
+    +(eq.notes?'<div class="pd-sub-notes" style="margin-bottom:12px">'+eqEsc(eq.notes)+'</div>':'')
+    +'<button class="btn-sm" onclick="eqOpenEdit(\''+eq.id+'\')">Edit Details</button>';
+}
+async function eqLoadDocs(eqId){
+  const {data,error}=await sb.from('equipment_documents').select('*').eq('equipment_id',eqId).is('deleted_at',null).order('doc_date',{ascending:false});
+  const body=document.getElementById('eq-detail-body'); if(_eqDetailTab!=='documents') return;
+  const DT={ calibration_cert:'Calibration Cert', bill_of_lading:'Bill of Lading', bridge_doc:'Bridge Doc', other:'Other' };
+  let html='<div style="margin-bottom:12px"><button class="btn-sm btn-orange" onclick="eqOpenAddDoc(\''+eqId+'\')">+ Add Document</button></div>';
+  if(error){ html+='<div class="pd-empty">Error: '+eqEsc(error.message)+'</div>'; }
+  else if(!data||!data.length){ html+='<div class="pd-empty">No documents yet. Calibration certs, bills of lading, and bridge docs attach here.</div>'; }
+  else { html+='<table class="data-table"><thead><tr><th>Type</th><th>Date</th><th>Notes</th><th>File</th></tr></thead><tbody>'
+    +data.map(d=>'<tr><td>'+eqEsc(DT[d.doc_type]||d.doc_type||'-')+'</td><td>'+eqDateFmt(d.doc_date)+'</td><td>'+eqEsc(d.notes||'-')+'</td><td>'+(d.file?'<a href="#" onclick="eqOpenFile(\''+eqEsc(d.file)+'\');return false">View</a>':'-')+'</td></tr>').join('')
+    +'</tbody></table>'; }
+  body.innerHTML=html;
+}
+function eqOpenFile(path){
+  try{ const url=cmtStorageUrl(path); if(url) window.open(url,'_blank'); else showToast('File not available','error'); }
+  catch(e){ showToast('Could not open file','error'); }
+}
+async function eqLoadCheckouts(eqId){
+  const {data,error}=await sb.from('equipment_checkouts').select('*').eq('equipment_id',eqId).is('deleted_at',null).order('out_at',{ascending:false});
+  const body=document.getElementById('eq-detail-body'); if(_eqDetailTab!=='checkout') return;
+  let html='';
+  if(error){ html='<div class="pd-empty">Error: '+eqEsc(error.message)+'</div>'; }
+  else if(!data||!data.length){ html='<div class="pd-empty">No checkout history yet. Sign this item out from the Overview tab.</div>'; }
+  else { html='<table class="data-table"><thead><tr><th>Person</th><th>Out</th><th>Due Back</th><th>Returned</th><th>Condition</th></tr></thead><tbody>'
+    +data.map(c=>{ const open=!c.in_at; return '<tr>'
+      +'<td><strong>'+eqEsc(c.person||'-')+'</strong></td>'
+      +'<td>'+(c.out_at?new Date(c.out_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'-')+'</td>'
+      +'<td>'+eqDateFmt(c.due_back)+'</td>'
+      +'<td>'+(open?'<span class="cert-pill" style="background:#f59e0b;color:#1a1a1a">Out</span>':(c.in_at?new Date(c.in_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'-'))+'</td>'
+      +'<td>'+eqEsc(c.condition_note||'-')+'</td></tr>'; }).join('')
+    +'</tbody></table>'; }
+  body.innerHTML=html;
+}
+// ── Add / Edit equipment ──
+function eqOpenAddModal(){ _eqEditId=null; eqFillModal(null); document.getElementById('modal-equipment').classList.add('open'); }
+function eqOpenEdit(id){ _eqEditId=id; eqFillModal(_eqCache.find(e=>e.id===id)); document.getElementById('modal-equipment').classList.add('open'); }
+function eqFillModal(eq){
+  document.getElementById('eqm-title').textContent = eq?'Edit Equipment':'Add Equipment';
+  const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.value=v==null?'':v; };
+  set('eqm-asset_tag',eq?.asset_tag); set('eqm-type',eq?.type); set('eqm-make',eq?.make); set('eqm-model',eq?.model);
+  set('eqm-serial',eq?.serial); set('eqm-status',eq?.status||'in_service'); set('eqm-home_location',eq?.home_location);
+  set('eqm-last_cal_date',eq?.last_cal_date); set('eqm-cal_due_date',eq?.cal_due_date); set('eqm-cal_vendor',eq?.cal_vendor);
+  set('eqm-secondary_label',eq?.secondary_label); set('eqm-secondary_due_date',eq?.secondary_due_date); set('eqm-notes',eq?.notes);
+}
+async function eqSaveEquipment(){
+  const g=id=>{ const el=document.getElementById(id); const v=el?el.value.trim():''; return v===''?null:v; };
+  const payload={ asset_tag:g('eqm-asset_tag'), type:g('eqm-type'), make:g('eqm-make'), model:g('eqm-model'),
+    serial:g('eqm-serial'), status:g('eqm-status')||'in_service', home_location:g('eqm-home_location'),
+    last_cal_date:g('eqm-last_cal_date'), cal_due_date:g('eqm-cal_due_date'), cal_vendor:g('eqm-cal_vendor'),
+    secondary_label:g('eqm-secondary_label'), secondary_due_date:g('eqm-secondary_due_date'), notes:g('eqm-notes') };
+  if(!payload.asset_tag){ showToast('Asset tag is required','error'); return; }
+  let error;
+  if(_eqEditId){ payload.updated_at=new Date().toISOString(); ({error}=await sb.from('equipment').update(payload).eq('id',_eqEditId)); }
+  else { payload.firm_id=currentFirmId; ({error}=await sb.from('equipment').insert(payload)); }
+  if(error){ showToast('Save failed: '+error.message,'error'); return; }
+  closeModal('modal-equipment'); showToast(_eqEditId?'Equipment updated':'Equipment added','success');
+  const wasDetail=document.getElementById('eq-detail').style.display!=='none';
+  await eqLoad(); if(wasDetail && _eqEditId){ eqOpenDetail(_eqEditId); }
+}
+// ── Sign out / sign in (B3: one action, one screen) ──
+function eqOpenSignOut(eqId){
+  _eqEditId=eqId; const eq=_eqCache.find(e=>e.id===eqId);
+  document.getElementById('eqco-title').textContent='Sign Out '+(eq?.asset_tag||'Equipment');
+  ['eqco-person','eqco-due_back'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('modal-equipment-signout').classList.add('open');
+}
+async function eqSignOutSave(){
+  const person=document.getElementById('eqco-person').value.trim();
+  const due=document.getElementById('eqco-due_back').value||null;
+  if(!person){ showToast('Enter who is taking it','error'); return; }
+  const {error}=await sb.from('equipment_checkouts').insert({ firm_id:currentFirmId, equipment_id:_eqEditId, person, out_at:new Date().toISOString(), out_by:(currentUser?.id||null), due_back:due });
+  if(error){ showToast('Sign out failed: '+error.message,'error'); return; }
+  closeModal('modal-equipment-signout'); showToast('Signed out to '+person,'success');
+  await eqLoad(); eqOpenDetail(_eqEditId);
+}
+async function eqSignIn(checkoutId){
+  const note=prompt('Condition note on return (optional):','');
+  if(note===null) return;
+  const {error}=await sb.from('equipment_checkouts').update({ in_at:new Date().toISOString(), in_by:(currentUser?.id||null), condition_note:(note.trim()||null), updated_at:new Date().toISOString() }).eq('id',checkoutId);
+  if(error){ showToast('Sign in failed: '+error.message,'error'); return; }
+  showToast('Signed in','success'); await eqLoad(); eqOpenDetail(_eqCurrentId);
+}
+// ── Add document (rides cmtIngestSheetFile - the ingest law, no new upload path) ──
+function eqOpenAddDoc(eqId){ _eqEditId=eqId; ['eqd-doc_date','eqd-notes'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; }); const f=document.getElementById('eqd-file'); if(f) f.value=''; document.getElementById('eqd-type').value='calibration_cert'; document.getElementById('modal-equipment-doc').classList.add('open'); }
+async function eqSaveDoc(){
+  const fileEl=document.getElementById('eqd-file'); const f=fileEl&&fileEl.files&&fileEl.files[0];
+  if(!f){ showToast('Pick a file','error'); return; }
+  const btn=document.getElementById('eqd-save'); if(btn){ btn.disabled=true; btn.textContent='Uploading...'; }
+  try{
+    const path=await cmtIngestSheetFile(f,(m)=>{ if(btn) btn.textContent=m; });
+    const {error}=await sb.from('equipment_documents').insert({ firm_id:currentFirmId, equipment_id:_eqEditId, doc_type:document.getElementById('eqd-type').value, file:path, doc_date:(document.getElementById('eqd-doc_date').value||null), notes:(document.getElementById('eqd-notes').value.trim()||null) });
+    if(error) throw error;
+    closeModal('modal-equipment-doc'); showToast('Document attached','success');
+    if(_eqDetailTab==='documents') eqLoadDocs(_eqEditId);
+  }catch(e){ showToast('Upload failed: '+(e.message||e),'error'); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='Attach'; } }
+}
+function eqOpenImport(){ openBulkImportFor('equipment'); }
+
 async function cmtIngestSheetFile(f, statusCb){
   const isPdf = f.type==='application/pdf' || /\.pdf$/i.test(f.name);
   const ext = isPdf ? 'pdf' : ((f.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg');
